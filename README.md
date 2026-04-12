@@ -286,6 +286,24 @@ All dependencies are MIT or Apache-2.0 licensed. No GPL/LGPL/AGPL.
 
 Explore the working prototype: **[graphai-nine.vercel.app](https://graphai-nine.vercel.app)**
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/examples.png" alt="Example Datasets — load public datasets into graphAI" width="100%" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/graph.png" alt="Graph Visualization — force-directed view of 12,134 nodes and 67,578 edges" width="100%" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/giki.png" alt="Giki — auto-generated topic pages with node citations" width="100%" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/audit.png" alt="Knowledge Audit — entity reports, contradictions, and health metrics" width="100%" />
+</p>
+
 ## License
 
 MIT
