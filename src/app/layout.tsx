@@ -23,7 +23,8 @@ const navItems = [
   { href: "/examples", label: "Examples" },
   { href: "/graph", label: "Graph" },
   { href: "/chat", label: "Chat" },
-  { href: "/benchmark", label: "Benchmarks" },
+  { href: "/correct", label: "Correct" },
+  { href: "/giki", label: "Giki" },
   { href: "/audit", label: "Audit" },
 ];
 
