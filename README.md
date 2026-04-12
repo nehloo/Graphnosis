@@ -282,6 +282,10 @@ tests/
 
 All dependencies are MIT or Apache-2.0 licensed. No GPL/LGPL/AGPL.
 
+## Live Demo
+
+Explore the working prototype: **[graphai-nine.vercel.app](https://graphai-nine.vercel.app)**
+
 ## License
 
 MIT
