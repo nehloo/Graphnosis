@@ -63,6 +63,27 @@ export default function RootLayout({
         <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
           {children}
         </main>
+        <footer className="border-t border-border bg-surface mt-8">
+          <div className="max-w-7xl mx-auto px-4 py-6 space-y-2">
+            <p className="text-xs text-muted leading-relaxed max-w-3xl">
+              <strong className="text-foreground">graphAI</strong> explores a novel approach to AI knowledge representation: dual-graph structures (directed + undirected edges over the same node set) serialized in an AI-native binary format (.gai) — optimized for machine comprehension, not human readability. Graph construction costs $0 (pure JS, no embedding APIs). Human corrections, giki pages, and audit reports provide a full audit trail.
+            </p>
+            <div className="flex items-center gap-3 text-xs text-muted">
+              <a
+                href="https://github.com/nehloo/graphAI"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground transition-colors"
+              >
+                GitHub
+              </a>
+              <span className="text-border">|</span>
+              <span>Created by Nelu Lazar</span>
+              <span className="text-border">|</span>
+              <span>MIT License</span>
+            </div>
+          </div>
+        </footer>
       </body>
     </html>
   );
