@@ -52,9 +52,10 @@ POST /api/graph/query            # Chat query (streaming LLM)
 POST /api/graph/context          # Subgraph context (no LLM)
 GET  /api/graph/benchmark        # Run 10 query benchmarks
 GET  /api/graph/audit            # Entity reports, contradictions, health
-POST /api/graph/correct          # Apply corrections or bulk import
+POST /api/graph/correct          # Apply corrections, bulk import, forget by time/topic, cascade delete
 GET  /api/graph/giki             # Generate topic pages with citations
 POST /api/graph/enrich           # LLM enrichment pass
+POST /api/graph/reflect          # Run reflection engine (contradictions, decay, inference, discovery)
 GET  /api/graph/longmemeval      # Run LongMemEval test suite
 ```
 
@@ -92,5 +93,8 @@ data/                           # Runtime: .gai files, SQLite db, cache (gitigno
 - Temporal: confidence decays ~1%/day after 7 days without access (floor 0.1)
 - Contradiction detection: strict conflict patterns only (reclassified, disputed, disproven, etc.)
 - Corrections: soft-delete (validUntil + confidence 0.1), never hard-delete
+- Bulk forget: by time window (before date) or by topic (entity/content match)
+- Cascade soft-delete: follows contains edges + same-source to soft-delete downstream nodes
+- Reflection engine: callable on-demand via POST /api/graph/reflect
 - .gai checksum validates file integrity on read
 - All dependencies MIT or Apache-2.0 licensed

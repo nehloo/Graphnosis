@@ -49,11 +49,16 @@ graphAI is a research prototype that converts raw files into AI-optimized dual-g
 - **Contradiction detection:** Strict patterns only (reclassified, disputed, disproven) — not loose negation words
 - **Rate limiting:** Wikipedia (100ms), arXiv (3s), NASA (2s) between API requests
 
-### Temporal Safety
+### Temporal Safety & Forgetting
 - Confidence decays ~1%/day after 7 days without access (floor at 0.1)
 - Expired nodes (validUntil < now) score 0.3x in queries
 - Superseded nodes retain original content for audit trail
 - Human corrections always get confidence 1.0
+- Bulk forget by time window: soft-deletes all nodes created before a given date
+- Bulk forget by topic: soft-deletes all nodes matching an entity or content string
+- Cascade soft-delete: follows contains edges and same-source to soft-delete downstream nodes
+- Nothing is ever hard-deleted — all forgetting is reversible via the audit trail
+- Reflection engine (POST /api/graph/reflect): runs contradiction detection, confidence decay, transitive edge inference, and cross-domain discovery on demand
 
 ### Data Safety
 - SQLite persistence with WAL mode for concurrent reads

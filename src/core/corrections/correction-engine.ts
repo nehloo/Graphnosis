@@ -262,6 +262,115 @@ export function importCorrections(
   return result;
 }
 
+// Bulk forgetting: soft-delete nodes by time window
+export function forgetByTimeWindow(
+  graph: KnowledgeGraph,
+  before: number, // Timestamp: forget everything created before this
+  reason: string = 'Bulk time-window forgetting'
+): { forgotten: number } {
+  let forgotten = 0;
+  const now = Date.now();
+
+  for (const [, node] of graph.nodes) {
+    if (node.type === 'document' || node.type === 'section') continue;
+    if (node.validUntil && node.validUntil < now) continue; // Already forgotten
+    if (node.createdAt < before) {
+      node.validUntil = now;
+      node.confidence = 0.1;
+      node.metadata.forgottenAt = now;
+      node.metadata.forgetReason = reason;
+      forgotten++;
+    }
+  }
+
+  graph.metadata.updatedAt = now;
+  graph.metadata.version++;
+  return { forgotten };
+}
+
+// Bulk forgetting: soft-delete nodes by topic (entity match)
+export function forgetByTopic(
+  graph: KnowledgeGraph,
+  topic: string,
+  reason: string = `Bulk topic forgetting: ${topic}`
+): { forgotten: number } {
+  let forgotten = 0;
+  const now = Date.now();
+  const topicLower = topic.toLowerCase();
+
+  for (const [, node] of graph.nodes) {
+    if (node.type === 'document' || node.type === 'section') continue;
+    if (node.validUntil && node.validUntil < now) continue; // Already forgotten
+
+    const matchesEntity = node.entities.some(e => e.toLowerCase().includes(topicLower));
+    const matchesContent = node.content.toLowerCase().includes(topicLower);
+
+    if (matchesEntity || matchesContent) {
+      node.validUntil = now;
+      node.confidence = 0.1;
+      node.metadata.forgottenAt = now;
+      node.metadata.forgetReason = reason;
+      forgotten++;
+    }
+  }
+
+  graph.metadata.updatedAt = now;
+  graph.metadata.version++;
+  return { forgotten };
+}
+
+// Cascade soft-delete: when a source node is soft-deleted,
+// follow edges to soft-delete all downstream nodes from that source
+export function cascadeSoftDelete(
+  graph: KnowledgeGraph,
+  nodeId: NodeId,
+  reason: string = 'Cascade from parent soft-delete'
+): { cascaded: number } {
+  const now = Date.now();
+  const visited = new Set<NodeId>();
+  const queue = [nodeId];
+  let cascaded = 0;
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (visited.has(current)) continue;
+    visited.add(current);
+
+    const node = graph.nodes.get(current);
+    if (!node) continue;
+
+    // Soft-delete this node (skip if already expired)
+    if (!node.validUntil || node.validUntil > now) {
+      node.validUntil = now;
+      node.confidence = Math.min(node.confidence, 0.1);
+      node.metadata.forgottenAt = now;
+      node.metadata.forgetReason = reason;
+      if (current !== nodeId) cascaded++; // Don't count the root node
+    }
+
+    // Follow outgoing "contains" edges to find children
+    for (const edge of graph.directedEdges.values()) {
+      if (edge.from === current && edge.type === 'contains') {
+        queue.push(edge.to);
+      }
+    }
+
+    // Follow nodes from the same source file
+    if (current === nodeId && node.source.file) {
+      for (const [otherId, otherNode] of graph.nodes) {
+        if (otherId === nodeId) continue;
+        if (otherNode.source.file === node.source.file) {
+          queue.push(otherId);
+        }
+      }
+    }
+  }
+
+  graph.metadata.updatedAt = now;
+  graph.metadata.version++;
+  return { cascaded };
+}
+
 function classifyCorrectionType(text: string): NodeType {
   const lower = text.toLowerCase();
   if (/\b(is defined as|refers to|means)\b/.test(lower)) return 'definition';

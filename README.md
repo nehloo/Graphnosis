@@ -56,6 +56,8 @@ CONVERSATIONS  ─────────────────────�
 
 **Human corrections:** Add facts, edit nodes, supersede outdated info, or bulk-import markdown. Human-corrected nodes get maximum confidence (1.0).
 
+**Forgetting policy:** Forget by topic ("forget everything about my old job"), by time window ("forget everything before March"), or cascade from a source node. All forgetting is soft-delete — nodes remain in the graph for audit but score 0.3x in queries. Nothing is ever permanently destroyed.
+
 **Giki pages:** Human-readable topic pages auto-generated from the graph, with citations back to specific graph nodes.
 
 **Audit reports:** Entity breakdowns, contradiction detection, cross-domain discoveries, health dashboard, markdown export.

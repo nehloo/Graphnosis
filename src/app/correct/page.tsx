@@ -3,12 +3,14 @@
 import { useState } from "react";
 
 export default function CorrectPage() {
-  const [mode, setMode] = useState<"single" | "bulk">("single");
+  const [mode, setMode] = useState<"single" | "bulk" | "forget">("single");
   const [type, setType] = useState<"add" | "edit" | "supersede" | "delete">("add");
   const [nodeId, setNodeId] = useState("");
   const [content, setContent] = useState("");
   const [reason, setReason] = useState("");
   const [markdown, setMarkdown] = useState("");
+  const [forgetType, setForgetType] = useState<"time" | "topic" | "cascade">("topic");
+  const [forgetValue, setForgetValue] = useState("");
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -19,10 +21,20 @@ export default function CorrectPage() {
     setResult(null);
 
     try {
-      const body =
-        mode === "bulk"
-          ? { markdown, source: "manual-upload" }
-          : { type, nodeId: nodeId || undefined, content, reason };
+      let body;
+      if (mode === "bulk") {
+        body = { markdown, source: "manual-upload" };
+      } else if (mode === "forget") {
+        if (forgetType === "time") {
+          body = { forget: "time", before: forgetValue, reason: reason || "Bulk time-window forgetting" };
+        } else if (forgetType === "topic") {
+          body = { forget: "topic", topic: forgetValue, reason: reason || `Forget topic: ${forgetValue}` };
+        } else {
+          body = { forget: "cascade", nodeId: forgetValue, reason: reason || "Cascade soft-delete" };
+        }
+      } else {
+        body = { type, nodeId: nodeId || undefined, content, reason };
+      }
 
       const res = await fetch("/api/graph/correct", {
         method: "POST",
@@ -37,6 +49,9 @@ export default function CorrectPage() {
         setResult(
           `Imported ${data.result.nodesAdded} nodes. ${data.result.errors.length} errors.`
         );
+      } else if (mode === "forget") {
+        const count = data.forgotten ?? data.cascaded ?? 0;
+        setResult(`${count} nodes forgotten.`);
       } else {
         setResult(
           `Correction applied. Node: ${data.affectedNodeId}. Graph v${data.graphStats?.version}.`
@@ -46,6 +61,7 @@ export default function CorrectPage() {
       setContent("");
       setReason("");
       setMarkdown("");
+      setForgetValue("");
     } catch (e) {
       setError(String(e instanceof Error ? e.message : e));
     } finally {
@@ -84,6 +100,16 @@ export default function CorrectPage() {
         >
           Bulk Import (Markdown)
         </button>
+        <button
+          onClick={() => setMode("forget")}
+          className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+            mode === "forget"
+              ? "bg-red-600 text-white"
+              : "bg-surface-2 text-muted border border-border"
+          }`}
+        >
+          Forget
+        </button>
       </div>
 
       {result && (
@@ -97,7 +123,73 @@ export default function CorrectPage() {
         </div>
       )}
 
-      {mode === "single" ? (
+      {mode === "forget" ? (
+        <div className="space-y-4 bg-surface rounded-lg border border-red-800/30 p-5">
+          {/* Forget type selector */}
+          <div>
+            <label className="text-xs text-muted block mb-1">Forget Method</label>
+            <div className="flex gap-2">
+              {(["topic", "time", "cascade"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setForgetType(t)}
+                  className={`px-3 py-1 text-xs rounded transition-colors ${
+                    forgetType === t
+                      ? "bg-red-600 text-white"
+                      : "bg-surface-2 text-muted border border-border"
+                  }`}
+                >
+                  {t === "topic" ? "By Topic" : t === "time" ? "By Time Window" : "Cascade from Node"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-muted block mb-1">
+              {forgetType === "topic"
+                ? "Topic to forget (matches entities and content)"
+                : forgetType === "time"
+                ? "Forget everything created before (ISO date)"
+                : "Node ID to cascade soft-delete from"}
+            </label>
+            <input
+              value={forgetValue}
+              onChange={(e) => setForgetValue(e.target.value)}
+              placeholder={
+                forgetType === "topic"
+                  ? "e.g., my old job"
+                  : forgetType === "time"
+                  ? "e.g., 2026-01-01"
+                  : "e.g., HRQ0kKjDPAMuw8wHYnDcJ"
+              }
+              className="w-full bg-surface-2 border border-border rounded px-3 py-2 text-sm text-foreground placeholder:text-muted focus:outline-none focus:border-red-600"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-muted block mb-1">Reason (optional)</label>
+            <input
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Why is this being forgotten?"
+              className="w-full bg-surface-2 border border-border rounded px-3 py-2 text-sm text-foreground placeholder:text-muted focus:outline-none focus:border-accent"
+            />
+          </div>
+
+          <button
+            onClick={submitCorrection}
+            disabled={loading || !forgetValue.trim()}
+            className="px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-500 transition-colors disabled:opacity-40"
+          >
+            {loading ? "Forgetting..." : "Forget"}
+          </button>
+
+          <p className="text-xs text-muted">
+            Forgetting is a soft-delete. Nodes are marked with validUntil and confidence 0.1. They remain in the graph for audit purposes but score 0.3x in queries — effectively invisible.
+          </p>
+        </div>
+      ) : mode === "single" ? (
         <div className="space-y-4 bg-surface rounded-lg border border-border p-5">
           {/* Type selector */}
           <div>
@@ -206,6 +298,9 @@ export default function CorrectPage() {
           <li><strong>Supersede:</strong> Creates a new node + a supersedes edge from old to new. Old node's confidence drops to 0.3</li>
           <li><strong>Delete:</strong> Soft-deletes by setting validUntil to now. Node remains in graph but scores 0.3x in queries</li>
           <li><strong>Bulk import:</strong> Parses markdown into chunks, each becomes a new node with confidence 1.0</li>
+          <li><strong>Forget by topic:</strong> Soft-deletes all nodes matching a topic (entity or content match)</li>
+          <li><strong>Forget by time:</strong> Soft-deletes all nodes created before a given date</li>
+          <li><strong>Cascade:</strong> Soft-deletes a node and all nodes from the same source or connected via contains edges</li>
         </ul>
       </div>
     </div>
