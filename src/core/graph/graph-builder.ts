@@ -99,11 +99,15 @@ export function buildGraph(documents: ParsedDocument[], graphName: string): Know
   };
 
   // Step 7: Auto-prune orphan nodes and low-weight edges
-  const { prunedEdges, prunedNodes } = pruneGraph(graph, {
-    minDirectedWeight: 0.05,
-    minUndirectedWeight: 0.1,
-    removeOrphans: true,
-  });
+  // Skip pruning for small graphs (test documents, small datasets)
+  const shouldPrune = graph.nodes.size > 50;
+  const { prunedEdges, prunedNodes } = shouldPrune
+    ? pruneGraph(graph, {
+        minDirectedWeight: 0.05,
+        minUndirectedWeight: 0.1,
+        removeOrphans: true,
+      })
+    : { prunedEdges: 0, prunedNodes: 0 };
 
   if (prunedNodes > 0 || prunedEdges > 0) {
     console.log(`[graphAI] Pruned ${prunedNodes} orphan nodes, ${prunedEdges} low-weight edges`);
