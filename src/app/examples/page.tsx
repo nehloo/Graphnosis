@@ -43,6 +43,16 @@ const DATASETS = [
     articleCount: 16,
     ready: true,
   },
+  {
+    id: "cc-gallery",
+    name: "Creative Commons Gallery",
+    source: "Wikimedia Commons",
+    license: "CC BY-SA / Public Domain",
+    description: "Curated images from Wikimedia Commons — space, computing history, nature, architecture. Multimodal: image metadata becomes graph nodes.",
+    contentTypes: ["Image metadata", "EXIF data", "Descriptions", "Categories"],
+    articleCount: 10,
+    ready: true,
+  },
 ];
 
 export default function ExamplesPage() {

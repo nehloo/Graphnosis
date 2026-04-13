@@ -22,7 +22,12 @@ export type NodeType =
   | 'preference'
   // Conversation types (Step 2)
   | 'conversation'
-  | 'message';
+  | 'message'
+  // Multimodal types
+  | 'image'
+  | 'video'
+  | 'transcript'
+  | 'visual-description';
 
 export interface SourceReference {
   file: string;

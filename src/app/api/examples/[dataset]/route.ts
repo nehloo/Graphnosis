@@ -3,6 +3,7 @@ import { fetchAllWikipediaArticles } from '@/examples/wikipedia/fetcher';
 import { fetchAllArxivPapers } from '@/examples/arxiv/fetcher';
 import { fetchAllNextjsDocs } from '@/examples/nextjs-docs/fetcher';
 import { fetchAllNasaMarsData } from '@/examples/nasa-mars/fetcher';
+import { fetchAllCCImages } from '@/examples/cc-gallery/fetcher';
 import { buildGraph } from '@/core/graph/graph-builder';
 import { setGraph } from '@/core/graph/graph-store';
 import type { ParsedDocument } from '@/core/types';
@@ -31,6 +32,11 @@ const DATASETS: Record<string, {
     name: 'NASA Mars Missions',
     fetcher: fetchAllNasaMarsData,
     label: 'NASA Mars',
+  },
+  'cc-gallery': {
+    name: 'Creative Commons Gallery',
+    fetcher: fetchAllCCImages,
+    label: 'CC Gallery',
   },
 };
 
