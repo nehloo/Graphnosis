@@ -1,12 +1,14 @@
-# graphAI — Agent Guidelines
+# Bignosis — Agent Guidelines
 
 ## Project Overview
 
-graphAI is a research prototype that converts raw files into AI-optimized dual-graph knowledge representations. It explores whether structured graphs with typed edges can outperform flat-text RAG for AI comprehension and retrieval.
+Bignosis is a research prototype that converts raw files into AI-optimized dual-graph knowledge representations. It explores whether structured graphs with typed edges can outperform flat-text RAG for AI comprehension and retrieval.
+
+**Name:** Bignosis = **bi-** (two edge types over the same node set) + **gnosis** (knowledge). Formerly "graphAI"; renamed to avoid collision with `receptron/graphai` and the GraphAI Inc. trademark.
 
 **Origin:** The project began with the question "Are AI models based on non-oriented graphs?" — which evolved into exploring whether knowledge represented as directed + undirected graphs, serialized in a binary format not designed for human readability, could produce better AI outputs than human-readable formats like markdown.
 
-**Prior art:** Microsoft GraphRAG, LightRAG, LazyGraphRAG explore graph-based RAG. graphAI's contribution is the specific combination of dual-graph (directed+undirected over same nodes) + AI-native binary format + human audit trail + temporal awareness + identity extraction + reflection engine — which hasn't been published as a unified system.
+**Prior art:** Microsoft GraphRAG, LightRAG, LazyGraphRAG explore graph-based RAG. Bignosis's contribution is the specific combination of dual-graph (directed+undirected over same nodes) + AI-native binary format + human audit trail + temporal awareness + identity extraction + reflection engine — which hasn't been published as a unified system.
 
 ## Architecture Principles
 

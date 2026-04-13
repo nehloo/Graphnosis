@@ -34,7 +34,7 @@ yarn-error.log*
 .env*
 !.env.example
 
-# graphAI data
+# Bignosis data
 /data/
 
 # vercel

@@ -108,7 +108,7 @@ function serializeEnrichedSubgraph(
 
 // Build the system prompt for the LLM with the subgraph context
 export function buildGraphPrompt(subgraphSerialized: string, question: string): string {
-  return `You are a knowledge assistant powered by graphAI. You answer questions using ONLY the knowledge graph context provided below. If the context doesn't contain enough information, say so explicitly.
+  return `You are a knowledge assistant powered by Bignosis. You answer questions using ONLY the knowledge graph context provided below. If the context doesn't contain enough information, say so explicitly.
 
 The context is a structured knowledge subgraph with typed nodes and edges:
 - Nodes have types: fact, concept, entity, event, definition, claim, data-point, person

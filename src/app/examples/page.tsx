@@ -90,7 +90,7 @@ export default function ExamplesPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Example Datasets</h1>
         <p className="text-muted text-sm mt-1">
-          Load a public dataset to see graphAI in action. All content is freely licensed.
+          Load a public dataset to see Bignosis in action. All content is freely licensed.
         </p>
       </div>
 

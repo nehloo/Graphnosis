@@ -110,7 +110,7 @@ export function buildGraph(documents: ParsedDocument[], graphName: string): Know
     : { prunedEdges: 0, prunedNodes: 0 };
 
   if (prunedNodes > 0 || prunedEdges > 0) {
-    console.log(`[graphAI] Pruned ${prunedNodes} orphan nodes, ${prunedEdges} low-weight edges`);
+    console.log(`[bignosis] Pruned ${prunedNodes} orphan nodes, ${prunedEdges} low-weight edges`);
   }
 
   return { ...graph, tfidfIndex } as KnowledgeGraph & { tfidfIndex: typeof tfidfIndex };

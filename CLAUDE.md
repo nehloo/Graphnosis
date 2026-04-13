@@ -1,4 +1,4 @@
-# graphAI — Project Context
+# Bignosis — Project Context
 
 ## What This Is
 A research prototype exploring AI-native knowledge representation through dual-graph structures.

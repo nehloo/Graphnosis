@@ -1,8 +1,10 @@
-# graphAI — Dual-Graph Knowledge System
+# Bignosis — Dual-Graph Knowledge System
 
 **Can AI understand files better than humans can read them?**
 
-graphAI transforms raw files into AI-optimized directed and undirected graph representations. Instead of feeding AI models flat text chunks (the standard RAG approach), graphAI builds a structured knowledge graph with typed relationships — then serializes relevant subgraphs into a format designed for machine comprehension, not human readability.
+Bignosis transforms raw files into AI-optimized directed and undirected graph representations. Instead of feeding AI models flat text chunks (the standard RAG approach), Bignosis builds a structured knowledge graph with typed relationships — then serializes relevant subgraphs into a format designed for machine comprehension, not human readability.
+
+> The name is a compound of **bi-** (two, as in two edge types over the same node set) and **gnosis** (knowledge). A dual-graph for machine knowing.
 
 The result: faster retrieval, richer reasoning, and answers that trace back through explicit relationship chains.
 
@@ -28,9 +30,9 @@ The graphs from high school. The neural network from C++. The harness routing fr
 
 **The insight: human-readable formats are lossy for AI consumption.** Prose contains redundant phrasing, implicit relationships, linear structure that hides non-linear connections, and ambiguity that humans resolve with world knowledge but AI must guess at. A purpose-built AI-native format could be dramatically more efficient.
 
-graphAI is what happens when three decades of scattered ideas finally find their moment.
+Bignosis is what happens when three decades of scattered ideas finally find their moment.
 
-## How graphAI Works for AI
+## How Bignosis Works for AI
 
 ### The Pipeline
 
@@ -98,7 +100,7 @@ The query engine applies temporal scoring: recently accessed nodes score higher,
 
 ### Conversation Memory
 
-graphAI ingests conversations (Claude, ChatGPT, Slack, raw text) into the same graph as domain knowledge. Each conversation turn becomes a node with `discussed-in` edges linking to the knowledge it references. This means the system remembers *what you discussed* alongside *what it knows*.
+Bignosis ingests conversations (Claude, ChatGPT, Slack, raw text) into the same graph as domain knowledge. Each conversation turn becomes a node with `discussed-in` edges linking to the knowledge it references. This means the system remembers *what you discussed* alongside *what it knows*.
 
 ### Identity Layer
 
@@ -109,7 +111,7 @@ Person entities mentioned 2+ times across sources automatically get dedicated pe
 
 # The .gai Format
 
-Instead of storing knowledge as human-readable markdown, graphAI uses a binary format (`.gai`) built on MessagePack:
+Instead of storing knowledge as human-readable markdown, Bignosis uses a binary format (`.gai`) built on MessagePack:
 
 ```
 [4-byte magic: "GAI" + version]
@@ -153,7 +155,7 @@ n1 ~[similar-to:0.7]~ n2
 
 Graph-based RAG is an active research area. Microsoft's **GraphRAG** (2025) pioneered community detection and hierarchical summaries on knowledge graphs. **LightRAG** (EMNLP 2025) introduced dual-level retrieval combining entity extraction with abstract reasoning. **LazyGraphRAG** achieved 700x query cost reduction vs GraphRAG.
 
-graphAI's contribution is a specific combination that hasn't been published as a unified system:
+Bignosis's contribution is a specific combination that hasn't been published as a unified system:
 
 - **Dual-graph** (directed + undirected edges over the same node set) — most systems use one graph type
 - **AI-native binary format** (.gai) optimized for machine consumption, not human readability
@@ -167,9 +169,9 @@ No single technique here is new. The novelty is the combination into a unified, 
 
 ## Landscape Comparison
 
-graphAI exists alongside other approaches to persistent AI knowledge. Each makes different tradeoffs:
+Bignosis exists alongside other approaches to persistent AI knowledge. Each makes different tradeoffs:
 
-| | **graphAI** | **GBrain** (Garry Tan) | **MemPalace** (Milla Jovovich) | **Karpathy Wiki** |
+| | **Bignosis** | **GBrain** (Garry Tan) | **MemPalace** (Milla Jovovich) | **Karpathy Wiki** |
 |---|---|---|---|---|
 | **Representation** | Dual-graph (.gai binary) | Markdown files in git | Spatial hierarchy + ChromaDB | Markdown wiki pages |
 | **Conversation memory** | Yes (Claude/ChatGPT/Slack) | No | Yes (core feature) | No |
@@ -180,15 +182,15 @@ graphAI exists alongside other approaches to persistent AI knowledge. Each makes
 | **Relationships** | Explicit typed edges | Implicit links | Tunnels | Implicit cross-refs |
 | **Persistence** | SQLite + .gai files | Git repo | ChromaDB + SQLite | Filesystem |
 
-**Where graphAI wins:** Relationship-aware reasoning, multi-source knowledge fusion, token efficiency, automated contradiction detection.
+**Where Bignosis wins:** Relationship-aware reasoning, multi-source knowledge fusion, token efficiency, automated contradiction detection.
 
 **Where others win:** GBrain has native git version control. MemPalace has battle-tested conversation recall (96.6% LongMemEval). Karpathy's pattern produces richer narrative synthesis.
 
-**They complement each other:** MemPalace for conversation memory, GBrain for personal knowledge management, graphAI for structured domain knowledge with explicit relationships.
+**They complement each other:** MemPalace for conversation memory, GBrain for personal knowledge management, Bignosis for structured domain knowledge with explicit relationships.
 
 ## Why This Matters (vs. Standard RAG)
 
-| Aspect | Standard RAG | graphAI |
+| Aspect | Standard RAG | Bignosis |
 |--------|-------------|---------|
 | Context format | Flat text chunks | Structured subgraph with typed edges |
 | Relationships | Implicit (AI must infer) | Explicit (edges with types and weights) |
@@ -291,7 +293,7 @@ Explore the working prototype: **[graphai-nine.vercel.app](https://graphai-nine.
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/examples.png" alt="Example Datasets — load public datasets into graphAI" width="100%" />
+  <img src="docs/screenshots/examples.png" alt="Example Datasets — load public datasets into Bignosis" width="100%" />
 </p>
 
 <p align="center">
