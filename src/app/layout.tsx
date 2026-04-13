@@ -26,6 +26,7 @@ const navItems = [
   { href: "/correct", label: "Correct" },
   { href: "/giki", label: "Giki" },
   { href: "/audit", label: "Audit" },
+  { href: "/view-gai", label: "View .gai" },
   { href: "/longmemeval", label: "LongMemEval" },
 ];
 
