@@ -4,7 +4,7 @@
 
 Graphnosis transforms raw files into AI-optimized directed and undirected graph representations. Instead of feeding AI models flat text chunks (the standard RAG approach), Graphnosis builds a structured knowledge graph with typed relationships — then serializes relevant subgraphs into a format designed for machine comprehension, not human readability.
 
-> The name is a compound of **graph** and **gnosis** (knowledge) — literally "graph knowledge". The `.gai` file extension stands for **Graphnosis AI**, the AI-native knowledge format at the heart of the system.
+> The name is a compound of **graph** and **gnosis** (Greek for knowledge) — literally "graph knowledge". The `.gai` file extension stands for **Graphnosis AI**, the AI-native knowledge format at the heart of the system.
 
 The result: faster retrieval, richer reasoning, and answers that trace back through explicit relationship chains.
 
@@ -293,19 +293,31 @@ Explore the working prototype: **[graphnosis.vercel.app](https://graphnosis.verc
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/examples.png" alt="Example Datasets — load public datasets into Graphnosis" width="100%" />
+  <img src="docs/screenshots/longmemeval-2.png" alt="LongMemEval — Knowledge retention benchmark — 12 tests across 4 categories" width="100%" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/graph.png" alt="Graph Visualization — force-directed view of 12,134 nodes and 67,578 edges" width="100%" />
+  <img src="docs/screenshots/examples-2.png" alt="Example Datasets — load public datasets into Graphnosis" width="100%" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/giki.png" alt="Giki — auto-generated topic pages with node citations" width="100%" />
+  <img src="docs/screenshots/graph-2.png" alt="Graph Visualization — force-directed view of 12,134 nodes and 67,578 edges" width="100%" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/audit.png" alt="Knowledge Audit — entity reports, contradictions, and health metrics" width="100%" />
+  <img src="docs/screenshots/giki-2.png" alt="Giki — auto-generated topic pages with node citations" width="100%" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/audit-2.png" alt="Knowledge Audit — entity reports, contradictions, and health metrics" width="100%" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/gai1-2.png" alt="View .gai — Inspect the AI-native binary format — what the machine sees, decoded for humans" width="100%" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/gai2-2.png" alt="View .gai — Inspect the AI-native binary format — what the machine sees, decoded for humans" width="100%" />
 </p>
 
 ## License
