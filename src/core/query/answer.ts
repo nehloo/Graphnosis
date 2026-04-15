@@ -28,7 +28,10 @@ export async function answerQuestion(
   question: string,
   opts: AnswerOptions = {}
 ): Promise<AnswerResult> {
-  const { subgraph, seeds } = queryGraph(graph, tfidfIndex, question, { maxNodes: opts.maxNodes });
+  const { subgraph, seeds } = queryGraph(graph, tfidfIndex, question, {
+    maxNodes: opts.maxNodes,
+    questionDate: opts.questionDate,
+  });
   const systemPrompt = buildGraphPrompt(subgraph.serialized, question, {
     questionDate: opts.questionDate,
   });
