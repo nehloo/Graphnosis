@@ -9,6 +9,29 @@ import { conversationToDocument } from '@/core/ingestion/parsers/conversation-pa
 import { buildGraph } from '@/core/graph/graph-builder';
 import type { LMEQuestion, LMESession } from './dataset';
 
+// LongMemEval uses dates like "2023/03/31 (Fri) 14:13". The day-of-week is
+// useful for temporal questions ("last Friday") but the time-of-day is noise
+// and the slashes don't match the YYYY-MM-DD format the prompt promises.
+// Normalize to "2023-03-31 (Fri)" so every node + today's-date preamble
+// agrees on format.
+export function normalizeDate(raw: string | undefined | null): string {
+  if (!raw) return '';
+  const slashMatch = raw.match(/^(\d{4})\/(\d{2})\/(\d{2})\s*(?:\(([A-Za-z]{3})\))?/);
+  if (slashMatch) {
+    const [, y, m, d, dow] = slashMatch;
+    return dow ? `${y}-${m}-${d} (${dow})` : `${y}-${m}-${d}`;
+  }
+  // Fall back to Date.parse for ISO-ish inputs; keep the raw string on failure.
+  const ms = Date.parse(raw);
+  if (Number.isFinite(ms)) {
+    const d = new Date(ms);
+    const iso = d.toISOString().slice(0, 10);
+    const dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getUTCDay()];
+    return `${iso} (${dow})`;
+  }
+  return raw;
+}
+
 function sessionToDocument(
   questionId: string,
   sessionId: string,
@@ -17,6 +40,7 @@ function sessionToDocument(
 ): ParsedDocument {
   const startedAt = Date.parse(sessionDateStr);
   const startedAtMs = Number.isFinite(startedAt) ? startedAt : Date.now();
+  const normalized = normalizeDate(sessionDateStr);
 
   const conv: ParsedConversation = {
     id: `${questionId}/${sessionId}`,
@@ -28,7 +52,7 @@ function sessionToDocument(
     metadata: {
       messageCount: turns.length,
       sessionId,
-      sessionDate: sessionDateStr,
+      sessionDate: normalized,
     },
   };
 
@@ -38,7 +62,7 @@ function sessionToDocument(
   doc.metadata = {
     ...doc.metadata,
     sessionId,
-    sessionDate: sessionDateStr,
+    sessionDate: normalized,
     startedAt: startedAtMs,
   };
   return doc;

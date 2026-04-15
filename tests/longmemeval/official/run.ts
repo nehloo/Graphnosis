@@ -15,7 +15,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } fr
 import { dirname, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { loadDataset, isAbstention, type LMEQuestion, type LMEQuestionType } from './dataset';
-import { buildGraphForQuestion } from './ingest';
+import { buildGraphForQuestion, normalizeDate } from './ingest';
 import { judgeAnswer, type JudgeModel } from './judge';
 import { answerQuestion } from '@/core/query/answer';
 
@@ -124,7 +124,7 @@ async function runOne(
       graph,
       graph.tfidfIndex,
       q.question,
-      { model: answerModel, questionDate: q.question_date, maxNodes }
+      { model: answerModel, questionDate: normalizeDate(q.question_date), maxNodes }
     );
     const t2 = performance.now();
 

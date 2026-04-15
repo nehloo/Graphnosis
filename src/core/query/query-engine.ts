@@ -1,4 +1,13 @@
-import type { KnowledgeGraph, QueryResult, TfidfIndex, SubgraphContext } from '@/core/types';
+import type {
+  KnowledgeGraph,
+  QueryResult,
+  TfidfIndex,
+  SubgraphContext,
+  GraphNode,
+  DirectedEdge,
+  UndirectedEdge,
+  NodeId,
+} from '@/core/types';
 import { findSeeds, type ScoredSeed } from './seed-finder';
 import { traverseGraph } from './traverser';
 import { serializeSubgraph } from './subgraph-serializer';
@@ -73,12 +82,20 @@ export function queryGraph(
   // Step 4: Traverse graph from merged seeds
   const traversalResult = traverseGraph(graph, mergedSeeds, undefined, opts.maxNodes);
 
+  // Step 4b: Sibling-turn expansion. For each retrieved Assistant chunk,
+  // also include the User chunk(s) from the same turn pair. User questions
+  // routinely carry the key fact ("I bought X yesterday") but lose the
+  // TF-IDF battle to longer assistant responses, so they get evicted from
+  // the seed pool. Without them the model has no grounding for "what did I
+  // X" questions even when the right session is retrieved.
+  const expanded = expandWithSiblingTurns(graph, traversalResult);
+
   // Step 5: Serialize with enrichment data (synthesis + context) if available
   const subgraph = serializeEnrichedSubgraph(
-    traversalResult.nodes,
-    traversalResult.directedEdges,
-    traversalResult.undirectedEdges,
-    traversalResult.scores
+    expanded.nodes,
+    expanded.directedEdges,
+    expanded.undirectedEdges,
+    expanded.scores
   );
 
   return {
@@ -123,6 +140,77 @@ function diversifySeedsBySource(
     round++;
   }
   return picked;
+}
+
+// Walk the retrieved assistant turns and pull in the matching user turn from
+// the same session. Conversation chunks carry source.section like
+// "Assistant (turn 5)" / "User (turn 5)" (set by conversationToDocument).
+// We use a (file, section) index for O(1) lookup of all chunks belonging to
+// the partner user turn.
+function expandWithSiblingTurns(
+  graph: KnowledgeGraph,
+  result: ReturnType<typeof traverseGraph>
+): ReturnType<typeof traverseGraph> {
+  const ASSISTANT_TURN = /^Assistant \(turn (\d+)\)$/;
+
+  // (file, section) -> nodes for that section. Sections may have multiple
+  // chunks if the message was long enough to be split.
+  const chunksBySection = new Map<string, GraphNode[]>();
+  for (const node of graph.nodes.values()) {
+    if (node.type === 'document' || node.type === 'section') continue;
+    const section = node.source.section;
+    if (!section) continue;
+    const key = `${node.source.file}|${section}`;
+    const arr = chunksBySection.get(key);
+    if (arr) arr.push(node);
+    else chunksBySection.set(key, [node]);
+  }
+
+  const includedIds = new Set(result.nodes.map(n => n.id));
+  const additions: GraphNode[] = [];
+  const additionScores = new Map<NodeId, number>();
+
+  for (const node of result.nodes) {
+    const m = node.source.section?.match(ASSISTANT_TURN);
+    if (!m) continue;
+    const turnNum = m[1];
+    const userKey = `${node.source.file}|User (turn ${turnNum})`;
+    const userChunks = chunksBySection.get(userKey);
+    if (!userChunks) continue;
+    const baseScore = result.scores.get(node.id) ?? 0;
+    for (const userChunk of userChunks) {
+      if (includedIds.has(userChunk.id)) continue;
+      includedIds.add(userChunk.id);
+      additions.push(userChunk);
+      // Inherit a slightly-lower score so they sort below their assistant
+      // anchor in the serialized output but stay above zero.
+      additionScores.set(userChunk.id, baseScore * 0.9);
+    }
+  }
+
+  if (additions.length === 0) return result;
+
+  const allNodes = [...result.nodes, ...additions];
+  const allScores = new Map(result.scores);
+  for (const [id, s] of additionScores) allScores.set(id, s);
+
+  // Recompute included edges: any edge whose endpoints are now both selected.
+  const idSet = new Set(allNodes.map(n => n.id));
+  const directedEdges: DirectedEdge[] = [];
+  for (const edge of graph.directedEdges.values()) {
+    if (idSet.has(edge.from) && idSet.has(edge.to)) directedEdges.push(edge);
+  }
+  const undirectedEdges: UndirectedEdge[] = [];
+  for (const edge of graph.undirectedEdges.values()) {
+    if (idSet.has(edge.nodes[0]) && idSet.has(edge.nodes[1])) undirectedEdges.push(edge);
+  }
+
+  return {
+    nodes: allNodes,
+    directedEdges,
+    undirectedEdges,
+    scores: allScores,
+  };
 }
 
 // Enhanced serializer that includes synthesis and context from enrichment
@@ -173,7 +261,15 @@ export function buildGraphPrompt(
   ctx: PromptContext = {}
 ): string {
   const dateBlock = ctx.questionDate
-    ? `Today's date: ${ctx.questionDate}. Nodes may carry a \`date:YYYY-MM-DD\` tag indicating when the originating session occurred — use these to answer temporal questions (e.g., "how many days ago", "last month") and to order events.\n\n`
+    ? `Today's date: ${ctx.questionDate}. Each node may carry a \`date:YYYY-MM-DD (Day)\` tag indicating when the originating session occurred.
+
+When the question references a specific day or relative time (e.g., "last Friday", "yesterday", "three weeks ago", "in March"):
+1. First compute the target date(s) from today's date.
+2. Then restrict your attention to nodes whose \`date:\` tag matches the target. Treat the day-of-week in the tag as authoritative ("last Friday" must match a node tagged \`(Fri)\` from the prior week, not just any node).
+3. Only consider nodes from other dates if no matching node contains the answer.
+4. When asked "how many days/weeks/months ago", compute the difference from today's date to the matching node's date.
+
+`
     : '';
 
   return `You are a knowledge assistant powered by Graphnosis. You answer questions using ONLY the knowledge graph context provided below. If the context doesn't contain enough information, say so explicitly.
