@@ -48,6 +48,11 @@ export async function embedNodes(
   const { embeddings } = await embedMany({
     model: openai.embedding(model),
     values: valid.map(v => v.text),
+    // LongMemEval haystacks burst ~100K tokens per question. With even modest
+    // parallelism the OpenAI 1M TPM window fills before retries can recover.
+    // Bump well above the SDK default (2) so the rate-limit error surfaces
+    // only on prolonged contention, not transient bursts.
+    maxRetries: 10,
   });
 
   for (let i = 0; i < valid.length; i++) {
@@ -69,6 +74,7 @@ export async function embedQuery(
   const { embeddings } = await embedMany({
     model: openai.embedding(model),
     values: [text],
+    maxRetries: 10,
   });
   return embeddings[0] ?? null;
 }

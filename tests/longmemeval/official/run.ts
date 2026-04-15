@@ -63,7 +63,12 @@ function parseArgs(argv: string[]): CliArgs {
     types,
     judge: (args.judge as JudgeModel) ?? 'gpt-4o',
     answerModel: args['answer-model'] ?? 'gpt-4o-mini',
-    concurrency: args.concurrency ? parseInt(args.concurrency, 10) : 4,
+    // Embedding modes burst against the OpenAI TPM window (~1M/min on
+    // text-embedding-3-small). Default to lower concurrency unless the
+    // caller overrides explicitly.
+    concurrency: args.concurrency
+      ? parseInt(args.concurrency, 10)
+      : (args.retrieval && args.retrieval !== 'tfidf' ? 2 : 4),
     seed: args.seed ? parseInt(args.seed, 10) : 42,
     maxNodes: args['max-nodes'] ? parseInt(args['max-nodes'], 10) : 30,
     dumpPrompts: args['dump-prompts'] === 'true',
