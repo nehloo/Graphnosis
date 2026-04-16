@@ -188,7 +188,7 @@ Graphnosis exists alongside other approaches to persistent AI knowledge. Each ma
 
 **Where Graphnosis wins:** Relationship-aware reasoning, multi-source knowledge fusion, token efficiency, automated contradiction detection.
 
-**Where others win:** GBrain has native git version control. MemPalace achieves 96.6% retrieval recall R@5 on LongMemEval (different metric than end-to-end QA — see [benchmarks.md](benchmarks.md)). Karpathy's pattern produces richer narrative synthesis.
+**Where others win:** GBrain has native git version control. MemPalace achieves 96.6% retrieval recall R@5 on LongMemEval (different metric than end-to-end QA — see [benchmarks.md](benchmarks/benchmarks.md)). Karpathy's pattern produces richer narrative synthesis.
 
 **They complement each other:** MemPalace for conversation memory, GBrain for personal knowledge management, Graphnosis for structured domain knowledge with explicit relationships.
 
@@ -263,7 +263,7 @@ Benchmarked on the Wikipedia dataset (12,199 nodes, 67,578 edges):
 
 > MemPalace's 96.6%/100% figures measure **retrieval recall R@5** (is the correct conversation session in the top 5 results?) — a different metric than end-to-end QA with a GPT-4 judge. Both are valid; they measure different things. This runner uses the verbatim official judge prompts from [xiaowu0162/LongMemEval](https://github.com/xiaowu0162/LongMemEval).
 
-For the full benchmark progression story — every iteration from first run to this result — see [benchmarks.md](benchmarks.md).
+For the full benchmark progression story — every iteration from first run to this result — see [benchmarks.md](benchmarks/benchmarks.md).
 
 ## Getting Started
 
