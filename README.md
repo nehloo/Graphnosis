@@ -5,7 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/LICENSE)
 
-**Can humans feed AI with context files that AI understand better than humans can read them?**
+**Instead of raw files that human can read (md, txt, pdf, doc etc.), can humans feed AI with context binary files that AI understand better than humans can read them?**
 
 Graphnosis transforms raw files into AI-optimized directed and undirected graph representations. Instead of feeding AI models flat text chunks (the standard RAG approach), Graphnosis builds a structured knowledge graph with typed relationships — then serializes relevant subgraphs into a format designed for machine comprehension, not human readability.
 
@@ -39,7 +39,7 @@ Graphnosis is what happens when three decades of scattered ideas finally find th
 
 ## How Graphnosis Works for AI
 
-**Graphnosis intakes human's files meant for AI context and generates dual-graph knowledge memory binary files that humans can't read - but AI best can.**
+**Graphnosis intakes humans' raw files meant for AI context (md, txt, pdf, doc etc) and generates dual-graph knowledge memory binary files that humans can't read - but AI best can.**
 
 ### The Pipeline
 
