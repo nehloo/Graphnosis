@@ -5,6 +5,7 @@ import type {
   SubgraphContext,
   GraphNode,
   DirectedEdge,
+  DirectedEdgeType,
   UndirectedEdge,
   NodeId,
 } from '@/core/types';
@@ -14,6 +15,13 @@ import { serializeSubgraph } from './subgraph-serializer';
 import { decomposeQuery } from './query-decomposer';
 import { buildSynonymMap, expandQuery } from './synonym-expander';
 import type { EmbeddingIndex, EmbeddingVector } from '@/core/similarity/embeddings';
+import {
+  classifyQuestion,
+  getRetrievalStrategy,
+  buildCategoryPromptBlock,
+  type RouterDecision,
+} from './router';
+import type { LMEQuestionType } from '../../../tests/longmemeval/official/dataset';
 
 // Enhanced query engine with synonym expansion and query decomposition
 
@@ -30,6 +38,17 @@ export interface QueryOptions {
   // When true, skip the TF-IDF seed pool entirely and use only embedding
   // seeds. Has no effect unless embeddingIndex + queryEmbedding are set.
   embeddingsOnly?: boolean;
+  // Phase 1 router hook: when a category is supplied (either via regex
+  // classification at call time or as ground-truth for ablation runs), the
+  // router drives defaults for maxSeeds / maxNodes / diversify. Explicit
+  // opts still override so the CLI --max-nodes flag keeps working.
+  questionType?: LMEQuestionType;
+  // When true, the router runs classifyQuestion on the question text and
+  // uses the returned category as if it had been passed explicitly. When
+  // false (the default), we preserve pre-router behavior exactly (legacy
+  // regex-inline branching). This is the single flag threaded from the CLI
+  // to A/B-test Phase 1 cleanly against Run 14.
+  useRouter?: boolean;
 }
 
 export function queryGraph(
@@ -37,15 +56,36 @@ export function queryGraph(
   tfidfIndex: TfidfIndex,
   question: string,
   opts: QueryOptions = {}
-): Omit<QueryResult, 'answer'> {
+): Omit<QueryResult, 'answer'> & { router?: RouterDecision } {
+  // Router dispatch (Phase 1). Either the caller supplied a category
+  // explicitly (e.g. ablation with ground-truth `question_type`) or the
+  // `--enable-router` flag has flipped `useRouter` on so we classify from
+  // the question text. Everything else falls back to the pre-router path
+  // below — this keeps Run 14's behavior byte-for-byte reproducible.
+  let router: RouterDecision | undefined;
+  if (opts.questionType) {
+    router = {
+      category: opts.questionType,
+      strategy: getRetrievalStrategy(opts.questionType),
+      source: 'explicit',
+    };
+  } else if (opts.useRouter) {
+    const category = classifyQuestion(question);
+    router = { category, strategy: getRetrievalStrategy(category), source: 'regex' };
+  }
+
   // Aggregation questions (count / sum / total) need more evidence than
   // standard questions - their failure mode is missing ONE session among
   // several. Widen both the seed pool and the node budget when detected,
-  // unless the caller has explicitly overridden.
-  const isAggregation = isAggregationQuestion(question);
-  const maxSeeds = opts.maxSeeds ?? (isAggregation ? 40 : 24);
-  const maxNodes = opts.maxNodes ?? (isAggregation ? 50 : undefined);
-  const diversify = opts.diversify ?? true;
+  // unless the caller has explicitly overridden. When the router has
+  // produced a decision, it supersedes this legacy detection.
+  const isAggregation = !router && isAggregationQuestion(question);
+  const maxSeeds =
+    opts.maxSeeds ?? (router ? router.strategy.maxSeeds : isAggregation ? 40 : 24);
+  const maxNodes =
+    opts.maxNodes ?? (router ? router.strategy.maxNodes : isAggregation ? 50 : undefined);
+  const diversify =
+    opts.diversify ?? (router ? router.strategy.diversifyByFile : true);
 
   // Step 1: Decompose complex queries into sub-queries
   const { subQueries } = decomposeQuery(question);
@@ -64,11 +104,19 @@ export function queryGraph(
   const useEmbeddings = !!(opts.embeddingIndex && opts.queryEmbedding);
   const skipTfidf = useEmbeddings && opts.embeddingsOnly === true;
 
+  // Phase 2 seed policy: only propagate preferSummarySeeds to the seed
+  // finder when the router has actually run. In legacy mode we leave it
+  // undefined so summary nodes (if present) are treated like any other
+  // seed — preserves Run 14 parity.
+  const seedOpts = router
+    ? { graph, preferSummarySeeds: router.strategy.preferSummarySeeds }
+    : undefined;
+
   // Step 3: Find seeds across all query variants and merge (TF-IDF pool)
   const seedMap = new Map<string, ScoredSeed>();
   if (!skipTfidf) {
     for (const q of uniqueQueries) {
-      const seeds = findSeeds(q, tfidfIndex);
+      const seeds = findSeeds(q, tfidfIndex, undefined, seedOpts);
       for (const seed of seeds) {
         const existing = seedMap.get(seed.nodeId);
         if (!existing || seed.score > existing.score) {
@@ -86,7 +134,13 @@ export function queryGraph(
   // matches have room to compete; diversification + BFS budget trim the pool.
   if (useEmbeddings) {
     const embedCap = skipTfidf ? maxSeeds * 2 : 16;
-    const embedSeeds = findSeedsByEmbedding(opts.queryEmbedding!, opts.embeddingIndex!, embedCap);
+    const embedSeeds = findSeedsByEmbedding(
+      opts.queryEmbedding!,
+      opts.embeddingIndex!,
+      embedCap,
+      undefined,
+      seedOpts
+    );
     for (const seed of embedSeeds) {
       const existing = seedMap.get(seed.nodeId);
       if (!existing || seed.score > existing.score) {
@@ -114,11 +168,26 @@ export function queryGraph(
         serialized: '=== KNOWLEDGE SUBGRAPH (0 nodes, 0 edges) ===\nNo relevant nodes found for this query.',
       },
       seeds: [],
+      router,
     };
   }
 
+  // Phase 2: for targeted single-session questions, block the 'summarizes'
+  // edge so a summary node (should one slip into the seed pool via term
+  // overlap) can't drag every turn of its session into the subgraph.
+  const blockedEdgeTypes = routerBlockedEdges(router?.category);
+
   // Step 4: Traverse graph from merged seeds
-  const traversalResult = traverseGraph(graph, mergedSeeds, undefined, maxNodes);
+  const traversalResult = traverseGraph(graph, mergedSeeds, undefined, maxNodes, {
+    blockedEdgeTypes,
+  });
+
+  // Step 4a: Summary-child down-weight. When a summary node is in the
+  // retrieved set, its turn-level children would otherwise score highly
+  // via the 'summarizes' edge and end up duplicating what the summary
+  // already says. Halve their scores so they sort below novel evidence
+  // from other sessions.
+  downweightSummaryChildren(graph, traversalResult);
 
   // Step 4b: Sibling-turn expansion. For each retrieved Assistant chunk,
   // also include the User chunk(s) from the same turn pair. User questions
@@ -148,6 +217,7 @@ export function queryGraph(
   return {
     subgraph,
     seeds: mergedSeeds.map(s => ({ nodeId: s.nodeId, score: s.score })),
+    router,
   };
 }
 
@@ -234,6 +304,42 @@ function cosineSimilarityVec(a: EmbeddingVector, b: EmbeddingVector): number {
   }
   if (na === 0 || nb === 0) return 0;
   return dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
+
+// Phase 2 router policy: single-session-user / -assistant questions want
+// tight, turn-level recall. Block the 'summarizes' edge for those so BFS
+// can't pull an entire session in via a summary seed.
+function routerBlockedEdges(
+  category: LMEQuestionType | undefined
+): Set<DirectedEdgeType> | undefined {
+  if (category === 'single-session-user' || category === 'single-session-assistant') {
+    return new Set<DirectedEdgeType>(['summarizes']);
+  }
+  return undefined;
+}
+
+// When a summary node survived traversal, halve the scores of its child
+// turn nodes so the prompt isn't filled with fact-duplicated material.
+// Mutates result.scores in place. Safe no-op when there are no summary
+// nodes in the retrieved set.
+function downweightSummaryChildren(
+  graph: KnowledgeGraph,
+  result: ReturnType<typeof traverseGraph>
+): void {
+  const includedIds = new Set(result.nodes.map(n => n.id));
+  const summaryIds = new Set<NodeId>();
+  for (const node of result.nodes) {
+    if (node.type === 'session-summary') summaryIds.add(node.id);
+  }
+  if (summaryIds.size === 0) return;
+
+  for (const edge of graph.directedEdges.values()) {
+    if (edge.type !== 'summarizes') continue;
+    if (!summaryIds.has(edge.from)) continue;
+    if (!includedIds.has(edge.to)) continue;
+    const current = result.scores.get(edge.to) ?? 0;
+    result.scores.set(edge.to, current * 0.5);
+  }
 }
 
 // Walk the retrieved assistant turns and pull in the matching user turn from
@@ -346,6 +452,10 @@ export interface PromptContext {
   // ISO date (YYYY-MM-DD) treated as "today" for the question. When set, the
   // model can compute elapsed time between the question and node session dates.
   questionDate?: string;
+  // Phase 1 router hook. When a category is supplied, buildGraphPrompt uses
+  // the router's category-specific prompt block and skips the legacy
+  // regex-inline branching entirely. Left undefined for pre-router callers.
+  questionType?: LMEQuestionType;
 }
 
 // Heuristic: does this look like a question about the user's preferences,
@@ -393,14 +503,22 @@ When the question references a specific day or relative time (e.g., "last Friday
 `
     : '';
 
-  const preferenceBlock = isPreferenceQuestion(question)
-    ? `This question asks about the user's preferences, habits, or personal choices. Ground your answer in statements the user explicitly made about themselves — prioritize nodes tagged \`src:User (turn N)\`. When multiple user statements are consistent, synthesize them; when they conflict, prefer the most recent (highest date).
+  // When the router has supplied a category, use the single category-specific
+  // block from router.buildCategoryPromptBlock. Otherwise fall back to the
+  // legacy inline regex-detected blocks (Run 14 behavior) for exact
+  // A/B comparability.
+  let categoryBlock: string;
+  if (ctx.questionType) {
+    categoryBlock = buildCategoryPromptBlock(ctx.questionType);
+  } else {
+    const preferenceBlock = isPreferenceQuestion(question)
+      ? `This question asks about the user's preferences, habits, or personal choices. Ground your answer in statements the user explicitly made about themselves — prioritize nodes tagged \`src:User (turn N)\`. When multiple user statements are consistent, synthesize them; when they conflict, prefer the most recent (highest date).
 
 `
-    : '';
+      : '';
 
-  const aggregationBlock = isAggregationQuestion(question)
-    ? `This question asks for a total, count, or aggregate across multiple sessions. Procedure:
+    const aggregationBlock = isAggregationQuestion(question)
+      ? `This question asks for a total, count, or aggregate across multiple sessions. Procedure:
 1. Scan the context and list each instance that matches the question's criterion (e.g., "cuisine" = a national/regional cooking tradition, NOT a diet like "vegan"; "purchase" = an actual buy event, NOT a wish).
 2. For each candidate, verify it actually matches — reject loose matches.
 3. Distinguish between ADDITIONS and SUPERSEDED totals:
@@ -411,13 +529,15 @@ When the question references a specific day or relative time (e.g., "last Friday
 If you found fewer instances than expected, don't inflate the count — report only what's in the context.
 
 `
-    : '';
+      : '';
+    categoryBlock = preferenceBlock + aggregationBlock;
+  }
 
   return `You are a knowledge assistant powered by Graphnosis. You answer questions using ONLY the knowledge graph context provided below. If the context doesn't contain enough information, say so explicitly.
 
 Answer concisely. Lead with the direct answer in the first sentence, then cite supporting detail only if useful. Avoid padding or unrelated context — extra information that conflicts with the answer counts against you.
 
-${dateBlock}${preferenceBlock}${aggregationBlock}The context is a structured knowledge subgraph with typed nodes and edges:
+${dateBlock}${categoryBlock}The context is a structured knowledge subgraph with typed nodes and edges:
 - Nodes have types: fact, concept, entity, event, definition, claim, data-point, person
 - Directed edges show relationships: causes, depends-on, precedes, contains, defines, cites, contradicts, supports, supersedes
 - Undirected edges show associations: similar-to, co-occurs, shares-entity, shares-topic, same-source, related-to

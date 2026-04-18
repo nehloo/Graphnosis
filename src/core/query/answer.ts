@@ -1,8 +1,15 @@
 import { generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
-import type { KnowledgeGraph, SubgraphContext, TfidfIndex, NodeId } from '@/core/types';
+import type { KnowledgeGraph, ParsedDocument, SubgraphContext, TfidfIndex, NodeId } from '@/core/types';
 import { queryGraph, buildGraphPrompt } from './query-engine';
+import type { RouterDecision } from './router';
 import { embedQuery, type EmbeddingIndex } from '@/core/similarity/embeddings';
+import {
+  extractPreferences,
+  renderPreferenceBlock,
+  type PreferenceStatement,
+} from '@/core/enrichment/preference-extractor';
+import type { LMEQuestionType } from '../../../tests/longmemeval/official/dataset';
 
 // Non-streaming question-answering helper.
 // Shared by the /api/graph/query route and the LongMemEval official runner
@@ -22,6 +29,22 @@ export interface AnswerOptions {
   retrieval?: RetrievalMode;
   embeddingIndex?: EmbeddingIndex; // required when retrieval !== 'tfidf'
   embeddingModel?: string; // for embedding the query (default text-embedding-3-small)
+  // Phase 1 router integration. When `useRouter` is true, the query engine
+  // classifies the question at runtime and uses the router-provided
+  // strategy + prompt variant. When `questionType` is explicitly set, it
+  // skips classification (used for ground-truth ablations; off by default
+  // to keep the leaderboard number honest).
+  useRouter?: boolean;
+  questionType?: LMEQuestionType;
+  // Phase 3 — query-time preference extraction. When enabled AND the router
+  // classifies the question as single-session-preference, we fan out an
+  // LLM pass per session to distill user-voice preference statements and
+  // inject them into the answer prompt ahead of the turn evidence.
+  // Requires `documents` so the extractor has the session transcripts.
+  enablePreferenceExtraction?: boolean;
+  documents?: ParsedDocument[];
+  preferenceModel?: string; // defaults to gpt-4o-mini
+  preferenceConcurrency?: number; // lane pool size (default 6)
 }
 
 export interface AnswerResult {
@@ -31,6 +54,17 @@ export interface AnswerResult {
   nodeCount: number;
   systemPrompt: string;
   retrieval: RetrievalMode;
+  // Present whenever the router ran (either via useRouter or explicit
+  // questionType). Surfaced here so the test harness can emit per-question
+  // telemetry without re-deriving the decision.
+  router?: RouterDecision;
+  // Phase 3 telemetry: populated when preference extraction ran.
+  preferences?: {
+    statements: PreferenceStatement[];
+    cacheHits: number;
+    llmCalls: number;
+    failures: number;
+  };
 }
 
 export async function answerQuestion(
@@ -53,15 +87,48 @@ export async function answerQuestion(
     queryEmbedding = await embedQuery(question, { model: opts.embeddingModel });
   }
 
-  const { subgraph, seeds } = queryGraph(graph, tfidfIndex, question, {
+  const { subgraph, seeds, router } = queryGraph(graph, tfidfIndex, question, {
     maxNodes: opts.maxNodes,
     embeddingIndex: retrieval === 'tfidf' ? undefined : opts.embeddingIndex,
     queryEmbedding: queryEmbedding ?? undefined,
     embeddingsOnly: retrieval === 'embeddings',
+    useRouter: opts.useRouter,
+    questionType: opts.questionType,
   });
 
-  const systemPrompt = buildGraphPrompt(subgraph.serialized, question, {
+  // Phase 3: query-time preference extraction. Runs only when the router
+  // has classified this as single-session-preference AND the caller has
+  // explicitly enabled it AND documents are provided. Extracted statements
+  // are prepended to the serialized subgraph so the answer model sees
+  // distilled user-voice evidence ahead of raw turn evidence.
+  const effectiveCategory = router?.category ?? opts.questionType;
+  let preferencesResult: AnswerResult['preferences'];
+  let serializedForPrompt = subgraph.serialized;
+  if (
+    opts.enablePreferenceExtraction &&
+    effectiveCategory === 'single-session-preference' &&
+    opts.documents &&
+    opts.documents.length > 0
+  ) {
+    const extraction = await extractPreferences(question, opts.documents, {
+      model: opts.preferenceModel,
+      concurrency: opts.preferenceConcurrency,
+    });
+    preferencesResult = {
+      statements: extraction.statements,
+      cacheHits: extraction.cacheHits,
+      llmCalls: extraction.llmCalls,
+      failures: extraction.failures,
+    };
+    const block = renderPreferenceBlock(extraction.statements);
+    if (block) serializedForPrompt = block + serializedForPrompt;
+  }
+
+  const systemPrompt = buildGraphPrompt(serializedForPrompt, question, {
     questionDate: opts.questionDate,
+    // When the router ran, pass its (possibly-inferred) category to the
+    // prompt builder so it picks the right category-specific block.
+    questionType: effectiveCategory,
   });
 
   const messages = [
@@ -82,5 +149,7 @@ export async function answerQuestion(
     nodeCount: subgraph.nodes.length,
     systemPrompt,
     retrieval,
+    router,
+    preferences: preferencesResult,
   };
 }

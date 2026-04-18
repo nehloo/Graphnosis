@@ -27,11 +27,31 @@ export function serializeSubgraph(
     shortIds.set(node.id, `n${i + 1}`);
   });
 
-  lines.push('--- NODES ---');
-  for (const node of sortedNodes) {
-    // Skip structural nodes (document/section headers) — include their content inline
-    if (node.type === 'document' || node.type === 'section') continue;
+  // Split session summaries out into their own block ahead of the turn
+  // evidence. The LLM treats summaries as an index-level context (what
+  // happened in each session) and turns as the ground-truth quotes.
+  const summaryNodes = sortedNodes.filter(n => n.type === 'session-summary');
+  const evidenceNodes = sortedNodes.filter(
+    n => n.type !== 'session-summary' && n.type !== 'document' && n.type !== 'section'
+  );
 
+  if (summaryNodes.length > 0) {
+    lines.push('--- SESSION SUMMARIES ---');
+    for (const node of summaryNodes) {
+      const shortId = shortIds.get(node.id)!;
+      const score = (scores.get(node.id) || 0).toFixed(2);
+      const sessionDate = node.metadata.sessionDate;
+      const date = typeof sessionDate === 'string' && sessionDate ? `date:${sessionDate}` : '';
+      const sid = node.metadata.sessionId;
+      const sidTag = typeof sid === 'string' && sid ? `session:${sid}` : '';
+      const tags = [sidTag, date].filter(Boolean).join('|');
+      lines.push(`[${shortId}|summary|${score}${tags ? '|' + tags : ''}] ${node.content}`);
+    }
+    lines.push('');
+  }
+
+  lines.push('--- NODES ---');
+  for (const node of evidenceNodes) {
     const shortId = shortIds.get(node.id)!;
     const score = (scores.get(node.id) || 0).toFixed(2);
     const source = node.source.section ? `src:${node.source.section}` : '';

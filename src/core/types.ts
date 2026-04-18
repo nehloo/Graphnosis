@@ -27,7 +27,11 @@ export type NodeType =
   | 'image'
   | 'video'
   | 'transcript'
-  | 'visual-description';
+  | 'visual-description'
+  // LongMemEval Phase 2: per-session compressed summary node.
+  // Created by session-summarizer from the full turn list of a session,
+  // linked back to each turn via a 'summarizes' directed edge.
+  | 'session-summary';
 
 export interface SourceReference {
   file: string;
@@ -71,7 +75,11 @@ export type DirectedEdgeType =
   | 'works-with' // Person → person (professional)
   | 'reports-to' // Person → person (hierarchy)
   | 'collaborated-on' // Person → document/concept
-  | 'prefers'; // User → concept/preference
+  | 'prefers' // User → concept/preference
+  // LongMemEval Phase 2: session-summary → turn. Lets BFS reach the
+  // session's turn nodes from a summary seed (and be blocked by the
+  // router on single-session-user/assistant categories).
+  | 'summarizes';
 
 export type UndirectedEdgeType =
   | 'similar-to'

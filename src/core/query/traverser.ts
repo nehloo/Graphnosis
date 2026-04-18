@@ -1,4 +1,4 @@
-import type { KnowledgeGraph, GraphNode, DirectedEdge, UndirectedEdge, NodeId } from '@/core/types';
+import type { KnowledgeGraph, GraphNode, DirectedEdge, DirectedEdgeType, UndirectedEdge, NodeId } from '@/core/types';
 import { MAX_TRAVERSAL_HOPS, DECAY_FACTOR, TOP_K_NODES } from '@/core/constants';
 import type { ScoredSeed } from './seed-finder';
 
@@ -9,12 +9,22 @@ export interface TraversalResult {
   scores: Map<NodeId, number>;
 }
 
+export interface TraverseOptions {
+  // Directed-edge types that BFS is not allowed to cross. Used by the
+  // router to block 'summarizes' on single-session-user/assistant queries
+  // so a summary node (if it slips into the seed pool) can't pull every
+  // turn of its session into the subgraph.
+  blockedEdgeTypes?: Set<DirectedEdgeType>;
+}
+
 export function traverseGraph(
   graph: KnowledgeGraph,
   seeds: ScoredSeed[],
   maxHops: number = MAX_TRAVERSAL_HOPS,
-  maxNodes: number = TOP_K_NODES
+  maxNodes: number = TOP_K_NODES,
+  opts: TraverseOptions = {}
 ): TraversalResult {
+  const blocked = opts.blockedEdgeTypes;
   const nodeScores = new Map<NodeId, number>();
   const visited = new Set<NodeId>();
 
@@ -66,6 +76,7 @@ export function traverseGraph(
 
     // Traverse directed edges (outgoing)
     for (const edge of outEdges.get(nodeId) || []) {
+      if (blocked && blocked.has(edge.type)) continue;
       const neighborScore = decayedScore * edge.weight;
       const existing = nodeScores.get(edge.to) || 0;
       if (neighborScore > existing) {
@@ -76,6 +87,7 @@ export function traverseGraph(
 
     // Traverse directed edges (incoming — follow edges backward)
     for (const edge of inEdges.get(nodeId) || []) {
+      if (blocked && blocked.has(edge.type)) continue;
       const neighborScore = decayedScore * edge.weight * 0.5; // Lower weight for backward traversal
       const existing = nodeScores.get(edge.from) || 0;
       if (neighborScore > existing) {
@@ -139,9 +151,13 @@ export function traverseGraph(
 
   const selectedNodeIds = new Set(sortedNodes.map(([id]) => id));
 
-  // Collect relevant edges (both endpoints must be in the selected set)
+  // Collect relevant edges (both endpoints must be in the selected set).
+  // Blocked edge types are dropped from the serialized subgraph too — for
+  // single-session questions, even a 'summarizes' edge already in the
+  // selected set adds noise the LLM doesn't need.
   const relevantDirected: DirectedEdge[] = [];
   for (const edge of graph.directedEdges.values()) {
+    if (blocked && blocked.has(edge.type)) continue;
     if (selectedNodeIds.has(edge.from) && selectedNodeIds.has(edge.to)) {
       relevantDirected.push(edge);
     }

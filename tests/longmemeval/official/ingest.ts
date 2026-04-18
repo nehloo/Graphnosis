@@ -68,12 +68,16 @@ function sessionToDocument(
   return doc;
 }
 
-export function buildGraphForQuestion(q: LMEQuestion): BuiltGraph {
+export function buildSessionDocsForQuestion(q: LMEQuestion): ParsedDocument[] {
   const docs: ParsedDocument[] = [];
   for (let i = 0; i < q.haystack_sessions.length; i++) {
     const sessionId = q.haystack_session_ids[i] ?? `session_${i}`;
     const sessionDate = q.haystack_dates[i] ?? q.question_date;
     docs.push(sessionToDocument(q.question_id, sessionId, sessionDate, q.haystack_sessions[i]));
   }
-  return buildGraph(docs, `lme:${q.question_id}`);
+  return docs;
+}
+
+export function buildGraphForQuestion(q: LMEQuestion): BuiltGraph {
+  return buildGraph(buildSessionDocsForQuestion(q), `lme:${q.question_id}`);
 }
