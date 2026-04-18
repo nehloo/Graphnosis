@@ -65,7 +65,8 @@ function readJsonl<T>(path: string): T[] {
 }
 
 // Extract the first integer or decimal number from a string.
-function extractNumber(s: string): number | null {
+function extractNumber(s: unknown): number | null {
+  if (typeof s !== 'string') return null;
   const m = s.match(/\b(\d+(?:\.\d+)?)\b/);
   return m ? parseFloat(m[1]) : null;
 }
