@@ -14,7 +14,8 @@
     "longmemeval:real": "tsx tests/longmemeval/official/run.ts",
     "longmemeval:real:embeddings": "tsx tests/longmemeval/official/run.ts --retrieval embeddings",
     "longmemeval:real:hybrid": "tsx tests/longmemeval/official/run.ts --retrieval hybrid",
-    "longmemeval:real:premium": "tsx tests/longmemeval/official/run.ts --retrieval hybrid --answer-model gpt-4o"
+    "longmemeval:real:premium": "tsx tests/longmemeval/official/run.ts --retrieval hybrid --answer-model gpt-4o",
+    "longmemeval:audit:multisession": "tsx tests/longmemeval/official/audit-multisession.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.52",

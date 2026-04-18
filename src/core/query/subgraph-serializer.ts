@@ -46,6 +46,16 @@ export function serializeSubgraph(
       const sidTag = typeof sid === 'string' && sid ? `session:${sid}` : '';
       const tags = [sidTag, date].filter(Boolean).join('|');
       lines.push(`[${shortId}|summary|${score}${tags ? '|' + tags : ''}] ${node.content}`);
+      // Surface the atomic claims so the LLM can enumerate countable events
+      // directly (e.g. "I bought 30 lbs of coffee beans") rather than
+      // inferring them from compressed prose.
+      const rawClaims = node.metadata.claims;
+      if (typeof rawClaims === 'string' && rawClaims.trim()) {
+        const claims = rawClaims.split(' || ').map(c => c.trim()).filter(Boolean).slice(0, 10);
+        if (claims.length > 0) {
+          lines.push(`  claims: ${claims.join(' | ')}`);
+        }
+      }
     }
     lines.push('');
   }

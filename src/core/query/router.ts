@@ -158,13 +158,14 @@ Priority order:
 
     case 'multi-session':
       return `This question asks for a total, count, or aggregate across multiple sessions. Procedure:
-1. Scan the context and list each instance that matches the question's criterion (e.g., "cuisine" = a national/regional cooking tradition, NOT a diet like "vegan"; "purchase" = an actual buy event, NOT a wish).
-2. For each candidate, verify it actually matches — reject loose matches.
-3. Distinguish between ADDITIONS and SUPERSEDED totals:
+1. Start with the SESSION SUMMARIES block. Each summary may have a \`claims:\` line — these are atomic, countable facts in the user's own voice (e.g. "I bought 30 lbs of coffee beans"). Use them as your primary counting evidence before turning to raw turn nodes.
+2. Scan the context and list each instance that matches the question's criterion (e.g., "cuisine" = a national/regional cooking tradition, NOT a diet like "vegan"; "purchase" = an actual buy event, NOT a wish).
+3. For each candidate, verify it actually matches — reject loose matches.
+4. Distinguish between ADDITIONS and SUPERSEDED totals:
    - If two sessions describe separate events that each add to the total ("I bought 30 lbs" then "I bought 40 lbs"), SUM them.
    - If a later session restates the running total ("I've now collected 25 in total", "my count is up to 12"), USE the most recent stated total — do NOT add it to earlier partial counts.
-4. Compute the aggregate.
-5. State the answer first, then briefly list the instances you counted.
+5. Compute the aggregate.
+6. State the answer first, then briefly list the instances you counted (citing session date or ID when available).
 If you found fewer instances than expected, don't inflate the count — report only what's in the context.
 
 `;
