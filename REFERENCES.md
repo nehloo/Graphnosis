@@ -54,7 +54,7 @@ OpenAI (2024). **text-embedding-3-small** — semantic retrieval embeddings in h
 ### Origins
 
 Lazar, N. (late 1990s).
-**Neural Network C++ class** (personal project).
+**Neural Network C++ class** (personal project; also contributed to a computer science assignment at Transilvania University, Brașov, Romania).
 A handwritten C++ training loop that ingested pixel-drawn letter sketches, ran repeated training cycles, and identified the drawn character. The first personal experiment in machine pattern recognition — and the direct intellectual precursor to Graphnosis's approach of structured, typed knowledge representation for AI comprehension.
 
 ---
