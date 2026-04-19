@@ -51,6 +51,17 @@ OpenAI (2024). **text-embedding-3-small** — semantic retrieval embeddings in h
 | Next.js Documentation (30 pages) | [github.com/vercel/next.js](https://github.com/vercel/next.js) | MIT |
 | NASA Mars Mission data | [api.nasa.gov](https://api.nasa.gov) | Public Domain |
 
+### Origins
+
+**'90s Neural Network C++ class** (personal project, late 1990s)
+A handwritten C++ training loop that ingested pixel-drawn letter sketches, ran repeated training cycles, and identified the drawn character. The first personal experiment in machine pattern recognition — and the direct intellectual precursor to Graphnosis's approach of structured, typed knowledge representation for AI comprehension.
+
+---
+
+**EditIcon** — pixel editor companion tool (personal project, late 1990s)
+https://github.com/nehloo/EditIcon
+The pixel drawing tool used to create hand-drawn letter inputs for the neural network class above. Preserved as an artifact of that era. Referenced in the README ("The Question That Started This") as part of Graphnosis's origin story.
+
 ---
 
 ## Related Work
