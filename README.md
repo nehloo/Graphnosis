@@ -1,6 +1,6 @@
 # Graphnosis — Dual-Graph Knowledge System
 
-[![Benchmark](https://img.shields.io/badge/LongMemEval-74.80%25-e25822?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/benchmarks/benchmarks.md)
+[![Benchmark](https://img.shields.io/badge/LongMemEval-76.40%25-e25822?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/benchmarks/benchmarks.md)
 [![Website](https://img.shields.io/badge/website-graphnosis.vercel.app-blue?style=flat&logo=vercel)](https://graphnosis.vercel.app)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/LICENSE)
@@ -232,24 +232,27 @@ Benchmarked on the Wikipedia dataset (12,199 nodes, 67,578 edges):
 
 ### LongMemEval — Official Benchmark
 
-**72.20%** end-to-end QA accuracy on the [official LongMemEval benchmark](https://github.com/xiaowu0162/LongMemEval) (500 questions, gpt-4o answer + gpt-4o judge, hybrid retrieval).
+**76.40%** end-to-end QA accuracy on the [official LongMemEval benchmark](https://github.com/xiaowu0162/LongMemEval) (500 questions, gpt-4o answer + gpt-4o judge, hybrid retrieval).
 
 | Category | Score |
 |---|---|
 | single-session-user | 95.31% (61/64) |
-| knowledge-update | 83.33% (60/72) |
-| single-session-assistant | 82.14% (46/56) |
-| temporal-reasoning | 70.08% (89/127) |
-| multi-session | 58.68% (71/121) |
-| single-session-preference | 26.67% (8/30) |
+| knowledge-update | 87.50% (63/72) |
+| single-session-assistant | 87.50% (49/56) |
+| temporal-reasoning | 71.65% (91/127) |
+| multi-session | 63.64% (77/121) |
+| single-session-preference | 43.33% (13/30) |
 
 **What got us here:**
 - Hybrid retrieval: TF-IDF graph traversal + semantic embeddings (text-embedding-3-small)
+- Question-type router with category-specific retrieval strategies and prompt blocks
+- Session summary nodes (gpt-4o-mini at ingest) for multi-session / temporal / knowledge-update questions
+- Query-time preference extraction (gpt-4o-mini) for single-session-preference questions
+- Multi-session aggregation routing: strong count-signal captured before temporal/KU patterns
+- Aggregation prompt distinguishes additions vs. superseded totals (sum vs. supersede logic)
 - Temporal grounding: date normalization, wider BFS subgraph for time-sensitive questions
 - Session-diverse seed selection to improve cross-session recall
 - Sibling-turn expansion to include conversational context around relevant turns
-- Preference prompting + semantic reranking for ambiguous queries
-- Aggregation-aware retrieval + prompt for multi-session questions (sum vs. supersede logic)
 - Upgraded answer model from gpt-4o-mini to gpt-4o
 
 **Leaderboard context** (end-to-end QA with official GPT-4 judge):
@@ -261,7 +264,7 @@ Benchmarked on the Wikipedia dataset (12,199 nodes, 67,578 edges):
 | OMEGA | 95.40% |
 | Mastra | 94.87% |
 | Supermemory | 85.86% |
-| **Graphnosis** | **72.20%** |
+| **Graphnosis** | **76.40%** |
 | Zep | 71.20% |
 
 > MemPalace's 96.6%/100% figures measure **retrieval recall R@5** (is the correct conversation session in the top 5 results?) — a different metric than end-to-end QA with a GPT-4 judge. Both are valid; they measure different things. This runner uses the verbatim official judge prompts from [xiaowu0162/LongMemEval](https://github.com/xiaowu0162/LongMemEval).

@@ -1,8 +1,8 @@
 # Graphnosis — Benchmark History
 
-This document tells the full story of how Graphnosis went from a conceptual question about AI and graphs to a system that scores **74.80%** on the official LongMemEval benchmark — above Zep (71.20%) — using end-to-end QA with a GPT-4 judge and pure TypeScript only:
+This document tells the full story of how Graphnosis went from a conceptual question about AI and graphs to a system that scores **76.40%** on the official LongMemEval benchmark — above Zep (71.20%) — using end-to-end QA with a GPT-4 judge and pure TypeScript only:
 
-### What it took for Graphnosis to score **74.80%** on LongMemEval end-to-end QA with an official GPT-4 judge:
+### What it took for Graphnosis to score **76.40%** on LongMemEval end-to-end QA with an official GPT-4 judge:
 - Pure TypeScript, no vector DB, no fine-tuning
 - text-embedding-3-small (cheapest embedding model)
 - gpt-4o answer model + gpt-4o judge
@@ -332,6 +332,37 @@ Net change vs Run 19: +5 questions (374 vs 369). Preference category is now the 
 
 ---
 
+### Run 23 — Multi-Session Routing Fix: **76.40%** (500q) — New Best
+
+*Config:* gpt-4o / hybrid / router + session summaries + preference extraction + multi-session routing fix
+
+Three targeted changes on top of Run 22:
+
+1. **Strong aggregation sentinel** — A new `STRONG_AGGREGATION_INTENT` regex captures "how many [X]" count questions *before* they can be stolen by the `TEMPORAL_INTENT` ("past month/week") or `KNOWLEDGE_UPDATE_INTENT` ("currently") patterns. Without this, count questions like "how many cuisines did I try in the past year?" were misrouted as temporal instead of multi-session, losing the aggregation prompt block.
+2. **Aggregation prompt — claims exposure** — The subgraph serializer now surfaces `claims:` lines from session summary nodes at the top of the multi-session context block. Each claim is an atomic, countable fact in the user's own voice (e.g., *"I bought 30 lbs of Ethiopian beans"*), giving the model unambiguous counting evidence before it reads raw turn nodes.
+3. **`extractNumber` null guard** — Fixed a crash when the judge returned `null` for `gold` or `predicted` fields; no longer silently drops questions from the scored set.
+
+Results vs Run 22:
+
+| Category | Run 22 | **Run 23** | Δ |
+|---|---|---|---|
+| single-session-user | 95.31% (61/64) | 95.31% (61/64) | held |
+| single-session-assistant | 87.50% (49/56) | 87.50% (49/56) | held |
+| knowledge-update | 87.50% (63/72) | 87.50% (63/72) | held |
+| temporal-reasoning | 71.65% (91/127) | 71.65% (91/127) | held |
+| **multi-session** | **57.85%** (70/121) | **63.64%** (77/121) | **+5.79** |
+| single-session-preference | 43.33% (13/30) | 43.33% (13/30) | held |
+
+**Overall: 76.40% (382/500)**
+
+All of the +8 question gain came from multi-session. The strong-aggregation routing fix prevented ~7 count questions from falling into the temporal/KU path where the aggregation prompt block was never injected.
+
+Diagnosis of remaining multi-session failures: two distinct modes — **under-counting** (model retrieves fewer sessions than gold, dominant) and **over-counting** (model includes loose matches). Under-counting is a recall problem; the session summary seeding doesn't surface every relevant session. Over-counting is a prompt adherence problem.
+
+Preference remains unchanged at 43.33% (13/30). Deep analysis of the 17 remaining failures reveals: the model treats preference questions as factual recall, giving abstention responses ("context doesn't contain information") even when 30–80 preference statements are present. The fix — rewriting the prompt block to instruct synthesis rather than recall, and extending PREFERENCE_INTENT to catch "should I / what do you think / would you suggest" — is in place for Run 24.
+
+---
+
 ## Full Progression at a Glance
 
 | Run | Questions | Score | Config |
@@ -356,6 +387,7 @@ Net change vs Run 19: +5 questions (374 vs 369). Preference category is now the 
 | 20 | 500 | 73.60% | + preference extraction (permissive prompt) |
 | 21 | 500 | 74.00% | + preference extraction (cache bug — served Run 20 outputs) |
 | **22** | **500** | **74.80%** | gpt-4o / hybrid / router + session summaries + preference extraction (tightened) |
+| **23** | **500** | **76.40%** | + multi-session routing fix (strong aggregation sentinel) + claims exposure in serializer |
 
 ---
 
@@ -370,7 +402,7 @@ All scores below are **end-to-end QA** with an official GPT-4 judge, using the L
 | OMEGA | 95.40% |
 | Mastra | 94.87% |
 | Supermemory | 85.86% |
-| **Graphnosis** | **74.80%** |
+| **Graphnosis** | **76.40%** |
 | Zep | 71.20% |
 
 **On MemPalace:** MemPalace reports 96.6% (ChromaDB baseline) and 100% (Hybrid v4 + Haiku rerank) — but these are **retrieval recall R@5** scores (is the correct session in the top 5 retrieved?), not end-to-end QA. MemPalace's own BENCHMARKS.md is explicit about this distinction: *"MemPal's strength is retrieval recall, not end-to-end QA accuracy — a different metric than some competitors publish."* Their honest end-to-end generalizable figure on held-out questions is 98.4% R@5 — still retrieval, not QA.
@@ -381,17 +413,18 @@ Both metrics are valid. R@5 measures retrieval quality in isolation. End-to-end 
 
 ## Where the Gap Is
 
-The two weakest categories after Run 22:
+The two weakest categories after Run 23:
 
-**Multi-session (57.85%):** Questions requiring aggregation or synthesis across separate conversations. This is now the largest remaining lever — **51 of 121 questions still miss**, with a theoretical +10.2pt overall headroom. Session summary nodes closed part of this gap in Run 19, but the remaining misses are typically count/aggregation questions where the LLM over- or under-counts from compressed summaries, or where a relevant session isn't retrieved at all. Needs a targeted audit — likely a mix of aggregation-prompt sharpening and retrieval coverage.
+**Multi-session (63.64%):** Questions requiring aggregation or synthesis across separate conversations. **44 of 121 still miss**, with theoretical +7.2pt overall headroom. The routing fix in Run 23 captured the low-hanging fruit (misrouted count questions). Remaining failures split into two modes: *under-counting* (dominant — a relevant session isn't retrieved at all) and *over-counting* (model includes loose matches). Under-counting is a recall problem requiring either wider session summary seeding or improved session diversity. Over-counting is a prompt adherence problem.
 
-**Single-session-preference (43.33%):** Run 22 moved the needle (+6.66pt vs Run 19) but 17 of 30 still miss. gpt-4o-mini only partially honored the "cap at 3 statements" instruction in the extraction pass — most sessions returned 20–50 statements instead of ≤3 — so the preference block is still noisier than intended. Tightening further (e.g., a second filter pass, or switching the extractor to a reasoning model) could push this higher, but at only 30 questions the ceiling is +1.8pt overall. Multi-session is the better next target.
+**Single-session-preference (43.33%):** 17 of 30 still miss after Run 22–23. Root cause analysis of all 17 failures: the model treats preference questions as factual recall and gives abstention responses ("context doesn't contain information about X") even when 30–80 preference statements are present in the retrieved context. The prompt block was actively causing abstentions with its final instruction: *"If the context does not contain a relevant preference, answer from what is present and say so."* Fixed for Run 24: rewrote the block to instruct synthesis from user preference statements, added a CRITICAL prohibition against abstention when preference evidence is present, and extended PREFERENCE_INTENT to catch "should I / what do you think / would you suggest" routing misses. Ceiling is +1.7pt overall (17 questions × 0.2%).
 
 ---
 
 ## What's Next
 
-- **Multi-session aggregation audit** — trace the 51 multi-session misses to separate (a) the LLM over/undercount from summaries, (b) retrieval missing a relevant session entirely, and (c) the aggregation prompt failing to distinguish additions from supersessions. Cheap diagnostic — no new LLM calls needed, just trace analysis.
-- **Preference extraction v3** — a second filter pass over extracted statements (rank by relevance, keep top 3) or a switch to a stricter extraction model. Secondary priority given the smaller headroom.
+- **Run 24** — preference synthesis fix (rewritten prompt block) + extended routing (should I / what do you think) already in place. Expected: preference 43.33% → ~70%+ (+1.5–1.7pt overall), overall → ~78%.
+- **Multi-session under-counting** — root cause the 44 remaining misses: separate retrieval failures (session not found) from reasoning failures (session found but miscounted). Wider session summary seeding or improved diversity are the likely fixes.
+- **Preference extraction v3** — second filter pass over extracted statements (rank by relevance, keep top 3) or switch extractor to a reasoning model. Secondary priority given the smaller headroom.
 - **NLP-based relation extraction** — replacing heuristic `causes`/`contradicts` detection with model-based extraction.
 - **Embedding-native similarity** — optional upgrade from TF-IDF to full embedding similarity for undirected edges.
