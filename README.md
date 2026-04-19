@@ -366,6 +366,15 @@ Explore the working prototype: **[graphnosis.vercel.app](https://graphnosis.verc
   <img src="docs/screenshots/gai2-2.png" alt="View .gai — Inspect the AI-native binary format — what the machine sees, decoded for humans" width="100%" />
 </p>
 
+## References & Attribution
+
+For the full list see [REFERENCES.md](REFERENCES.md).
+
+**Benchmark used:** Wu et al. (2025). [LongMemEval](https://arxiv.org/abs/2410.10813). *ICLR 2025.* — 500-question evaluation dataset; GPT-4 judge prompts used verbatim.
+
+**Related work** (independent development — listed for comparison context):
+Edge et al. [GraphRAG](https://arxiv.org/abs/2404.16130) · Guo et al. [LightRAG](https://arxiv.org/abs/2410.05779) · Lewis et al. [RAG](https://arxiv.org/abs/2005.11401)
+
 ## License
 
 MIT
