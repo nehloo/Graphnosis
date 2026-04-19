@@ -69,7 +69,7 @@ const TEMPORAL_INTENT =
 // tastes. Runs BEFORE knowledge-update because "my current setup" (a
 // preference question) would otherwise trigger KU's "current" pattern.
 const PREFERENCE_INTENT =
-  /\b(favorite|favourite|prefer|preference|usually|typically|habit|routine|tend to|like to|love to|hate|enjoy|(my|I) (preferred|usual|typical)|can you (recommend|suggest)|could you (recommend|suggest)|any (tips|advice|suggestions|ideas|recommendations|thoughts)|what should I (serve|wear|watch|eat|read|try|do|cook|make|buy|get|order|play|listen)|do you have any (ideas|suggestions|recommendations|tips)|i('ve| have) been (struggling|thinking|feeling|wanting) .*(any|tips|advice|ideas|suggest)|looking for (some|any) (ideas|recommendations|suggestions|tips)|should I\b|what do you think|would you (recommend|suggest)|what would you (recommend|suggest|advise))\b/i;
+  /\b(favorite|favourite|prefer|preference|usually|typically|habit|routine|tend to|like to|love to|hate|enjoy|(my|I) (preferred|usual|typical)|can you (recommend|suggest)|could you (recommend|suggest)|any (tips|advice|suggestions|ideas|recommendations)|what should I (serve|wear|watch|eat|read|try|do|cook|make|buy|get|order|play|listen)|do you have any (ideas|suggestions|recommendations|tips)|i('ve| have) been (struggling|thinking|feeling|wanting) .*(any|tips|advice|ideas|suggest)|looking for (some|any) (ideas|recommendations|suggestions|tips))\b/i;
 
 // Knowledge-update: a fact that has changed over time; answer should reflect
 // the latest non-superseded claim. Covers "currently", "most recent",
@@ -168,7 +168,7 @@ Procedure:
 4. Give a concrete, specific recommendation grounded in the inferred preferences. Cite the preference statements you used (e.g., "since you mentioned you enjoy Ethiopian light roasts and prefer single-origin...").
 5. If multiple user statements conflict, prefer the most recent (highest date tag).
 
-CRITICAL: Never respond with "the context doesn't contain information about [topic]" or "I cannot find relevant preferences." If the user's stated preferences don't directly address the topic, reason from adjacent preferences and explain your inference. A synthesized recommendation using related preferences is always better than abstaining.
+Only abstain if there is genuinely no preference evidence whatsoever in the context — no user statements about habits, tastes, dislikes, or lifestyle. If any preference signal is present, synthesize from it rather than abstaining.
 
 `;
 
