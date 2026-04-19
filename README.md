@@ -271,6 +271,70 @@ Benchmarked on the Wikipedia dataset (12,199 nodes, 67,578 edges):
 
 For the full benchmark progression story — every iteration from first run to this result — see [benchmarks.md](benchmarks/benchmarks.md).
 
+## Graphnosis as AI Middleware (MCP Server)
+
+Graphnosis ships as a portable **MCP (Model Context Protocol) server** — drop-in knowledge-graph middleware for any LLM. Load a `.gai` file, ask a question, and receive a ~2K-token plain-text subgraph snippet ready to inject into any LLM's system prompt.
+
+### Two deployment modes
+
+**Mode 1 — Local / Claude Desktop** (stdio transport)
+
+Add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "graphnosis": {
+      "command": "node",
+      "args": ["/path/to/Graphnosis/node_modules/.bin/tsx", "src/mcp/server.ts"],
+      "cwd": "/path/to/Graphnosis",
+      "env": { "OPENAI_API_KEY": "sk-..." }
+    }
+  }
+}
+```
+
+Or run directly:
+
+```bash
+npm run mcp
+```
+
+**Mode 2 — Enterprise On-Premises** (HTTP transport, Docker)
+
+```bash
+docker compose up
+# MCP endpoint: http://internal-host:3001/mcp
+```
+
+Point any MCP-compatible client at your internal host. The `.gai` file stays on your mounted volume inside the enterprise perimeter. See [enterprise/enterprise.md](enterprise/enterprise.md) for the full security and privacy architecture.
+
+### MCP tools
+
+| Tool | What it does |
+|------|-------------|
+| `load_graph` | Load a `.gai` file into session memory |
+| `ingest_files` | Parse raw files → build graph → store in session |
+| `update_graph` | Add new documents to an existing session graph |
+| `query` | Ask a question → returns a ~2K plain-text subgraph snippet |
+| `export` | Write the session graph back to a `.gai` file |
+
+**Privacy guarantee:** `query` returns only the serialized subgraph text and a node count — never the full graph, raw node list, or binary file. Only the few hundred tokens relevant to your question ever leave the enterprise perimeter.
+
+### Why not just use Anthropic/OpenAI memory?
+
+Cloud-provider memory stores your knowledge on their infrastructure. Graphnosis keeps the graph on your machine or your servers — always.
+
+| | Graphnosis | Cloud-provider memory |
+|---|---|---|
+| **Graph location** | Your machine / enterprise servers | Provider infrastructure |
+| **LLM compatibility** | Any (Claude, GPT-4, Gemini, Ollama…) | Provider-locked |
+| **Privacy** | Full control | Data leaves perimeter |
+| **Format** | Open `.gai` (portable) | Proprietary |
+| **Self-hostable** | Yes | No |
+
+---
+
 ## Getting Started
 
 ```bash

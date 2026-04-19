@@ -1,0 +1,26 @@
+# Graphnosis MCP Server — Mode 2 (Enterprise On-Premises)
+#
+# Usage:
+#   docker compose up
+#
+# Connect any MCP client to http://localhost:3001/mcp
+#
+# To point at Ollama or an internal LLM gateway instead of OpenAI, set:
+#   OPENAI_BASE_URL: http://internal-ollama:11434/v1
+#   OPENAI_API_KEY: ollama   # or whatever your gateway expects
+
+services:
+  graphnosis-mcp:
+    build: .
+    ports:
+      - "3001:3001"
+    volumes:
+      # Mount the directory containing your .gai files
+      - ${GRAPH_DATA_PATH:-./data}:/data
+    environment:
+      MCP_TRANSPORT: http
+      MCP_PORT: 3001
+      # LLM endpoint — defaults to OpenAI; override for Ollama / Azure / Bedrock
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+    restart: unless-stopped

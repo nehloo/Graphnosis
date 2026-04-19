@@ -15,15 +15,20 @@
     "longmemeval:real:embeddings": "tsx tests/longmemeval/official/run.ts --retrieval embeddings",
     "longmemeval:real:hybrid": "tsx tests/longmemeval/official/run.ts --retrieval hybrid",
     "longmemeval:real:premium": "tsx tests/longmemeval/official/run.ts --retrieval hybrid --answer-model gpt-4o",
-    "longmemeval:audit:multisession": "tsx tests/longmemeval/official/audit-multisession.ts"
+    "longmemeval:audit:multisession": "tsx tests/longmemeval/official/audit-multisession.ts",
+    "mcp": "tsx src/mcp/server.ts",
+    "mcp:http": "MCP_TRANSPORT=http tsx src/mcp/server.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.52",
     "@ai-sdk/react": "^3.0.160",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@types/express": "^5.0.6",
     "ai": "^6.0.158",
     "better-sqlite3": "^12.8.0",
     "cheerio": "^1.1.0",
     "exif-parser": "^0.1.12",
+    "express": "^5.2.1",
     "msgpackr": "^1.11.9",
     "music-metadata": "^11.12.3",
     "nanoid": "^5.1.7",
@@ -37,7 +42,8 @@
     "remark-parse": "^11.0.0",
     "unified": "^11.0.5",
     "wtf_wikipedia": "^10.4.1",
-    "xxhash-wasm": "^1.1.0"
+    "xxhash-wasm": "^1.1.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
