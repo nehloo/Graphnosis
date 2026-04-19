@@ -1,4 +1,4 @@
-# Graphnosis — Dual-Graph Knowledge System
+# Graphnosis — Dual-Graph Private AI Memory & Knowledge Framework
 
 [![Enterprise](https://img.shields.io/badge/Enterprise-Privacy%20%26%20Security-2ea043?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/enterprise/enterprise.md)
 [![.gai Format](https://img.shields.io/badge/.gai-Format%20Spec-5b3fd1?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/gai-format/gai-format.md)
