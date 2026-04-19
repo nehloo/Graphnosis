@@ -69,7 +69,7 @@ const TEMPORAL_INTENT =
 // tastes. Runs BEFORE knowledge-update because "my current setup" (a
 // preference question) would otherwise trigger KU's "current" pattern.
 const PREFERENCE_INTENT =
-  /\b(favorite|favourite|prefer|preference|usually|typically|habit|routine|tend to|like to|love to|hate|enjoy|(my|I) (preferred|usual|typical)|can you (recommend|suggest)|could you (recommend|suggest)|any (tips|advice|suggestions|ideas|recommendations)|what should I (serve|wear|watch|eat|read|try|do|cook|make|buy|get|order|play|listen)|do you have any (ideas|suggestions|recommendations|tips)|i('ve| have) been (struggling|thinking|feeling|wanting) .*(any|tips|advice|ideas|suggest)|looking for (some|any) (ideas|recommendations|suggestions|tips))\b/i;
+  /\b(favorite|favourite|prefer|preference|usually|typically|habit|routine|tend to|like to|love to|hate|enjoy|(my|I) (preferred|usual|typical)|can you (recommend|suggest)|could you (recommend|suggest)|any (tips|advice|suggestions|ideas|recommendations|thoughts)|what should I (serve|wear|watch|eat|read|try|do|cook|make|buy|get|order|play|listen)|do you have any (ideas|suggestions|recommendations|tips)|i('ve| have) been (struggling|thinking|feeling|wanting) .*(any|tips|advice|ideas|suggest)|looking for (some|any) (ideas|recommendations|suggestions|tips)|should I\b|what do you think|would you (recommend|suggest)|what would you (recommend|suggest|advise))\b/i;
 
 // Knowledge-update: a fact that has changed over time; answer should reflect
 // the latest non-superseded claim. Covers "currently", "most recent",
@@ -159,13 +159,16 @@ export function buildCategoryPromptBlock(type: LMEQuestionType): string {
 `;
 
     case 'single-session-preference':
-      return `This question asks about the user's preferences, habits, or personal choices — typically to inform a recommendation. Ground your answer in statements the user explicitly made about themselves.
+      return `This question asks you to make a personalized recommendation based on the user's known preferences, habits, or tastes. Your task is to SYNTHESIZE a recommendation — not recall a specific fact.
 
-Priority order:
-1. If a \`--- USER PREFERENCE STATEMENTS ---\` block is present, treat those as the authoritative, distilled preference evidence. Each statement is in the user's own voice and carries a session/turn citation.
-2. Otherwise, prioritize nodes tagged \`src:User (turn N)\` over assistant turns.
-3. When multiple user statements are consistent, synthesize them; when they conflict, prefer the most recent (highest date).
-4. Do not invent preferences the user did not state. If the context does not contain a relevant preference, answer from what is present and say so.
+Procedure:
+1. If a \`--- USER PREFERENCE STATEMENTS ---\` block is present, start there — those are distilled preference evidence in the user's own voice.
+2. Scan ALL nodes, especially \`src:User (turn N)\` nodes, for any stated preferences, habits, dislikes, dietary restrictions, budget habits, lifestyle context, or expressed likes/dislikes — even if the specific topic is not mentioned directly.
+3. Collect every relevant preference signal, then reason: "Given that this user prefers X, avoids Y, and usually does Z, the best recommendation for this question is..."
+4. Give a concrete, specific recommendation grounded in the inferred preferences. Cite the preference statements you used (e.g., "since you mentioned you enjoy Ethiopian light roasts and prefer single-origin...").
+5. If multiple user statements conflict, prefer the most recent (highest date tag).
+
+CRITICAL: Never respond with "the context doesn't contain information about [topic]" or "I cannot find relevant preferences." If the user's stated preferences don't directly address the topic, reason from adjacent preferences and explain your inference. A synthesized recommendation using related preferences is always better than abstaining.
 
 `;
 
