@@ -37,6 +37,9 @@ yarn-error.log*
 # Graphnosis data
 /data/
 
+# Graphnosis plans
+/plans/
+
 # vercel
 .vercel
 

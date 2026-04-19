@@ -8,7 +8,7 @@
 [![References](https://img.shields.io/badge/References-Attribution-6a737d?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/REFERENCES.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/LICENSE)
 
-**Instead of raw files that human can read (md, txt, pdf, doc etc.), can humans feed AI with context binary files that AI understand better than humans can read them?**
+**Instead of raw files that humans can read (md, txt, pdf, doc etc.), can humans feed AI with context binary files that LLMs understand better than humans can read them?**
 
 Graphnosis transforms raw files into AI-optimized directed and undirected graph representations. Instead of feeding AI models flat text chunks (the standard RAG approach), Graphnosis builds a structured knowledge graph with typed relationships — then serializes relevant subgraphs into a format designed for machine comprehension, not human readability.
 
