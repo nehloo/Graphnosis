@@ -5,13 +5,10 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 
-export type LMEQuestionType =
-  | 'single-session-user'
-  | 'single-session-assistant'
-  | 'single-session-preference'
-  | 'multi-session'
-  | 'temporal-reasoning'
-  | 'knowledge-update';
+// Canonical definition lives in src/core/types.ts so nothing in core imports
+// from tests/. Re-exported here for any existing test-side callers.
+export type { LMEQuestionType } from '@/core/types';
+import type { LMEQuestionType } from '@/core/types';
 
 export interface LMETurn {
   role: 'user' | 'assistant';

@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import type Database from 'better-sqlite3';
 import type {
   KnowledgeGraph,
   GraphNode,
@@ -12,10 +12,30 @@ import path from 'path';
 
 const DB_PATH = path.join(process.cwd(), 'data', 'graphnosis.db');
 
+// Lazy-load better-sqlite3 so it can be listed as an optional dependency. The
+// import fails loudly only when a persistence call is actually attempted.
+// `eval('require')` works in both the Next.js ESM build and the SDK's
+// CommonJS build without tsc trying to transform it.
+let DatabaseCtor: typeof import('better-sqlite3') | null = null;
+function loadDatabase(): typeof import('better-sqlite3') {
+  if (DatabaseCtor) return DatabaseCtor;
+  try {
+    const req = eval('require') as NodeRequire;
+    DatabaseCtor = req('better-sqlite3') as typeof import('better-sqlite3');
+    return DatabaseCtor;
+  } catch {
+    throw new Error(
+      '[graphnosis] SQLite persistence requires better-sqlite3. ' +
+        'Install it with: npm install better-sqlite3'
+    );
+  }
+}
+
 let db: Database.Database | null = null;
 
 function getDb(): Database.Database {
   if (!db) {
+    const Database = loadDatabase();
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
@@ -261,4 +281,38 @@ export function closeDb(): void {
     db.close();
     db = null;
   }
+}
+
+// --- External (SDK) entrypoint -------------------------------------------------
+// Open a store bound to an explicit DB path. The process-cwd default above is
+// retained for the Next.js app; SDK callers go through this factory so they
+// don't inherit cwd and don't share the module-level singleton.
+export interface SqliteStore {
+  saveGraph(graph: KnowledgeGraph): void;
+  loadGraph(graphId: string): KnowledgeGraph | null;
+  listGraphs(): Array<{ id: string; name: string; nodeCount: number; updatedAt: number }>;
+  recordNodeAccess(graphId: string, nodeIds: NodeId[]): void;
+  close(): void;
+}
+
+export function openSqliteStore(dbPath: string): SqliteStore {
+  const Database = loadDatabase();
+  const handle = new Database(dbPath);
+  handle.pragma('journal_mode = WAL');
+  handle.pragma('foreign_keys = ON');
+  initSchema(handle);
+
+  const withSingleton = <T>(fn: () => T): T => {
+    const prev = db;
+    db = handle;
+    try { return fn(); } finally { db = prev; }
+  };
+
+  return {
+    saveGraph: (graph) => withSingleton(() => saveGraph(graph)),
+    loadGraph: (id) => withSingleton(() => loadGraph(id)),
+    listGraphs: () => withSingleton(() => listGraphs()),
+    recordNodeAccess: (graphId, nodeIds) => withSingleton(() => recordNodeAccess(graphId, nodeIds)),
+    close: () => handle.close(),
+  };
 }

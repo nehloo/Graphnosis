@@ -9,7 +9,7 @@ import {
   renderPreferenceBlock,
   type PreferenceStatement,
 } from '@/core/enrichment/preference-extractor';
-import type { LMEQuestionType } from '../../../tests/longmemeval/official/dataset';
+import type { LMEQuestionType } from '@/core/types';
 
 // Non-streaming question-answering helper.
 // Shared by the /api/graph/query route and the LongMemEval official runner

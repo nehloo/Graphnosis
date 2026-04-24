@@ -271,3 +271,15 @@ export interface ConnectionDiscovery {
   surprise: number; // 0-1, how unexpected this connection is
   discoveredAt: number;
 }
+
+// --- Router category ---
+// Originally defined in the LongMemEval test dataset module, hoisted here so
+// src/core/* has no upward dependencies on test or app code. The dataset
+// module re-exports this for backwards compatibility.
+export type LMEQuestionType =
+  | 'single-session-user'
+  | 'single-session-assistant'
+  | 'single-session-preference'
+  | 'multi-session'
+  | 'temporal-reasoning'
+  | 'knowledge-update';
