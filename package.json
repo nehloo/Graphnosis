@@ -30,7 +30,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "build:lib": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
+    "build:lib": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json && node -e \"require('fs').writeFileSync('dist/package.json', JSON.stringify({type:'module'}))\"",
     "prepublishOnly": "npm run lint && npm run build:lib",
     "longmemeval:smoke": "tsx tests/longmemeval/official/run.ts --limit 20",
     "longmemeval:smoke:embeddings": "tsx tests/longmemeval/official/run.ts --limit 20 --retrieval embeddings",

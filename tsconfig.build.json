@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "commonjs",
+    "module": "ES2020",
     "moduleResolution": "node",
     "lib": ["ES2020"],
     "outDir": "dist",
@@ -31,5 +31,8 @@
     "src/mcp",
     "**/*.test.ts",
     "**/*.spec.ts"
-  ]
+  ],
+  "tsc-alias": {
+    "resolveFullPaths": true
+  }
 }
