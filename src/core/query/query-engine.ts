@@ -21,7 +21,7 @@ import {
   buildCategoryPromptBlock,
   type RouterDecision,
 } from './router';
-import type { LMEQuestionType } from '../../../tests/longmemeval/official/dataset';
+import type { LMEQuestionType } from '@/core/types';
 
 // Enhanced query engine with synonym expansion and query decomposition
 

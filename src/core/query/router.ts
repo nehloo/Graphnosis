@@ -17,7 +17,7 @@
 // used by default — we publish an honest leaderboard number measured the
 // same way as Zep / Mastra.
 
-import type { LMEQuestionType } from '../../../tests/longmemeval/official/dataset';
+import type { LMEQuestionType } from '@/core/types';
 
 // Retrieval strategy dial used by queryGraph. Values represent category-level
 // defaults; explicit QueryOptions still win so the CLI can override per-run.

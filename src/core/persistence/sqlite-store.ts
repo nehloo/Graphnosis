@@ -262,3 +262,36 @@ export function closeDb(): void {
     db = null;
   }
 }
+
+// --- External (SDK) entrypoint -------------------------------------------------
+// Open a store bound to an explicit DB path. The process-cwd default above is
+// retained for the Next.js app; SDK callers go through this factory so they
+// don't inherit cwd and don't share the module-level singleton.
+export interface SqliteStore {
+  saveGraph(graph: KnowledgeGraph): void;
+  loadGraph(graphId: string): KnowledgeGraph | null;
+  listGraphs(): Array<{ id: string; name: string; nodeCount: number; updatedAt: number }>;
+  recordNodeAccess(graphId: string, nodeIds: NodeId[]): void;
+  close(): void;
+}
+
+export function openSqliteStore(dbPath: string): SqliteStore {
+  const handle = new Database(dbPath);
+  handle.pragma('journal_mode = WAL');
+  handle.pragma('foreign_keys = ON');
+  initSchema(handle);
+
+  const withSingleton = <T>(fn: () => T): T => {
+    const prev = db;
+    db = handle;
+    try { return fn(); } finally { db = prev; }
+  };
+
+  return {
+    saveGraph: (graph) => withSingleton(() => saveGraph(graph)),
+    loadGraph: (id) => withSingleton(() => loadGraph(id)),
+    listGraphs: () => withSingleton(() => listGraphs()),
+    recordNodeAccess: (graphId, nodeIds) => withSingleton(() => recordNodeAccess(graphId, nodeIds)),
+    close: () => handle.close(),
+  };
+}
