@@ -18,6 +18,7 @@ export async function parseImage(
 
   // Extract EXIF data
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const ExifParser = require('exif-parser');
     const parser = ExifParser.create(buffer);
     parser.enableBinaryFields(false);

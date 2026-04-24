@@ -73,7 +73,8 @@ function applyEdit(
   node.confidence = 1.0; // Human-corrected = max confidence
   node.lastAccessedAt = Date.now();
 
-  // Re-extract entities
+  // Re-extract entities (lazy require avoids a circular import)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { extractEntities } = require('@/core/extraction/entity-extractor');
   node.entities = extractEntities(correction.content);
 
@@ -98,6 +99,7 @@ function applyAdd(
   }
 
   const nodeId = nanoid();
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { extractEntities } = require('@/core/extraction/entity-extractor');
 
   const newNode: GraphNode = {
