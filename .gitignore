@@ -49,3 +49,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# release drafting scratch file — notes live on the GitHub release itself
+RELEASE_NOTES.md
