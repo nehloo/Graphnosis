@@ -1,6 +1,6 @@
 {
   "name": "@nehloo/graphnosis",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AI-native dual-graph knowledge representation — build, query, and persist typed knowledge graphs in-process.",
   "license": "MIT",
   "repository": {
@@ -22,7 +22,7 @@
     "LICENSE"
   ],
   "publishConfig": {
-    "access": "restricted",
+    "access": "public",
     "provenance": true
   },
   "scripts": {
@@ -47,22 +47,14 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.52",
-    "@ai-sdk/react": "^3.0.160",
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "@types/express": "^5.0.6",
     "ai": "^6.0.158",
     "cheerio": "^1.1.0",
     "exif-parser": "^0.1.12",
-    "express": "^5.2.1",
     "msgpackr": "^1.11.9",
     "music-metadata": "^11.12.3",
     "nanoid": "^5.1.7",
-    "next": "16.2.3",
     "papaparse": "^5.5.3",
     "pdf-parse": "^2.4.5",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "react-force-graph-2d": "^1.29.1",
     "remark": "^15.0.1",
     "remark-parse": "^11.0.0",
     "unified": "^11.0.5",
@@ -74,14 +66,22 @@
     "better-sqlite3": "^12.8.0"
   },
   "devDependencies": {
+    "@ai-sdk/react": "^3.0.160",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.13",
+    "@types/express": "^5.0.6",
     "@types/node": "^20",
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
+    "express": "^5.2.1",
+    "next": "16.2.3",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-force-graph-2d": "^1.29.1",
     "tailwindcss": "^4",
     "tsc-alias": "^1.8.16",
     "tsx": "^4.19.2",

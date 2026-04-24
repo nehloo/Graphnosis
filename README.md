@@ -381,6 +381,13 @@ npm install @nehloo/graphnosis
 npm install better-sqlite3
 ```
 
+> **Next.js users:** if you install `better-sqlite3`, add it to `serverExternalPackages` in your `next.config.ts` to prevent webpack from bundling the native module:
+> ```ts
+> // next.config.ts
+> const nextConfig = { serverExternalPackages: ['better-sqlite3'] };
+> export default nextConfig;
+> ```
+
 ### Quick example
 
 ```ts
