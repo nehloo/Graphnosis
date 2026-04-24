@@ -365,6 +365,73 @@ Open http://localhost:3000 and use the navigation:
 | **Audit** | Entity reports, contradictions, health dashboard, markdown export |
 | **Benchmarks** | Query performance metrics across 10 test queries |
 
+## Using Graphnosis as an NPM Dependency
+
+Graphnosis ships a Node SDK so you can embed the graph engine inside your own
+service without running the Next.js app. The SDK is **in-process** and
+performs **zero network I/O** — the core query path never calls OpenAI or
+any other remote service. See [`enterprise/enterprise.md`](./enterprise/enterprise.md#adopting-graphnosis-as-an-npm-dependency--security--it-guidance)
+for the full enterprise security posture.
+
+### Install
+
+```bash
+npm install @nehloo/graphnosis
+# Optional — only needed if you want SQLite persistence:
+npm install better-sqlite3
+```
+
+### Quick example
+
+```ts
+import { readFileSync } from 'node:fs';
+import { Graphnosis } from '@nehloo/graphnosis';
+
+const g = new Graphnosis({ name: 'docs' });
+g.addMarkdown(readFileSync('README.md', 'utf8'), 'README.md');
+g.addText('Chunking splits documents into 3-sentence units.', 'notes.txt');
+g.build();
+
+// Retrieve a subgraph for a question (no LLM call)
+const result = g.query('how does chunking work?');
+console.log(result.subgraph.serialized);
+
+// Or build a system prompt ready for any LLM
+const prompt = g.prompt('how does chunking work?');
+// pass `prompt` to Claude / GPT-4 / Ollama / Bedrock — your choice of client
+```
+
+### Persistence
+
+```ts
+// Signed .gai — use whenever the file crosses a trust boundary
+const hmacKey = process.env.GAI_HMAC_KEY!; // 32+ random bytes
+g.saveGai('knowledge.gai', { hmacKey });
+g.loadGai('knowledge.gai', { hmacKey });   // fails closed on any tampering
+
+// SQLite (requires the optional better-sqlite3 dependency)
+g.saveSqlite('./data/graphnosis.db');
+```
+
+### Public API surface
+
+```ts
+import {
+  Graphnosis,        // class facade covering the common flow
+  buildGraph,        // lower-level: build a graph from ParsedDocument[]
+  queryGraph,        // lower-level: subgraph retrieval given a graph + index
+  buildGraphPrompt,  // wrap a serialized subgraph into an LLM system prompt
+  parseMarkdown, parseHtml, parseCsv, parseJson,
+  writeGai, readGai, // .gai binary format (with optional HMAC-SHA256)
+  openSqliteStore,   // path-scoped SQLite store (no process cwd leakage)
+} from '@nehloo/graphnosis';
+```
+
+The facade intentionally does **not** re-export anything from
+`src/core/enrichment/*` or `src/core/query/answer.ts` — those modules call
+OpenAI and are reserved for the app + MCP server. This keeps the library's
+"no-egress" guarantee verifiable by auditing a single file (`src/sdk/index.ts`).
+
 ## Project Structure
 
 ```

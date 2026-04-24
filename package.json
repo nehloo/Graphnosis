@@ -1,12 +1,37 @@
 {
-  "name": "graphnosis",
+  "name": "@nehloo/graphnosis",
   "version": "0.1.0",
-  "private": true,
+  "description": "AI-native dual-graph knowledge representation — build, query, and persist typed knowledge graphs in-process.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nehloo/Graphnosis.git"
+  },
+  "main": "dist/sdk/index.js",
+  "types": "dist/sdk/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/sdk/index.d.ts",
+      "default": "./dist/sdk/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "restricted",
+    "provenance": true
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "build:lib": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
+    "prepublishOnly": "npm run lint && npm run build:lib",
     "longmemeval:smoke": "tsx tests/longmemeval/official/run.ts --limit 20",
     "longmemeval:smoke:embeddings": "tsx tests/longmemeval/official/run.ts --limit 20 --retrieval embeddings",
     "longmemeval:smoke:hybrid": "tsx tests/longmemeval/official/run.ts --limit 20 --retrieval hybrid",
@@ -25,7 +50,6 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@types/express": "^5.0.6",
     "ai": "^6.0.158",
-    "better-sqlite3": "^12.8.0",
     "cheerio": "^1.1.0",
     "exif-parser": "^0.1.12",
     "express": "^5.2.1",
@@ -45,6 +69,9 @@
     "xxhash-wasm": "^1.1.0",
     "zod": "^4.3.6"
   },
+  "optionalDependencies": {
+    "better-sqlite3": "^12.8.0"
+  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.13",
@@ -55,7 +82,17 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
     "tailwindcss": "^4",
+    "tsc-alias": "^1.8.16",
     "tsx": "^4.19.2",
     "typescript": "^5"
-  }
+  },
+  "keywords": [
+    "graph",
+    "knowledge-graph",
+    "rag",
+    "llm",
+    "ai",
+    "memory",
+    "retrieval"
+  ]
 }

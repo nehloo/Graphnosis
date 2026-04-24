@@ -260,3 +260,210 @@ The graph construction pipeline (TF-IDF, BFS traversal, subgraph serialization) 
 **Audit trail:** Every node in the graph carries `createdAt`, `lastAccessedAt`, and `accessCount` metadata. The `.gai` format includes a checksum for integrity verification. Corrections are soft-delete only — no knowledge is permanently destroyed, making the graph fully auditable.
 
 **Open source:** The full codebase is MIT-licensed and auditable. No proprietary components, no binary blobs, no vendor lock-in. The `.gai` format specification is documented in `src/core/format/` and can be implemented independently.
+
+---
+
+## Adopting Graphnosis as an NPM Dependency — Security & IT Guidance
+
+This section is for engineering and security teams evaluating Graphnosis as an
+embedded dependency inside a larger enterprise application (not the Docker/MCP
+deployment described above). The SDK is published as `@nehloo/graphnosis` and
+wraps the same graph engine used by the Next.js app — but restricted to a pure,
+in-process surface that enterprise reviewers can audit in a single file.
+
+### The "no-egress" guarantee — and how to verify it
+
+**Guarantee:** importing `@nehloo/graphnosis` and using any of its public APIs
+never initiates a network connection. No `fetch`, no HTTP client, no OpenAI
+SDK call.
+
+**How to verify it yourself** (takes ~5 minutes in a review):
+
+1. Read `src/sdk/index.ts`. Every re-exported module is listed at the bottom
+   of the file. The invariants banner at the top explicitly excludes
+   `src/core/enrichment/*` and `src/core/query/answer.ts`, the only two
+   modules in the repo that call OpenAI.
+2. Grep the transitive import graph from `src/sdk/index.ts` for
+   `@ai-sdk/openai`, `openai`, `fetch(`, `node:http`, `https.request`. You
+   should find zero hits.
+3. Run the SDK behind a network sandbox that blocks all egress
+   (`unshare -n`, a restrictive seccomp profile, or a deny-all egress
+   network policy in your pod). All SDK operations continue to work.
+
+**What this means for the LLM step:** you, the consumer, make the LLM call
+yourself with whatever client you prefer (Claude SDK, Azure OpenAI,
+Bedrock, Ollama, vLLM). Graphnosis hands you a `prompt` string; you pick the
+model. This is how you keep data residency under your control.
+
+### `.gai` file integrity — use HMAC when files cross a trust boundary
+
+The `.gai` format has two integrity modes:
+
+| Mode | Trailer | Protects against | Use for |
+|------|---------|------------------|---------|
+| Checksum (default) | 4-byte additive sum | Bit rot, disk corruption | Files that never leave a single trusted machine |
+| **HMAC-SHA256** (opt-in) | Checksum + 32-byte HMAC | Tampering, downgrade, forgery | **Everything else** |
+
+The additive checksum is **not a security control** — an attacker who can
+write to the file can trivially recompute it. Any `.gai` file that is:
+
+- written by one tenant and read by another,
+- uploaded to shared storage (S3, blob store, NFS),
+- transferred over an untrusted network,
+- received from an external party,
+
+**must** be written with `writeGai(graph, { hmacKey })` and read with
+`readGai(buffer, { hmacKey })`. The reader fails closed on any mismatch,
+and also rejects the downgrade case where an attacker strips the HMAC
+trailer (a key supplied against an unsigned file throws).
+
+**Key management:**
+
+- Minimum 32 bytes of CSPRNG-generated keying material per deployment.
+- Rotate on a schedule that matches your other HMAC keys (typically 90
+  days). Re-sign existing `.gai` files during rotation.
+- Store in your existing secrets manager (AWS Secrets Manager, GCP Secret
+  Manager, HashiCorp Vault, Azure Key Vault). Do not commit to source or
+  bake into images.
+- For multi-tenant deployments, derive a per-tenant key via HKDF from a
+  single root so tenant A cannot verify or forge tenant B's files.
+
+### Native module policy — SQLite is optional
+
+`better-sqlite3` is declared as an **optional dependency**. The SDK loads it
+lazily — if it isn't installed, the SDK works for everything except
+`saveSqlite/loadSqlite`, which throw a clear install-hint error. Enterprise
+installs can skip it:
+
+```bash
+npm install @nehloo/graphnosis --omit=optional
+```
+
+This avoids pulling in native (C++) code and the `node-gyp` / prebuilt-binary
+toolchain. If you do install it, verify its prebuilt binary via npm's
+package provenance or pin to a specific version + integrity hash in your
+lockfile.
+
+Without SQLite the SDK still supports:
+
+- In-memory graphs (default).
+- `.gai` binary persistence (file read/write only — no native deps).
+- All query, build, and prompt operations.
+
+### Parser CVE surface — treat user-submitted files as untrusted
+
+The SDK exposes parsers for many file formats. These parse arbitrary bytes,
+and parser bugs are a classic CVE vector (malformed-input crashes, ReDoS,
+prototype pollution). Enterprise review should treat the following as
+"untrusted input sinks":
+
+| Parser | Format | Typical risks |
+|--------|--------|---------------|
+| `pdf-parse` | PDF | Malformed streams, memory exhaustion |
+| `exif-parser` | JPEG/TIFF EXIF | Malformed tags, integer overflow |
+| `music-metadata` | Audio containers | Malformed ID3/metadata |
+| `cheerio` | HTML | Known ReDoS classes in HTML parsing |
+| `papaparse` | CSV | Memory exhaustion on pathological input |
+| `remark-parse` | Markdown | Pathological AST shapes |
+| `wtf_wikipedia` | MediaWiki | Template expansion complexity |
+
+**Guidance:**
+
+1. **Sandbox ingest.** If you ingest files from end users, run the parse
+   step in a short-lived worker (Node `worker_threads`, a container, or a
+   subprocess) with CPU + memory limits. Graphnosis is in-process, but the
+   ingest step can be split into its own sandbox without changing the SDK.
+2. **Enable Dependabot / Snyk** on your consuming project so CVEs in the
+   parser dependencies surface as pull requests.
+3. **Pin versions + commit the lockfile.** Use `npm ci` in CI so the
+   resolved transitive tree is the one you audited.
+4. **Mirror via internal registry.** For air-gapped or regulated
+   environments, mirror `@nehloo/graphnosis` and its deps through
+   Artifactory / Nexus / CodeArtifact. Enable `npm audit signatures` to
+   verify provenance against the public registry.
+
+### Indirect prompt injection — a shared-responsibility risk
+
+`graphnosis.prompt(question)` inlines node `content` verbatim into the LLM
+system prompt. If any of that content originated from a user-submitted
+source, the resulting prompt is a textbook indirect prompt-injection vector
+— a user can plant instructions in a document that later hijack the model.
+
+This is inherent to all RAG systems and not specific to Graphnosis. Your
+mitigations:
+
+- **Sanitize at ingest.** Strip known injection markers (e.g. `<|im_start|>`,
+  role tags, `[INST]` sequences) when adding user-submitted content.
+- **Constrain the downstream LLM.** Prefer models + configs that do not
+  expose tool-use or arbitrary code execution to whatever is in the system
+  prompt. If tool-use is required, filter tool calls against an allowlist
+  and never let tool output bypass your auth layer.
+- **Output filtering.** Log and review LLM responses for signals of hijack
+  (unexpected formatting, attempts to exfiltrate, role-break attempts).
+- **Provenance in the prompt.** Graphnosis already tags every node with its
+  source file (`src:...`). Use that in your downstream system prompt to
+  instruct the model to trust system turns over any `src:User (...)`
+  content.
+
+### Path handling — do not pass user input
+
+`saveGai`, `loadGai`, `saveSqlite`, `loadSqlite`, and `openSqliteStore` all
+forward their path argument directly to `node:fs` / `better-sqlite3`. A
+user-controlled string here is a path-traversal vulnerability.
+
+- Only pass paths your code constructs.
+- Canonicalize via `path.resolve` and confirm the result stays inside an
+  expected base directory before passing.
+- Never concatenate user input into a DB or `.gai` filename.
+
+### Supply chain — what we do, what you do
+
+**What we do (publisher side):**
+
+- Scoped package (`@nehloo/graphnosis`) so only members of the `nehloo` npm
+  org can publish.
+- `publishConfig.access: "restricted"` by default. Consumers need explicit
+  access; the package is not on the public registry until we flip it.
+- `publishConfig.provenance: true` enables npm's signed build attestations
+  via GitHub Actions.
+- Publish with 2FA + OTP.
+- `prepublishOnly` runs lint + build so a broken tarball cannot ship.
+
+**What you should do (consumer side):**
+
+- Commit `package-lock.json`; build with `npm ci` in CI, not `npm install`.
+- Enable `npm audit signatures` in CI (`npm audit signatures --omit=dev`).
+- Mirror through an internal registry for air-gapped or regulated envs.
+- Pin the version. Do not use `^` or `~` for security-sensitive graphs.
+- Monitor the `@nehloo/graphnosis` package for new releases and review
+  changelogs before bumping.
+- Attach an SBOM to your release pipeline. `npm sbom --sbom-format cyclonedx`
+  emits one that includes the Graphnosis subtree.
+
+### Data in transit — there is no TLS surface
+
+The SDK is strictly in-process. It does not bind a port, does not serve a
+network endpoint, does not accept remote connections. If you wrap Graphnosis
+in an HTTP / gRPC service, terminate TLS at your gateway or service mesh —
+Graphnosis has no networking layer of its own to configure.
+
+This is deliberate: the attack surface is whatever your wrapper code
+exposes, not the library. Enterprise review reduces to reviewing your
+wrapper.
+
+### Summary — enterprise adoption checklist
+
+- [ ] Reviewed `src/sdk/index.ts` and confirmed the no-egress invariant.
+- [ ] Using HMAC mode (`hmacKey` option) for every `.gai` file that leaves
+      the single-machine trust boundary. Key stored in a secrets manager.
+- [ ] Decided on SQLite vs. `.gai`-only; installed `better-sqlite3`
+      explicitly if needed, with pinned version + integrity hash.
+- [ ] Ingest of user-submitted files runs under a resource-limited sandbox.
+- [ ] Dependabot / Snyk enabled on the consuming project.
+- [ ] Lockfile committed; CI uses `npm ci`; `npm audit signatures` runs in CI.
+- [ ] Internal registry mirror configured for air-gapped envs.
+- [ ] Downstream LLM call path has prompt-injection mitigations (allowlisted
+      tools, output filtering, role-provenance in system prompt).
+- [ ] No path arguments to persistence APIs are user-controlled.
+- [ ] Wrapper service (if any) terminates TLS at a gateway, with its own
+      authn/authz layer in front of Graphnosis APIs.

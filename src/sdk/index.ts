@@ -1,16 +1,24 @@
 // Graphnosis SDK — public entrypoint for using Graphnosis as an NPM dependency.
 //
-// Wraps src/core/* into a small class-based facade that covers the common
-// flow: ingest documents -> build a dual graph -> query for a subgraph -> save
-// or load. Lower-level primitives are also re-exported at the bottom so
-// advanced callers can compose them directly.
+// SECURITY INVARIANTS (enforced by what we re-export, not by runtime checks):
+//   1. This module performs ZERO network I/O. No `fetch`, no HTTP client,
+//      no SDK calls. It must not import from `@/core/enrichment/*` or from
+//      `@/core/query/answer.ts` — both of those reach OpenAI. If you are
+//      modifying this file, preserve that property. Enterprise adopters
+//      verify the "no-egress" guarantee by auditing this file alone.
+//   2. `.gai` files that cross a trust boundary must be written AND read
+//      with `hmacKey`. The default additive checksum catches corruption,
+//      NOT tampering.
+//   3. File paths passed to `saveGai/loadGai/saveSqlite/loadSqlite` are
+//      forwarded to `node:fs` and `better-sqlite3` as-is. Do NOT pass
+//      user-controlled strings; canonicalize before calling.
+//
+// See `enterprise/enterprise.md` for the full IT/security posture.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import type {
   KnowledgeGraph,
   ParsedDocument,
-  SubgraphContext,
-  TfidfIndex,
   QueryResult,
 } from '@/core/types';
 import { buildGraph, type BuiltGraph } from '@/core/graph/graph-builder';
@@ -23,9 +31,9 @@ import {
   type QueryOptions,
   type PromptContext,
 } from '@/core/query/query-engine';
-import { writeGai } from '@/core/format/gai-writer';
-import { readGai } from '@/core/format/gai-reader';
-import { openSqliteStore, type SqliteStore } from '@/core/persistence/sqlite-store';
+import { writeGai, type WriteGaiOptions } from '@/core/format/gai-writer';
+import { readGai, type ReadGaiOptions } from '@/core/format/gai-reader';
+import { openSqliteStore } from '@/core/persistence/sqlite-store';
 
 export interface GraphnosisOptions {
   /** Name attached to the built graph. Defaults to "graphnosis". */
@@ -36,15 +44,20 @@ export interface GraphnosisOptions {
  * Ingests documents, builds a dual-graph, and answers questions against it.
  *
  * ```ts
- * import { Graphnosis } from 'graphnosis';
+ * import { Graphnosis } from '@nehloo/graphnosis';
  *
  * const g = new Graphnosis({ name: 'docs' });
  * g.addMarkdown(readmeText, 'README.md');
  * g.build();
  *
  * const ctx = g.query('how does chunking work?');
- * console.log(ctx.serialized);
+ * console.log(ctx.subgraph.serialized);
  * ```
+ *
+ * WARNING: any document added here eventually flows into the LLM system
+ * prompt via `prompt()`. If documents come from untrusted sources, treat
+ * node content as indirect-prompt-injection payload surface. See
+ * `enterprise/enterprise.md` for mitigations.
  */
 export class Graphnosis {
   private documents: ParsedDocument[] = [];
@@ -106,7 +119,15 @@ export class Graphnosis {
     return queryGraph(g, g.tfidfIndex, question, opts);
   }
 
-  /** Build the LLM system prompt that wraps the subgraph context. */
+  /**
+   * Build the LLM system prompt that wraps the subgraph context.
+   *
+   * WARNING: the returned string contains node `content` verbatim and will
+   * be passed directly to an LLM by the caller. If any ingested document
+   * originated from untrusted input, the resulting prompt is an indirect
+   * prompt-injection vector. Sanitize at ingest, or restrict the downstream
+   * LLM's tool-use capabilities.
+   */
   prompt(question: string, opts: QueryOptions & PromptContext = {}): string {
     const { questionDate, questionType, ...queryOpts } = opts;
     const result = this.query(question, queryOpts);
@@ -118,29 +139,55 @@ export class Graphnosis {
 
   // --- Persistence ----------------------------------------------------------
 
-  /** Serialize the graph to .gai binary and write it to disk. */
-  saveGai(filePath: string): void {
-    writeFileSync(filePath, writeGai(this.graph));
+  /**
+   * Serialize the graph to .gai binary and write it to disk.
+   *
+   * SECURITY: pass `hmacKey` for any file that will cross a trust boundary
+   * (shared storage, network transfer, multi-tenant DB). Without it the
+   * trailer is an additive checksum only — trivially forgeable.
+   * WARNING: `filePath` is forwarded to `fs.writeFileSync` unchanged. Do
+   * not pass user-controlled paths.
+   */
+  saveGai(filePath: string, opts: WriteGaiOptions = {}): void {
+    writeFileSync(filePath, writeGai(this.graph, opts));
   }
 
-  /** Load a .gai file and replace the current graph. tfidfIndex is NOT restored. */
-  loadGai(filePath: string): KnowledgeGraph {
+  /**
+   * Load a .gai file and replace the current graph. `tfidfIndex` is NOT
+   * restored; callers that intend to query a loaded graph should re-ingest
+   * or call `build()` again from the source documents.
+   *
+   * SECURITY: if the file was written with `hmacKey`, the same key must be
+   * supplied here. Fail-closed: a missing key (or a key against an
+   * unsigned file — a downgrade attempt) throws.
+   */
+  loadGai(filePath: string, opts: ReadGaiOptions = {}): KnowledgeGraph {
     const buffer = readFileSync(filePath);
-    const { graph } = readGai(buffer);
-    // loadGai does not carry a tfidfIndex; callers should re-build if they
-    // intend to query. We expose the raw graph so they can.
+    const { graph } = readGai(buffer, opts);
     this.built = graph as BuiltGraph;
     this.documents = [];
     return graph;
   }
 
-  /** Persist the current graph to a SQLite database file. */
+  /**
+   * Persist the current graph to a SQLite database file.
+   *
+   * WARNING: `dbPath` is forwarded to better-sqlite3 unchanged. Do not pass
+   * user-controlled paths. Requires the optional `better-sqlite3` dependency
+   * to be installed.
+   */
   saveSqlite(dbPath: string): void {
     const store = openSqliteStore(dbPath);
     try { store.saveGraph(this.graph); } finally { store.close(); }
   }
 
-  /** Load a graph by id from a SQLite database file. */
+  /**
+   * Load a graph by id from a SQLite database file.
+   *
+   * WARNING: `dbPath` is forwarded to better-sqlite3 unchanged. Do not pass
+   * user-controlled paths. Requires the optional `better-sqlite3` dependency
+   * to be installed.
+   */
   loadSqlite(dbPath: string, graphId: string): KnowledgeGraph | null {
     const store = openSqliteStore(dbPath);
     try {
@@ -158,6 +205,9 @@ export class Graphnosis {
 
 // --- Lower-level re-exports --------------------------------------------------
 // Advanced callers can bypass the facade and compose the primitives directly.
+// Intentionally NOT re-exported: `@/core/enrichment/*` and `@/core/query/answer.ts`
+// — both perform network I/O (OpenAI). Keeping them out of the SDK surface is
+// how the "no-egress" guarantee is maintained.
 
 export { buildGraph, type BuiltGraph } from '@/core/graph/graph-builder';
 export {
@@ -169,8 +219,8 @@ export {
 export { parseMarkdown } from '@/core/ingestion/parsers/markdown-parser';
 export { parseHtml } from '@/core/ingestion/parsers/html-parser';
 export { parseCsv, parseJson } from '@/core/ingestion/parsers/csv-parser';
-export { writeGai } from '@/core/format/gai-writer';
-export { readGai, type GaiHeader } from '@/core/format/gai-reader';
+export { writeGai, type WriteGaiOptions } from '@/core/format/gai-writer';
+export { readGai, type ReadGaiOptions, type GaiHeader } from '@/core/format/gai-reader';
 export { openSqliteStore, type SqliteStore } from '@/core/persistence/sqlite-store';
 export { toSerializable, fromSerializable } from '@/core/graph/graph-store';
 

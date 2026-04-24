@@ -1,0 +1,46 @@
+# The `files` field in package.json is the allowlist; this is a belt-and-braces
+# denylist so a mis-edit there can't leak app code, tests, or data.
+
+# App + non-SDK source
+src/app/
+src/examples/
+src/mcp/
+public/
+docs/
+benchmarks/
+enterprise/
+tests/
+
+# Build + config
+.next/
+.turbo/
+coverage/
+tsconfig.json
+tsconfig.build.json
+next.config.ts
+next-env.d.ts
+eslint.config.mjs
+postcss.config.mjs
+Dockerfile
+docker-compose.yml
+
+# Data and secrets
+data/
+*.gai
+*.db
+*.db-*
+.env
+.env.*
+
+# Dev tooling
+.claude/
+.git/
+.github/
+.gitignore
+.vscode/
+.idea/
+AGENTS.md
+CLAUDE.md
+REFERENCES.md
+original-discussion.md
+gai-format/
