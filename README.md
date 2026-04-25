@@ -414,6 +414,75 @@ const prompt = g.prompt('how does chunking work?');
 // pass `prompt` to Claude / GPT-4 / Ollama / Bedrock — your choice of client
 ```
 
+### Appending new files to an existing graph
+
+After calling `build()` you can add more documents **without rebuilding from scratch**. New nodes are chunk-deduplicated against the existing graph (by content hash) and edges are wired in incrementally.
+
+```ts
+const g = new Graphnosis({ name: 'kb' });
+g.addMarkdown(initialContent, 'base.md');
+g.build();
+
+// Later — e.g. when a user uploads a new file:
+const { newNodes, newDirectedEdges } = g.append(parseMarkdown(userUpload, 'upload.md'));
+// or use the convenience helpers:
+g.appendMarkdown(moreContent, 'update.md');
+g.appendText('A quick fact to add.', 'note.txt');
+
+// Load a saved graph and continue appending to it:
+g.loadGai('knowledge.gai', { hmacKey });
+g.appendMarkdown(latestDocs, 'v2.md');
+g.saveGai('knowledge.gai', { hmacKey });
+```
+
+### Querying multiple graphs (federation)
+
+You can maintain **separate, independent knowledge graphs** — per domain, per user, per data source — and query across all of them at once. Results are merged, deduplicated by content hash, and ranked into a single LLM-ready prompt.
+
+```ts
+import { Graphnosis, queryGraphs } from '@nehloo/graphnosis';
+
+const productGraph = new Graphnosis({ name: 'product' });
+productGraph.addMarkdown(productDocs, 'product.md').build();
+
+const supportGraph = new Graphnosis({ name: 'support' });
+supportGraph.addMarkdown(supportTickets, 'tickets.md').build();
+
+const policyGraph = new Graphnosis({ name: 'policy' });
+policyGraph.addMarkdown(policies, 'policy.md').build();
+
+// Single call — queries all three graphs, merges top-20 nodes by relevance
+const prompt = queryGraphs(
+  [productGraph, supportGraph, policyGraph],
+  'how do I cancel my subscription?',
+  {},    // QueryOptions (same as g.prompt)
+  20     // maxNodes across all graphs (default 20)
+);
+// pass prompt to your LLM
+```
+
+Each graph stays isolated — different TTLs, persistence backends, and access controls. Federation happens only at query time, in-process, with no network egress.
+
+### Corrections
+
+```ts
+// Edit a node's content
+g.edit(nodeId, 'corrected content', 'fixing factual error');
+
+// Soft-delete (node stays for audit, drops from queries)
+g.deleteNode(nodeId, 'outdated');
+
+// Supersede — replaces node and links old→new via directed edge
+g.supersede(nodeId, 'updated content', 'new version published');
+
+// Bulk-import a markdown document as new nodes
+g.importMarkdown(markdownPatch, 'patch-2024-01.md');
+
+// GDPR / data retention
+g.forgetBefore(Date.now() - 90 * 24 * 60 * 60 * 1000, 'retention-policy');
+g.forgetTopic('John Smith', 'user-deletion-request');
+```
+
 ### Persistence
 
 ```ts
@@ -430,13 +499,27 @@ g.saveSqlite('./data/graphnosis.db');
 
 ```ts
 import {
-  Graphnosis,        // class facade covering the common flow
-  buildGraph,        // lower-level: build a graph from ParsedDocument[]
-  queryGraph,        // lower-level: subgraph retrieval given a graph + index
-  buildGraphPrompt,  // wrap a serialized subgraph into an LLM system prompt
+  // Core facade
+  Graphnosis,        // class — ingest, build, query, append, correct, persist
+  queryGraphs,       // federated query across multiple Graphnosis instances
+
+  // Lower-level primitives
+  buildGraph,        // build a graph from ParsedDocument[]
+  queryGraph,        // subgraph retrieval given a graph + tfidf index
+  buildGraphPrompt,  // wrap serialized subgraph into an LLM system prompt
+  addDocumentsToGraph, // incremental append to a live graph
+
+  // Parsers
   parseMarkdown, parseHtml, parseCsv, parseJson,
-  writeGai, readGai, // .gai binary format (with optional HMAC-SHA256)
-  openSqliteStore,   // path-scoped SQLite store (no process cwd leakage)
+
+  // Corrections
+  applyCorrection, importCorrections,
+  forgetByTimeWindow, forgetByTopic, cascadeSoftDelete,
+
+  // Persistence
+  writeGai, readGai,   // .gai binary format (with optional HMAC-SHA256)
+  openSqliteStore,     // path-scoped SQLite store
+  toSerializable, fromSerializable,
 } from '@nehloo/graphnosis';
 ```
 

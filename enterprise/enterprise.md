@@ -518,6 +518,70 @@ This is deliberate: the attack surface is whatever your wrapper code
 exposes, not the library. Enterprise review reduces to reviewing your
 wrapper.
 
+### Incremental ingestion — appending to a live graph
+
+The SDK supports appending new documents to an already-built graph without a
+full rebuild. This is the recommended pattern for long-running services that
+receive user-submitted files or continuous data feeds.
+
+```ts
+import { Graphnosis } from '@nehloo/graphnosis';
+
+// On startup — load persisted graph
+const g = new Graphnosis({ name: 'enterprise-kb' });
+g.loadGai('/data/kb.gai', { hmacKey: process.env.GAI_HMAC_KEY! });
+
+// On each user upload
+app.post('/ingest', (req, res) => {
+  // Run parse in a worker thread for crash isolation (see sandboxing section)
+  const { newNodes, newDirectedEdges } = g.appendMarkdown(req.body.content, req.body.filename);
+  g.saveGai('/data/kb.gai', { hmacKey: process.env.GAI_HMAC_KEY! });
+  res.json({ newNodes, newDirectedEdges });
+});
+```
+
+**Security notes:**
+- Content-hash deduplication prevents the same document from inflating the
+  graph if ingested twice.
+- `appendMarkdown` / `appendText` / `appendHtml` etc. are synchronous and
+  in-process — run them in a worker thread when the source is untrusted
+  (see the sandboxing example above).
+- File path arguments are not involved in append operations; only the parsed
+  content string is processed.
+
+### Multi-graph federation — querying across isolated knowledge bases
+
+For deployments that maintain separate graphs per tenant, domain, or data
+classification level, `queryGraphs()` merges results at query time without
+sharing any graph state between instances.
+
+```ts
+import { Graphnosis, queryGraphs } from '@nehloo/graphnosis';
+
+// Each tenant graph loaded from its own isolated store
+const tenantGraph = new Graphnosis({ name: `tenant-${tenantId}` });
+tenantGraph.loadSqlite('/data/tenants.db', tenantId);
+
+const globalGraph = new Graphnosis({ name: 'global-policy' });
+globalGraph.loadGai('/data/policy.gai', { hmacKey: process.env.GAI_HMAC_KEY! });
+
+// Query both — results merged and deduplicated by content hash
+const prompt = queryGraphs([tenantGraph, globalGraph], userQuestion);
+// pass prompt to your LLM
+```
+
+**Security architecture:**
+- Each graph instance is fully in-process — no IPC, no shared memory, no
+  network calls between graphs.
+- Cross-graph deduplication is by content hash only — no node IDs or
+  metadata leak across graph boundaries.
+- Access controls remain your responsibility: ensure only the correct
+  tenant graphs are loaded for each request. `queryGraphs` does not
+  enforce any RBAC; it merges whatever instances you pass to it.
+- For strict data-classification requirements, load graphs in separate
+  worker threads so a crash in one tenant's graph cannot affect another's
+  query in progress.
+
 ### Summary — enterprise adoption checklist
 
 - [ ] Reviewed `src/sdk/index.ts` and confirmed the no-egress invariant.
@@ -525,7 +589,12 @@ wrapper.
       the single-machine trust boundary. Key stored in a secrets manager.
 - [ ] Decided on SQLite vs. `.gai`-only; installed `better-sqlite3`
       explicitly if needed, with pinned version + integrity hash.
-- [ ] Ingest of user-submitted files runs under a resource-limited sandbox.
+- [ ] Ingest of user-submitted files runs under a resource-limited sandbox
+      (worker_threads with resourceLimits + timeout — see sandboxing example).
+- [ ] Incremental append (`g.appendMarkdown` etc.) used for live ingestion
+      rather than full rebuild, to bound per-request latency.
+- [ ] Multi-graph federation access controls validated: only the correct
+      tenant/classification graphs are passed to `queryGraphs()` per request.
 - [ ] Dependabot / Snyk enabled on the consuming project.
 - [ ] Lockfile committed; CI uses `npm ci`; `npm audit signatures` runs in CI.
 - [ ] Internal registry mirror configured for air-gapped envs.

@@ -34,6 +34,7 @@ import {
 import { writeGai, type WriteGaiOptions } from '@/core/format/gai-writer';
 import { readGai, type ReadGaiOptions } from '@/core/format/gai-reader';
 import { openSqliteStore } from '@/core/persistence/sqlite-store';
+import { addDocumentsToGraph } from '@/core/graph/incremental';
 import {
   applyCorrection,
   importCorrections,
@@ -103,6 +104,49 @@ export class Graphnosis {
   addText(text: string, source = 'inline.txt'): this {
     const wrapped = `# ${source}\n\n${text}`;
     return this.addDocument(parseMarkdown(wrapped, source));
+  }
+
+  /**
+   * Append one or more pre-parsed documents to an **already-built** graph
+   * without triggering a full rebuild. New nodes are chunk-deduplicated
+   * against the existing graph (by content hash), new edges are wired in
+   * incrementally, and the TF-IDF index is updated in place.
+   *
+   * Call `build()` first if the graph has not been built yet — `append()`
+   * throws if there is no live graph to append to.
+   *
+   * @returns Counts of new nodes and edges added.
+   */
+  append(...docs: ParsedDocument[]): { newNodes: number; newDirectedEdges: number; newUndirectedEdges: number } {
+    return addDocumentsToGraph(this.graph, docs);
+  }
+
+  /**
+   * Convenience helpers — parse and append in one call.
+   * Equivalent to `g.append(parseMarkdown(content, source))`.
+   */
+  appendMarkdown(content: string, source = 'inline.md'): this {
+    this.append(parseMarkdown(content, source));
+    return this;
+  }
+
+  appendHtml(html: string, source = 'inline.html'): this {
+    this.append(parseHtml(html, source));
+    return this;
+  }
+
+  appendCsv(csv: string, source = 'inline.csv'): this {
+    this.append(parseCsv(csv, source));
+    return this;
+  }
+
+  appendJson(json: string, source = 'inline.json'): this {
+    this.append(parseJson(json, source));
+    return this;
+  }
+
+  appendText(text: string, source = 'inline.txt'): this {
+    return this.appendMarkdown(`# ${source}\n\n${text}`, source);
   }
 
   /**
@@ -293,6 +337,76 @@ export class Graphnosis {
   }
 }
 
+// --- Multi-graph federation --------------------------------------------------
+
+/**
+ * Query multiple independent Graphnosis instances in parallel and merge their
+ * subgraph results into a single ranked prompt.
+ *
+ * Each graph is queried independently with the same question. The scored nodes
+ * from all subgraphs are collected, sorted by relevance score (descending),
+ * deduplicated by content hash, and the top `maxNodes` are serialized into a
+ * single prompt context block.
+ *
+ * **When to use:**
+ * - You maintain separate knowledge graphs per domain, user, or data source
+ *   and want to retrieve across all of them for a single query.
+ * - You want to keep graphs isolated (different TTLs, access controls,
+ *   persistence backends) but combine them at query time.
+ *
+ * **Security:** each graph is queried in-process — no network egress.
+ *
+ * @param graphs    Array of built Graphnosis instances to query.
+ * @param question  The natural-language question.
+ * @param opts      Standard QueryOptions applied to each graph independently.
+ * @param maxNodes  Max nodes to include across all graphs (default 20).
+ * @returns A merged prompt string ready to send to any LLM.
+ */
+export function queryGraphs(
+  graphs: Graphnosis[],
+  question: string,
+  opts: QueryOptions & PromptContext = {},
+  maxNodes = 20
+): string {
+  const { questionDate, questionType, ...queryOpts } = opts;
+
+  // Collect scored nodes from all graphs
+  const allNodes: Array<{ content: string; score: number; graphName: string }> = [];
+  const seenHashes = new Set<string>();
+
+  for (const g of graphs) {
+    try {
+      const result = g.query(question, queryOpts);
+      const graphName = g.graph.name ?? 'graph';
+      for (const node of result.subgraph.nodes) {
+        if (seenHashes.has(node.contentHash)) continue; // cross-graph dedup
+        seenHashes.add(node.contentHash);
+        const score = result.seeds.find(s => s.nodeId === node.id)?.score ?? 0;
+        allNodes.push({ content: node.content, score, graphName });
+      }
+    } catch {
+      // Graph not built or empty — skip silently
+    }
+  }
+
+  if (allNodes.length === 0) {
+    return buildGraphPrompt('=== KNOWLEDGE SUBGRAPH (0 nodes) ===\nNo relevant nodes found.', question, { questionDate, questionType });
+  }
+
+  // Sort by score desc, take top N
+  allNodes.sort((a, b) => b.score - a.score);
+  const top = allNodes.slice(0, maxNodes);
+
+  const serialized = [
+    `=== FEDERATED KNOWLEDGE SUBGRAPH (${top.length} nodes across ${graphs.length} graphs) ===`,
+    ...top.map((n, i) =>
+      `[${i + 1}] [source:${n.graphName}] [score:${n.score.toFixed(3)}]\n${n.content}`
+    ),
+  ].join('\n\n');
+
+  return buildGraphPrompt(serialized, question, { questionDate, questionType });
+}
+
 // --- Lower-level re-exports --------------------------------------------------
 // Advanced callers can bypass the facade and compose the primitives directly.
 // Intentionally NOT re-exported: `@/core/enrichment/*` and `@/core/query/answer.ts`
@@ -300,6 +414,7 @@ export class Graphnosis {
 // how the "no-egress" guarantee is maintained.
 
 export { buildGraph, type BuiltGraph } from '@/core/graph/graph-builder';
+export { addDocumentsToGraph } from '@/core/graph/incremental';
 export {
   applyCorrection,
   importCorrections,
