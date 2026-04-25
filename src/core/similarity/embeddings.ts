@@ -4,9 +4,11 @@
 //
 // Stays out of the core ingestion path unless explicitly enabled — the app
 // (Chat / Giki / etc.) keeps working without an embedding API call per ingest.
+//
+// `ai` and `@ai-sdk/openai` are PEER dependencies — the consumer must install
+// them. They are loaded lazily here so the package can be imported without
+// error by consumers who never call the embedding functions.
 
-import { embedMany, cosineSimilarity } from 'ai';
-import { openai } from '@ai-sdk/openai';
 import type { NodeId } from '@/core/types';
 
 export type EmbeddingVector = number[];
@@ -29,6 +31,28 @@ export interface EmbedOptions {
 
 const DEFAULT_MODEL = 'text-embedding-3-small';
 
+const PEER_DEP_HINT =
+  'Install the peer dependencies to use embedding features:\n' +
+  '  npm install ai @ai-sdk/openai';
+
+async function loadAiSdk(): Promise<{
+  embedMany: typeof import('ai')['embedMany'];
+  cosineSimilarity: typeof import('ai')['cosineSimilarity'];
+  openai: typeof import('@ai-sdk/openai')['openai'];
+}> {
+  try {
+    const [aiMod, openaiMod] = await Promise.all([
+      import('ai'),
+      import('@ai-sdk/openai'),
+    ]);
+    return { embedMany: aiMod.embedMany, cosineSimilarity: aiMod.cosineSimilarity, openai: openaiMod.openai };
+  } catch {
+    throw new Error(
+      `@nehloo/graphnosis: embedding functions require peer dependencies that are not installed.\n${PEER_DEP_HINT}`
+    );
+  }
+}
+
 export function createEmbeddingIndex(model: string = DEFAULT_MODEL): EmbeddingIndex {
   return { vectors: new Map(), model, dimensions: 0 };
 }
@@ -43,6 +67,7 @@ export async function embedNodes(
   const valid = items.filter(item => item.text.trim().length > 0);
   if (valid.length === 0) return;
 
+  const { embedMany, openai } = await loadAiSdk();
   const model = opts.model ?? index.model ?? DEFAULT_MODEL;
 
   const { embeddings } = await embedMany({
@@ -70,6 +95,7 @@ export async function embedQuery(
 ): Promise<EmbeddingVector | null> {
   const text = query.trim();
   if (!text) return null;
+  const { embedMany, openai } = await loadAiSdk();
   const model = opts.model ?? DEFAULT_MODEL;
   const { embeddings } = await embedMany({
     model: openai.embedding(model),
@@ -79,5 +105,8 @@ export async function embedQuery(
   return embeddings[0] ?? null;
 }
 
-// Re-export cosineSimilarity so callers don't need to depend on `ai` directly.
-export { cosineSimilarity };
+// Re-export cosineSimilarity lazily so callers don't need to depend on `ai` directly.
+export async function getCosineSimilarity(): Promise<typeof import('ai')['cosineSimilarity']> {
+  const { cosineSimilarity } = await loadAiSdk();
+  return cosineSimilarity;
+}

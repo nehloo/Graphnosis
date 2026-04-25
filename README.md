@@ -377,7 +377,11 @@ for the full enterprise security posture.
 
 ```bash
 npm install @nehloo/graphnosis
-# Optional — only needed if you want SQLite persistence:
+
+# Optional — only needed for embedding-based retrieval (semantic search):
+npm install ai @ai-sdk/openai
+
+# Optional — only needed for SQLite persistence:
 npm install better-sqlite3
 ```
 
@@ -387,6 +391,8 @@ npm install better-sqlite3
 > const nextConfig = { serverExternalPackages: ['better-sqlite3'] };
 > export default nextConfig;
 > ```
+>
+> `ai` and `@ai-sdk/openai` are peer dependencies — install them only if you call `g.build({ model: '...' })` for semantic embeddings. The core graph build/query pipeline (TF-IDF) works without them.
 
 ### Quick example
 

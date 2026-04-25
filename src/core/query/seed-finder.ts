@@ -3,7 +3,13 @@ import { SEED_COUNT } from '@/core/constants';
 import { queryVector, getTfidfVector } from '@/core/similarity/tfidf';
 import { cosineSimilarity } from '@/core/similarity/cosine';
 import type { EmbeddingIndex, EmbeddingVector } from '@/core/similarity/embeddings';
-import { cosineSimilarity as embedCosine } from '@/core/similarity/embeddings';
+// Local dot-product cosine for float vectors (number[]) — avoids pulling in
+// the `ai` peer dependency just for this math.
+function floatCosine(a: number[], b: number[]): number {
+  let dot = 0;
+  for (let i = 0; i < a.length; i++) dot += a[i] * b[i];
+  return dot;
+}
 
 export interface ScoredSeed {
   nodeId: NodeId;
@@ -90,7 +96,7 @@ export function findSeedsByEmbedding(
 ): ScoredSeed[] {
   const scores: ScoredSeed[] = [];
   for (const [nodeId, vec] of embeddingIndex.vectors) {
-    const score = embedCosine(queryVec, vec);
+    const score = floatCosine(queryVec, vec);
     if (score >= minScore) scores.push({ nodeId, score });
   }
   const adjusted = adjustForSummaries(scores, opts);

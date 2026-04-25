@@ -373,6 +373,73 @@ prototype pollution). Enterprise review should treat the following as
    step in a short-lived worker (Node `worker_threads`, a container, or a
    subprocess) with CPU + memory limits. Graphnosis is in-process, but the
    ingest step can be split into its own sandbox without changing the SDK.
+
+   **Minimal `worker_threads` example:**
+
+   ```ts
+   // ingest-worker.ts — runs in a worker thread, crash-isolated from host
+   import { workerData, parentPort } from 'node:worker_threads';
+   import { Graphnosis } from '@nehloo/graphnosis';
+
+   const { content, filename, graphName } = workerData as {
+     content: string;
+     filename: string;
+     graphName: string;
+   };
+
+   const g = new Graphnosis({ name: graphName });
+   g.addMarkdown(content, filename);
+   g.build();
+   const serialized = g.toSerializable();
+   parentPort!.postMessage({ ok: true, serialized });
+   ```
+
+   ```ts
+   // host.ts — spawns a bounded worker per user upload
+   import { Worker } from 'node:worker_threads';
+   import { fileURLToPath } from 'node:url';
+   import { readFileSync } from 'node:fs';
+
+   const WORKER_TIMEOUT_MS = 30_000; // kill runaway parses after 30 s
+
+   export function ingestFileIsolated(
+     filePath: string,
+     graphName: string
+   ): Promise<unknown> {
+     return new Promise((resolve, reject) => {
+       const worker = new Worker(
+         fileURLToPath(new URL('./ingest-worker.js', import.meta.url)),
+         {
+           workerData: {
+             content: readFileSync(filePath, 'utf8'),
+             filename: filePath,
+             graphName,
+           },
+           // Limit memory — worker is killed if it exceeds this
+           resourceLimits: { maxOldGenerationSizeMb: 256 },
+         }
+       );
+
+       const timer = setTimeout(() => {
+         worker.terminate();
+         reject(new Error(`Ingest worker timed out after ${WORKER_TIMEOUT_MS}ms`));
+       }, WORKER_TIMEOUT_MS);
+
+       worker.on('message', (msg) => { clearTimeout(timer); resolve(msg); });
+       worker.on('error', (err) => { clearTimeout(timer); reject(err); });
+       worker.on('exit', (code) => {
+         clearTimeout(timer);
+         if (code !== 0) reject(new Error(`Ingest worker exited with code ${code}`));
+       });
+     });
+   }
+   ```
+
+   > **Why this works:** a crash in a parser (stack overflow, OOM, uncaught exception)
+   > kills the worker thread, not the host process. The `resourceLimits.maxOldGenerationSizeMb`
+   > cap prevents a pathological input from exhausting host heap. The timeout
+   > kills runaway parses (ReDoS, infinite loops) after a bounded wall-clock window.
+
 2. **Enable Dependabot / Snyk** on your consuming project so CVEs in the
    parser dependencies surface as pull requests.
 3. **Pin versions + commit the lockfile.** Use `npm ci` in CI so the

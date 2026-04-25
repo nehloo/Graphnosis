@@ -1,6 +1,6 @@
 {
   "name": "@nehloo/graphnosis",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "AI-native dual-graph knowledge representation — build, query, and persist typed knowledge graphs in-process.",
   "license": "MIT",
   "repository": {
@@ -45,9 +45,15 @@
     "mcp": "tsx src/mcp/server.ts",
     "mcp:http": "MCP_TRANSPORT=http tsx src/mcp/server.ts"
   },
+  "peerDependencies": {
+    "@ai-sdk/openai": ">=3.0.0",
+    "ai": ">=6.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@ai-sdk/openai": { "optional": true },
+    "ai": { "optional": true }
+  },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.52",
-    "ai": "^6.0.158",
     "cheerio": "^1.1.0",
     "exif-parser": "^0.1.12",
     "msgpackr": "^1.11.9",
@@ -66,7 +72,9 @@
     "better-sqlite3": "^12.8.0"
   },
   "devDependencies": {
+    "@ai-sdk/openai": "^3.0.52",
     "@ai-sdk/react": "^3.0.160",
+    "ai": "^6.0.158",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.13",
