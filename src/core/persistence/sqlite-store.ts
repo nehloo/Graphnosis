@@ -173,6 +173,16 @@ export function saveGraph(graph: KnowledgeGraph): void {
   saveOp();
 }
 
+// Load a graph from SQLite by name (most recently updated wins)
+export function loadGraphByName(graphName: string): KnowledgeGraph | null {
+  const d = getDb();
+  const row = d.prepare(
+    'SELECT id FROM graphs WHERE name = ? ORDER BY updated_at DESC LIMIT 1'
+  ).get(graphName) as { id: string } | undefined;
+  if (!row) return null;
+  return loadGraph(row.id);
+}
+
 // Load a graph from SQLite
 export function loadGraph(graphId: string): KnowledgeGraph | null {
   const d = getDb();
@@ -290,6 +300,7 @@ export function closeDb(): void {
 export interface SqliteStore {
   saveGraph(graph: KnowledgeGraph): void;
   loadGraph(graphId: string): KnowledgeGraph | null;
+  loadGraphByName(graphName: string): KnowledgeGraph | null;
   listGraphs(): Array<{ id: string; name: string; nodeCount: number; updatedAt: number }>;
   recordNodeAccess(graphId: string, nodeIds: NodeId[]): void;
   close(): void;
@@ -311,6 +322,7 @@ export function openSqliteStore(dbPath: string): SqliteStore {
   return {
     saveGraph: (graph) => withSingleton(() => saveGraph(graph)),
     loadGraph: (id) => withSingleton(() => loadGraph(id)),
+    loadGraphByName: (name) => withSingleton(() => loadGraphByName(name)),
     listGraphs: () => withSingleton(() => listGraphs()),
     recordNodeAccess: (graphId, nodeIds) => withSingleton(() => recordNodeAccess(graphId, nodeIds)),
     close: () => handle.close(),

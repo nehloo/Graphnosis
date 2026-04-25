@@ -37,6 +37,7 @@ import {
 import { writeGai, type WriteGaiOptions } from '@/core/format/gai-writer';
 import { readGai, type ReadGaiOptions } from '@/core/format/gai-reader';
 import { openSqliteStore } from '@/core/persistence/sqlite-store';
+import { createTfidfIndex, addDocument, computeIdf } from '@/core/similarity/tfidf';
 import { addDocumentsToGraph } from '@/core/graph/incremental';
 import { reflect, type ReflectionResult } from '@/core/optimization/reflection';
 import {
@@ -398,6 +399,29 @@ export class Graphnosis {
     });
   }
 
+  // --- Index rebuild ---------------------------------------------------------
+
+  /**
+   * Reconstruct the TF-IDF index from the content of all existing nodes.
+   *
+   * Call this after `loadGai()` or `loadSqlite()` / `loadSqliteByName()` before
+   * issuing `query()` calls. It is called automatically by those load methods,
+   * so you only need this if you have mutated the graph manually.
+   *
+   * The operation is O(total token count across all nodes) — typically
+   * under a few hundred milliseconds for graphs with < 50k nodes.
+   */
+  rebuildIndex(): void {
+    const g = this.graph;
+    const index = createTfidfIndex();
+    for (const [id, node] of g.nodes) {
+      if (node.type === 'document' || node.type === 'section') continue;
+      addDocument(index, id, node.content);
+    }
+    computeIdf(index);
+    (g as BuiltGraph).tfidfIndex = index;
+  }
+
   // --- Persistence ----------------------------------------------------------
 
   /**
@@ -414,9 +438,8 @@ export class Graphnosis {
   }
 
   /**
-   * Load a .gai file and replace the current graph. `tfidfIndex` is NOT
-   * restored; callers that intend to query a loaded graph should re-ingest
-   * or call `build()` again from the source documents.
+   * Load a .gai file and replace the current graph. The TF-IDF index is
+   * automatically rebuilt from node content so `query()` works immediately.
    *
    * SECURITY: if the file was written with `hmacKey`, the same key must be
    * supplied here. Fail-closed: a missing key (or a key against an
@@ -427,6 +450,7 @@ export class Graphnosis {
     const { graph } = readGai(buffer, opts);
     this.built = graph as BuiltGraph;
     this.documents = [];
+    this.rebuildIndex();
     return graph;
   }
 
@@ -443,7 +467,8 @@ export class Graphnosis {
   }
 
   /**
-   * Load a graph by id from a SQLite database file.
+   * Load a graph by id from a SQLite database file. The TF-IDF index is
+   * automatically rebuilt so `query()` works immediately after loading.
    *
    * WARNING: `dbPath` is forwarded to better-sqlite3 unchanged. Do not pass
    * user-controlled paths. Requires the optional `better-sqlite3` dependency
@@ -456,6 +481,42 @@ export class Graphnosis {
       if (g) {
         this.built = g as BuiltGraph;
         this.documents = [];
+        this.rebuildIndex();
+      }
+      return g;
+    } finally {
+      store.close();
+    }
+  }
+
+  /**
+   * Load the most recently updated graph with the given **name** from a SQLite
+   * database file. This is the stable reload path across process restarts —
+   * use the same `name` you passed to `new Graphnosis({ name })` or `build()`.
+   *
+   * ```ts
+   * // Process A — build and save
+   * const g = new Graphnosis({ name: 'my-docs' });
+   * g.addMarkdown(content, 'readme.md').build();
+   * g.saveSqlite('./data/kg.db');
+   *
+   * // Process B — cold reload
+   * const g2 = new Graphnosis();
+   * g2.loadSqliteByName('./data/kg.db', 'my-docs');
+   * const ctx = g2.query('how does chunking work?'); // works ✓
+   * ```
+   *
+   * Returns `null` if no graph with that name exists. The TF-IDF index is
+   * automatically rebuilt so `query()` works immediately after loading.
+   */
+  loadSqliteByName(dbPath: string, graphName: string): KnowledgeGraph | null {
+    const store = openSqliteStore(dbPath);
+    try {
+      const g = store.loadGraphByName(graphName);
+      if (g) {
+        this.built = g as BuiltGraph;
+        this.documents = [];
+        this.rebuildIndex();
       }
       return g;
     } finally {
