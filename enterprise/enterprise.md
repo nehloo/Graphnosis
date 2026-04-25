@@ -524,6 +524,14 @@ The SDK supports appending new documents to an already-built graph without a
 full rebuild. This is the recommended pattern for long-running services that
 receive user-submitted files or continuous data feeds.
 
+Supported formats for direct file ingestion: `.md` `.txt` `.html` `.htm`
+`.csv` `.json` `.pdf`
+
+Every append method returns an **`AppendResult`** that includes any
+contradictions detected between the new content and existing nodes. The graph
+is **not** automatically modified — your application surface presents the
+conflicts to the appropriate approver (human reviewer, workflow, or LLM judge).
+
 ```ts
 import { Graphnosis } from '@nehloo/graphnosis';
 
@@ -531,23 +539,65 @@ import { Graphnosis } from '@nehloo/graphnosis';
 const g = new Graphnosis({ name: 'enterprise-kb' });
 g.loadGai('/data/kb.gai', { hmacKey: process.env.GAI_HMAC_KEY! });
 
-// On each user upload
-app.post('/ingest', (req, res) => {
-  // Run parse in a worker thread for crash isolation (see sandboxing section)
-  const { newNodes, newDirectedEdges } = g.appendMarkdown(req.body.content, req.body.filename);
+// On each user upload — run in a worker thread for crash isolation
+app.post('/ingest', async (req, res) => {
+  // Auto-detect format from extension (.pdf, .md, .html, .csv, .json, .txt)
+  const result = await g.appendFile(req.file.path);
+
+  // Surface contradictions for human approval before persisting
+  if (result.contradictions.length > 0) {
+    return res.json({
+      status: 'pending_review',
+      contradictions: result.contradictions.map(c => ({
+        description: c.description,
+        sharedEntities: c.sharedEntities,
+        nodeA: c.nodeA,
+        nodeB: c.nodeB,
+      })),
+    });
+  }
+
   g.saveGai('/data/kb.gai', { hmacKey: process.env.GAI_HMAC_KEY! });
-  res.json({ newNodes, newDirectedEdges });
+  res.json({ status: 'ok', newNodes: result.newNodes });
 });
+
+// Approver resolves a contradiction
+app.post('/resolve', (req, res) => {
+  const { nodeA, nodeB, action, resolvedContent } = req.body;
+  if (action === 'supersede') {
+    g.supersede(nodeB, resolvedContent, 'reviewer approved');
+  } else if (action === 'dismiss') {
+    g.deleteNode(nodeA, 'reviewer dismissed');
+  }
+  // action === 'keep_both' — do nothing, both nodes coexist
+  g.saveGai('/data/kb.gai', { hmacKey: process.env.GAI_HMAC_KEY! });
+  res.json({ status: 'ok' });
+});
+
+// Batch ingest from a folder (e.g. nightly sync from a document store)
+const batchResult = await g.appendFolder('/data/incoming', { recursive: true });
+console.log(`Ingested ${batchResult.newNodes} nodes, skipped ${batchResult.skipped?.length} files`);
+
+// Periodic full-graph consistency audit
+const { contradictions, discoveries, decayed } = g.reflect();
+// contradictions: conflicting claims across the whole graph (not just new content)
+// discoveries: surprising cross-domain connections worth surfacing
+// decayed: nodes whose confidence has dropped (not accessed recently)
 ```
 
 **Security notes:**
 - Content-hash deduplication prevents the same document from inflating the
   graph if ingested twice.
-- `appendMarkdown` / `appendText` / `appendHtml` etc. are synchronous and
-  in-process — run them in a worker thread when the source is untrusted
-  (see the sandboxing example above).
-- File path arguments are not involved in append operations; only the parsed
-  content string is processed.
+- `appendFile` and `appendFolder` paths are forwarded to `node:fs` unchanged —
+  do **not** pass user-controlled strings. Canonicalize with `path.resolve()`
+  and validate against an allowlist before calling.
+- `appendMarkdown` / `appendText` / `appendHtml` operate on content strings
+  only — no filesystem access.
+- All parse + append operations are synchronous (except PDF) and in-process —
+  run them in a worker thread when the source is untrusted (see the
+  sandboxing example above).
+- Contradiction detection is scoped to newly added nodes only, keeping
+  per-append cost O(new × entity-overlap) rather than O(n²).
 
 ### Multi-graph federation — querying across isolated knowledge bases
 

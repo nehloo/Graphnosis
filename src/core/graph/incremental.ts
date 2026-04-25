@@ -3,16 +3,19 @@ import type {
   KnowledgeGraph,
   ParsedDocument,
   TfidfIndex,
+  NodeId,
 } from '@/core/types';
 import { chunkDocument } from '@/core/extraction/chunker';
 import { createTfidfIndex, addDocument, computeIdf } from '@/core/similarity/tfidf';
 import { buildDirectedEdges, chunkKey } from './directed-edges';
 import { buildUndirectedEdges } from './undirected-edges';
 
-interface IncrementalResult {
+export interface IncrementalResult {
   newNodes: number;
   newDirectedEdges: number;
   newUndirectedEdges: number;
+  /** IDs of the newly added nodes — used by callers to scope contradiction detection */
+  newNodeIds: NodeId[];
 }
 
 // Add new documents to an existing graph without full rebuild
@@ -34,6 +37,7 @@ export function addDocumentsToGraph(
   }
 
   const newChunkKeyToNodeId = new Map<string, string>();
+  const newNodeIds: NodeId[] = [];
 
   for (const chunk of allNewChunks) {
     const hash = simpleHash(chunk.content);
@@ -42,6 +46,7 @@ export function addDocumentsToGraph(
     const nodeId = nanoid();
     const key = chunkKey(chunk);
     newChunkKeyToNodeId.set(key, nodeId);
+    newNodeIds.push(nodeId);
 
     graph.nodes.set(nodeId, {
       id: nodeId,
@@ -60,7 +65,7 @@ export function addDocumentsToGraph(
   }
 
   if (newChunkKeyToNodeId.size === 0) {
-    return { newNodes: 0, newDirectedEdges: 0, newUndirectedEdges: 0 };
+    return { newNodes: 0, newDirectedEdges: 0, newUndirectedEdges: 0, newNodeIds: [] };
   }
 
   // Step 3: Build TF-IDF index for new nodes
@@ -105,6 +110,7 @@ export function addDocumentsToGraph(
     newNodes: graph.nodes.size - startNodeCount,
     newDirectedEdges: graph.directedEdges.size - startDirectedCount,
     newUndirectedEdges: graph.undirectedEdges.size - startUndirectedCount,
+    newNodeIds,
   };
 }
 

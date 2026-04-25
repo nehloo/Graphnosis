@@ -15,16 +15,19 @@
 //
 // See `enterprise/enterprise.md` for the full IT/security posture.
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
+import { extname, join } from 'node:path';
 import type {
   KnowledgeGraph,
   ParsedDocument,
   QueryResult,
+  Contradiction,
 } from '@/core/types';
 import { buildGraph, type BuiltGraph } from '@/core/graph/graph-builder';
 import { parseMarkdown } from '@/core/ingestion/parsers/markdown-parser';
 import { parseHtml } from '@/core/ingestion/parsers/html-parser';
 import { parseCsv, parseJson } from '@/core/ingestion/parsers/csv-parser';
+import { parsePdf } from '@/core/ingestion/parsers/pdf-parser';
 import {
   queryGraph,
   buildGraphPrompt,
@@ -35,6 +38,7 @@ import { writeGai, type WriteGaiOptions } from '@/core/format/gai-writer';
 import { readGai, type ReadGaiOptions } from '@/core/format/gai-reader';
 import { openSqliteStore } from '@/core/persistence/sqlite-store';
 import { addDocumentsToGraph } from '@/core/graph/incremental';
+import { reflect, type ReflectionResult } from '@/core/optimization/reflection';
 import {
   applyCorrection,
   importCorrections,
@@ -43,6 +47,93 @@ import {
   type Correction,
   type CorrectionResult,
 } from '@/core/corrections/correction-engine';
+
+/** Returned by all append* methods. */
+export interface AppendResult {
+  /** Number of new (non-duplicate) nodes added to the graph. */
+  newNodes: number;
+  newDirectedEdges: number;
+  newUndirectedEdges: number;
+  /**
+   * Contradictions detected between newly-added nodes and the existing graph.
+   * Each entry describes two nodes that share entities but make conflicting
+   * claims. The graph is NOT automatically modified — you decide how to
+   * resolve each one via `g.supersede()`, `g.deleteNode()`, or `g.edit()`.
+   */
+  contradictions: Contradiction[];
+  /** Files skipped during appendFolder (unsupported extension or read error). */
+  skipped?: Array<{ file: string; reason: string }>;
+}
+
+/** Supported extensions for appendFile / appendFolder. */
+const SUPPORTED_EXTENSIONS = new Set([
+  '.md', '.txt', '.html', '.htm', '.csv', '.json', '.pdf',
+]);
+
+/** Detect contradictions only among the newly added node IDs vs the full graph. */
+function detectNewContradictions(
+  graph: KnowledgeGraph & { tfidfIndex?: import('@/core/types').TfidfIndex },
+  newNodeIds: Set<string>
+): Contradiction[] {
+  if (newNodeIds.size === 0 || !graph.tfidfIndex) return [];
+
+  // Build entity → nodeId index scoped to new + existing nodes that share entities with new
+  const entityToNew = new Map<string, string[]>();
+  for (const nodeId of newNodeIds) {
+    const node = graph.nodes.get(nodeId);
+    if (!node || node.type === 'document' || node.type === 'section') continue;
+    for (const entity of node.entities) {
+      if (entity.length < 4) continue;
+      const list = entityToNew.get(entity) ?? [];
+      list.push(nodeId);
+      entityToNew.set(entity, list);
+    }
+  }
+
+  // For each entity touched by new nodes, find existing nodes that also mention it
+  const CONFLICT_PATTERNS = [
+    /\b(reclassified|reclassify|disputed|disproven|debunked|refuted|retracted|superseded|corrected|not\s+actually|contrary\s+to|in\s+fact|however|but\s+actually|wrong|incorrect|false)\b/i,
+  ];
+
+  const contradictions: Contradiction[] = [];
+  const seen = new Set<string>();
+
+  for (const [entity, newIds] of entityToNew) {
+    for (const [existingId, existingNode] of graph.nodes) {
+      if (newIds.includes(existingId)) continue;
+      if (existingNode.type === 'document' || existingNode.type === 'section') continue;
+      if (!existingNode.entities.some(e => e.toLowerCase() === entity.toLowerCase())) continue;
+
+      for (const newId of newIds) {
+        const pairKey = [newId, existingId].sort().join('|');
+        if (seen.has(pairKey)) continue;
+        seen.add(pairKey);
+
+        const newNode = graph.nodes.get(newId)!;
+        const sharedEntities = newNode.entities.filter(e =>
+          existingNode.entities.some(be => be.toLowerCase() === e.toLowerCase())
+        );
+        if (sharedEntities.length < 2) continue;
+        if (newNode.content.length < 60 || existingNode.content.length < 60) continue;
+
+        const newHasConflict = CONFLICT_PATTERNS.some(p => p.test(newNode.content));
+        const existingHasConflict = CONFLICT_PATTERNS.some(p => p.test(existingNode.content));
+        if (!newHasConflict && !existingHasConflict) continue;
+
+        contradictions.push({
+          nodeA: newId,
+          nodeB: existingId,
+          sharedEntities,
+          description: `New content conflicts with existing node on: ${sharedEntities.slice(0, 3).join(', ')}`,
+          detectedAt: Date.now(),
+          resolved: false,
+        });
+      }
+    }
+  }
+
+  return contradictions;
+}
 
 export interface GraphnosisOptions {
   /** Name attached to the built graph. Defaults to "graphnosis". */
@@ -106,47 +197,165 @@ export class Graphnosis {
     return this.addDocument(parseMarkdown(wrapped, source));
   }
 
+  // --- Incremental append ---------------------------------------------------
+
   /**
    * Append one or more pre-parsed documents to an **already-built** graph
    * without triggering a full rebuild. New nodes are chunk-deduplicated
    * against the existing graph (by content hash), new edges are wired in
    * incrementally, and the TF-IDF index is updated in place.
    *
-   * Call `build()` first if the graph has not been built yet — `append()`
-   * throws if there is no live graph to append to.
+   * Returns an `AppendResult` that includes any contradictions detected
+   * between the new content and existing nodes. The graph is NOT
+   * automatically modified on contradiction — you decide how to resolve
+   * each one via `g.supersede()`, `g.deleteNode()`, or `g.edit()`.
    *
-   * @returns Counts of new nodes and edges added.
+   * Call `build()` first if the graph has not been built yet.
    */
-  append(...docs: ParsedDocument[]): { newNodes: number; newDirectedEdges: number; newUndirectedEdges: number } {
-    return addDocumentsToGraph(this.graph, docs);
+  append(...docs: ParsedDocument[]): AppendResult {
+    const incremental = addDocumentsToGraph(this.graph, docs);
+    const contradictions = detectNewContradictions(
+      this.graph,
+      new Set(incremental.newNodeIds)
+    );
+    return { ...incremental, contradictions };
+  }
+
+  /** Parse markdown and append. Returns AppendResult with contradictions. */
+  appendMarkdown(content: string, source = 'inline.md'): AppendResult {
+    return this.append(parseMarkdown(content, source));
+  }
+
+  /** Parse plain text (wrapped as single-section markdown) and append. */
+  appendText(text: string, source = 'inline.txt'): AppendResult {
+    return this.append(parseMarkdown(`# ${source}\n\n${text}`, source));
+  }
+
+  appendHtml(html: string, source = 'inline.html'): AppendResult {
+    return this.append(parseHtml(html, source));
+  }
+
+  appendCsv(csv: string, source = 'inline.csv'): AppendResult {
+    return this.append(parseCsv(csv, source));
+  }
+
+  appendJson(json: string, source = 'inline.json'): AppendResult {
+    return this.append(parseJson(json, source));
   }
 
   /**
-   * Convenience helpers — parse and append in one call.
-   * Equivalent to `g.append(parseMarkdown(content, source))`.
+   * Parse a PDF buffer and append its content to the graph.
+   *
+   * ```ts
+   * import { readFileSync } from 'node:fs';
+   * const result = await g.appendPdf(readFileSync('report.pdf'), 'report.pdf');
+   * ```
    */
-  appendMarkdown(content: string, source = 'inline.md'): this {
-    this.append(parseMarkdown(content, source));
-    return this;
+  async appendPdf(buffer: Buffer, source = 'document.pdf'): Promise<AppendResult> {
+    const doc = await parsePdf(buffer, source);
+    return this.append(doc);
   }
 
-  appendHtml(html: string, source = 'inline.html'): this {
-    this.append(parseHtml(html, source));
-    return this;
+  /**
+   * Auto-detect the format of a file by extension, read it, parse it, and
+   * append to the graph. Supported: `.md` `.txt` `.html` `.htm` `.csv`
+   * `.json` `.pdf`
+   *
+   * ```ts
+   * const result = await g.appendFile('/uploads/report.pdf');
+   * if (result.contradictions.length > 0) {
+   *   // show conflicts to user for approval
+   * }
+   * ```
+   */
+  async appendFile(filePath: string): Promise<AppendResult> {
+    const ext = extname(filePath).toLowerCase();
+    if (!SUPPORTED_EXTENSIONS.has(ext)) {
+      throw new Error(
+        `[graphnosis] Unsupported file extension "${ext}" for ${filePath}. ` +
+        `Supported: ${[...SUPPORTED_EXTENSIONS].join(', ')}`
+      );
+    }
+    if (ext === '.pdf') {
+      return this.appendPdf(readFileSync(filePath), filePath);
+    }
+    const content = readFileSync(filePath, 'utf8');
+    switch (ext) {
+      case '.md': case '.txt': return this.appendMarkdown(content, filePath);
+      case '.html': case '.htm': return this.appendHtml(content, filePath);
+      case '.csv': return this.appendCsv(content, filePath);
+      case '.json': return this.appendJson(content, filePath);
+      default: return this.appendText(content, filePath);
+    }
   }
 
-  appendCsv(csv: string, source = 'inline.csv'): this {
-    this.append(parseCsv(csv, source));
-    return this;
-  }
+  /**
+   * Walk a directory and append all supported files. Skips unsupported
+   * extensions and files that fail to parse (reported in `result.skipped`).
+   *
+   * @param dirPath   Absolute or relative path to the folder.
+   * @param opts.recursive  Walk subdirectories (default: true).
+   * @param opts.extensions Override the set of accepted extensions.
+   *
+   * ```ts
+   * const result = await g.appendFolder('/docs', { recursive: true });
+   * console.log(`Added ${result.newNodes} nodes, skipped ${result.skipped?.length} files`);
+   * for (const c of result.contradictions) {
+   *   console.warn('Conflict:', c.description);
+   * }
+   * ```
+   *
+   * WARNING: `dirPath` is forwarded to `fs.readdirSync` unchanged. Do not
+   * pass user-controlled strings; canonicalize and validate before calling.
+   */
+  async appendFolder(
+    dirPath: string,
+    opts: { recursive?: boolean; extensions?: Set<string> } = {}
+  ): Promise<AppendResult> {
+    const { recursive = true, extensions = SUPPORTED_EXTENSIONS } = opts;
+    const skipped: Array<{ file: string; reason: string }> = [];
+    const allDocs: ParsedDocument[] = [];
 
-  appendJson(json: string, source = 'inline.json'): this {
-    this.append(parseJson(json, source));
-    return this;
-  }
+    const walk = async (dir: string) => {
+      for (const entry of readdirSync(dir)) {
+        const full = join(dir, entry);
+        const stat = statSync(full);
+        if (stat.isDirectory()) {
+          if (recursive) await walk(full);
+          continue;
+        }
+        const ext = extname(entry).toLowerCase();
+        if (!extensions.has(ext)) {
+          skipped.push({ file: full, reason: `unsupported extension "${ext}"` });
+          continue;
+        }
+        try {
+          if (ext === '.pdf') {
+            allDocs.push(await parsePdf(readFileSync(full), full));
+          } else {
+            const content = readFileSync(full, 'utf8');
+            switch (ext) {
+              case '.md': case '.txt': allDocs.push(parseMarkdown(content, full)); break;
+              case '.html': case '.htm': allDocs.push(parseHtml(content, full)); break;
+              case '.csv': allDocs.push(parseCsv(content, full)); break;
+              case '.json': allDocs.push(parseJson(content, full)); break;
+              default: allDocs.push(parseMarkdown(`# ${entry}\n\n${content}`, full));
+            }
+          }
+        } catch (err) {
+          skipped.push({ file: full, reason: (err as Error).message });
+        }
+      }
+    };
 
-  appendText(text: string, source = 'inline.txt'): this {
-    return this.appendMarkdown(`# ${source}\n\n${text}`, source);
+    await walk(dirPath);
+
+    if (allDocs.length === 0) {
+      return { newNodes: 0, newDirectedEdges: 0, newUndirectedEdges: 0, contradictions: [], skipped };
+    }
+
+    const result = this.append(...allDocs);
+    return { ...result, skipped };
   }
 
   /**
@@ -252,6 +461,20 @@ export class Graphnosis {
     } finally {
       store.close();
     }
+  }
+
+  // --- Full-graph consistency check -----------------------------------------
+
+  /**
+   * Run the reflection engine over the entire graph. Returns contradictions,
+   * surprising cross-domain connections, decayed nodes, and inferred edges.
+   *
+   * Use this periodically (e.g. after a batch of appends) for a full
+   * consistency audit. For real-time per-append checks use the
+   * `contradictions` field in the `AppendResult` returned by `append*()`.
+   */
+  reflect(): ReflectionResult {
+    return reflect(this.graph, this.graph.tfidfIndex);
   }
 
   // --- Corrections -----------------------------------------------------------
@@ -414,7 +637,8 @@ export function queryGraphs(
 // how the "no-egress" guarantee is maintained.
 
 export { buildGraph, type BuiltGraph } from '@/core/graph/graph-builder';
-export { addDocumentsToGraph } from '@/core/graph/incremental';
+export { addDocumentsToGraph, type IncrementalResult } from '@/core/graph/incremental';
+export { reflect, type ReflectionResult } from '@/core/optimization/reflection';
 export {
   applyCorrection,
   importCorrections,

@@ -416,23 +416,62 @@ const prompt = g.prompt('how does chunking work?');
 
 ### Appending new files to an existing graph
 
-After calling `build()` you can add more documents **without rebuilding from scratch**. New nodes are chunk-deduplicated against the existing graph (by content hash) and edges are wired in incrementally.
+After calling `build()` you can add more documents **without rebuilding from scratch**. New nodes are chunk-deduplicated (by content hash) and edges are wired in incrementally.
+
+Every append method returns an **`AppendResult`** that includes any contradictions detected between the new content and existing nodes. The graph is **not** automatically modified — you decide how to resolve each conflict.
+
+**Supported formats:** `.md` `.txt` `.html` `.htm` `.csv` `.json` `.pdf`
 
 ```ts
+import { readFileSync } from 'node:fs';
+import { Graphnosis } from '@nehloo/graphnosis';
+
 const g = new Graphnosis({ name: 'kb' });
 g.addMarkdown(initialContent, 'base.md');
 g.build();
 
-// Later — e.g. when a user uploads a new file:
-const { newNodes, newDirectedEdges } = g.append(parseMarkdown(userUpload, 'upload.md'));
-// or use the convenience helpers:
-g.appendMarkdown(moreContent, 'update.md');
-g.appendText('A quick fact to add.', 'note.txt');
+// Single file by content string
+const r1 = g.appendMarkdown(moreContent, 'update.md');
+const r2 = g.appendText('A quick fact to add.', 'note.txt');
+
+// PDF — pass a Buffer, returns Promise
+const r3 = await g.appendPdf(readFileSync('report.pdf'), 'report.pdf');
+
+// Auto-detect format from file extension
+const r4 = await g.appendFile('/uploads/research.pdf');
+
+// Walk an entire folder (recursive by default)
+const r5 = await g.appendFolder('/docs', { recursive: true });
+console.log(`Added ${r5.newNodes} nodes, skipped ${r5.skipped?.length} files`);
+
+// Handle contradictions — user decides what to do with each one
+for (const c of r5.contradictions) {
+  console.warn('Conflict detected:', c.description);
+  console.warn('  Shared entities:', c.sharedEntities.join(', '));
+  console.warn('  Node A:', c.nodeA, '  Node B:', c.nodeB);
+
+  // Option 1: supersede the old node with the new content
+  g.supersede(c.nodeB, resolvedContent, 'user approved update');
+
+  // Option 2: discard the new node
+  g.deleteNode(c.nodeA, 'user dismissed conflict');
+
+  // Option 3: do nothing — both nodes coexist (resolved flag stays false)
+}
 
 // Load a saved graph and continue appending to it:
 g.loadGai('knowledge.gai', { hmacKey });
-g.appendMarkdown(latestDocs, 'v2.md');
+await g.appendFolder('/new-docs');
 g.saveGai('knowledge.gai', { hmacKey });
+```
+
+**Full-graph consistency check** — run after a batch of appends for a comprehensive audit:
+
+```ts
+const { contradictions, discoveries, decayed } = g.reflect();
+// contradictions: conflicting claims across the whole graph
+// discoveries: surprising cross-domain connections
+// decayed: nodes whose confidence dropped (not accessed recently)
 ```
 
 ### Querying multiple graphs (federation)
@@ -500,14 +539,29 @@ g.saveSqlite('./data/graphnosis.db');
 ```ts
 import {
   // Core facade
-  Graphnosis,        // class — ingest, build, query, append, correct, persist
-  queryGraphs,       // federated query across multiple Graphnosis instances
+  Graphnosis,          // class — ingest, build, query, append, correct, persist
+  queryGraphs,         // federated query across multiple Graphnosis instances
+
+  // Graphnosis class methods (reference)
+  // g.addMarkdown / addHtml / addCsv / addJson / addText / addDocument
+  // g.build()
+  // g.append()          — append ParsedDocument[], returns AppendResult
+  // g.appendMarkdown / appendText / appendHtml / appendCsv / appendJson
+  // g.appendPdf(buffer) — async, returns Promise<AppendResult>
+  // g.appendFile(path)  — async, auto-detects format, returns Promise<AppendResult>
+  // g.appendFolder(path, opts?) — async, walks directory, returns Promise<AppendResult>
+  // g.query / g.prompt
+  // g.reflect()         — full-graph contradiction + decay + discovery audit
+  // g.edit / deleteNode / supersede / correct / importMarkdown
+  // g.forgetBefore / forgetTopic
+  // g.saveGai / loadGai / saveSqlite / loadSqlite
 
   // Lower-level primitives
-  buildGraph,        // build a graph from ParsedDocument[]
-  queryGraph,        // subgraph retrieval given a graph + tfidf index
-  buildGraphPrompt,  // wrap serialized subgraph into an LLM system prompt
-  addDocumentsToGraph, // incremental append to a live graph
+  buildGraph,            // build a graph from ParsedDocument[]
+  queryGraph,            // subgraph retrieval given a graph + tfidf index
+  buildGraphPrompt,      // wrap serialized subgraph into an LLM system prompt
+  addDocumentsToGraph,   // incremental append to a live graph
+  reflect,               // full-graph reflection engine
 
   // Parsers
   parseMarkdown, parseHtml, parseCsv, parseJson,
@@ -517,8 +571,8 @@ import {
   forgetByTimeWindow, forgetByTopic, cascadeSoftDelete,
 
   // Persistence
-  writeGai, readGai,   // .gai binary format (with optional HMAC-SHA256)
-  openSqliteStore,     // path-scoped SQLite store
+  writeGai, readGai,     // .gai binary format (with optional HMAC-SHA256)
+  openSqliteStore,       // path-scoped SQLite store
   toSerializable, fromSerializable,
 } from '@nehloo/graphnosis';
 ```
