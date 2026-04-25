@@ -34,6 +34,14 @@ import {
 import { writeGai, type WriteGaiOptions } from '@/core/format/gai-writer';
 import { readGai, type ReadGaiOptions } from '@/core/format/gai-reader';
 import { openSqliteStore } from '@/core/persistence/sqlite-store';
+import {
+  applyCorrection,
+  importCorrections,
+  forgetByTimeWindow,
+  forgetByTopic,
+  type Correction,
+  type CorrectionResult,
+} from '@/core/corrections/correction-engine';
 
 export interface GraphnosisOptions {
   /** Name attached to the built graph. Defaults to "graphnosis". */
@@ -201,6 +209,88 @@ export class Graphnosis {
       store.close();
     }
   }
+
+  // --- Corrections -----------------------------------------------------------
+
+  /**
+   * Apply a single correction to the graph. Prefer the typed helpers
+   * (`edit`, `deleteNode`, `supersede`) for most use-cases; use `correct`
+   * directly when you have a pre-built `Correction` object (e.g. from bulk
+   * import or a serialized queue).
+   *
+   * Corrections are soft operations — nodes are never hard-deleted. A deleted
+   * or superseded node has its `confidence` set to 0.1 and `validUntil` set
+   * to the current timestamp so it drops out of query results while remaining
+   * auditable.
+   */
+  correct(correction: Correction): CorrectionResult {
+    const g = this.graph;
+    const result = applyCorrection(g, g.tfidfIndex, correction);
+    return {
+      applied: result.success ? 1 : 0,
+      nodesAdded: correction.type === 'add' && result.success ? 1 : 0,
+      nodesModified: correction.type === 'edit' && result.success ? 1 : 0,
+      nodesSuperseded: correction.type === 'supersede' && result.success ? 1 : 0,
+      errors: result.error ? [result.error] : [],
+    };
+  }
+
+  /**
+   * Edit the content of an existing node in-place.
+   *
+   * @param nodeId  The id of the node to update.
+   * @param content The replacement content.
+   * @param reason  Human-readable reason (stored on the node for audit).
+   */
+  edit(nodeId: string, content: string, reason: string): CorrectionResult {
+    return this.correct({ type: 'edit', nodeId, content, reason, timestamp: Date.now() });
+  }
+
+  /**
+   * Soft-delete a node. The node is retained for audit purposes but its
+   * confidence drops to 0.1 and `validUntil` is set to now, so it will not
+   * appear in query results.
+   *
+   * Named `deleteNode` to avoid shadowing the built-in `delete` operator.
+   */
+  deleteNode(nodeId: string, reason: string): CorrectionResult {
+    return this.correct({ type: 'delete', nodeId, reason, timestamp: Date.now() });
+  }
+
+  /**
+   * Supersede a node with new content. The old node is soft-deleted and a new
+   * node is created with the replacement content, linked via a `supersedes`
+   * directed edge so the lineage is auditable.
+   */
+  supersede(nodeId: string, content: string, reason: string): CorrectionResult {
+    return this.correct({ type: 'supersede', nodeId, content, reason, timestamp: Date.now() });
+  }
+
+  /**
+   * Ingest a markdown document as a batch of corrections (each chunk becomes
+   * a new node). Useful for bulk-importing curated knowledge patches.
+   */
+  importMarkdown(content: string, sourceLabel: string): CorrectionResult {
+    return importCorrections(this.graph, this.graph.tfidfIndex, content, sourceLabel);
+  }
+
+  /**
+   * Forget all nodes whose `createdAt` timestamp falls before `beforeMs`.
+   * Useful for GDPR / data-retention policies.
+   * Returns the number of nodes soft-deleted.
+   */
+  forgetBefore(beforeMs: number, reason = 'data-retention'): { forgotten: number } {
+    return forgetByTimeWindow(this.graph, beforeMs, reason);
+  }
+
+  /**
+   * Forget all nodes that match a topic (entity name or content keyword).
+   * Uses the same entity + content matching as the query engine.
+   * Returns the number of nodes soft-deleted.
+   */
+  forgetTopic(topic: string, reason = 'user-request'): { forgotten: number } {
+    return forgetByTopic(this.graph, topic, reason);
+  }
 }
 
 // --- Lower-level re-exports --------------------------------------------------
@@ -210,6 +300,15 @@ export class Graphnosis {
 // how the "no-egress" guarantee is maintained.
 
 export { buildGraph, type BuiltGraph } from '@/core/graph/graph-builder';
+export {
+  applyCorrection,
+  importCorrections,
+  forgetByTimeWindow,
+  forgetByTopic,
+  cascadeSoftDelete,
+  type Correction,
+  type CorrectionResult,
+} from '@/core/corrections/correction-engine';
 export {
   queryGraph,
   buildGraphPrompt,
