@@ -150,16 +150,20 @@ export async function attachEmbeddings(
     if (!node.content || !node.content.trim()) continue;
     items.push({ nodeId: node.id, text: node.content });
   }
+
+  // Always attach an index — even if empty — so subsequent
+  // `queryHybrid` / `hasEmbeddings` calls don't gaslight the caller
+  // with "call buildEmbeddings first" when they already did.
+  const index = createEmbeddingIndex(adapter);
+  graph.embeddingIndex = index;
   if (items.length === 0) return graph;
 
-  const index = createEmbeddingIndex(adapter);
   await embedNodes(index, adapter, items, {
     intent: 'document',
     batchSize: opts.batchSize,
     onProgress: opts.onProgress,
     signal: opts.signal,
   });
-  graph.embeddingIndex = index;
   return graph;
 }
 
