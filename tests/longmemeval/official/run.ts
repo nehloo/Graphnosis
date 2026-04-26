@@ -19,6 +19,7 @@ import { buildGraphForQuestion, buildSessionDocsForQuestion, normalizeDate } fro
 import { judgeAnswer, type JudgeModel } from './judge';
 import { answerQuestion, type RetrievalMode } from '@/core/query/answer';
 import { attachEmbeddings, buildGraph } from '@/core/graph/graph-builder';
+import { openaiEmbedAdapter } from '@/sdk/adapters/openai';
 import { enrichSessionGraph } from '@/core/enrichment/session-summarizer';
 
 interface CliArgs {
@@ -295,7 +296,7 @@ async function runOne(
       });
     }
     if (retrieval !== 'tfidf') {
-      graph = await attachEmbeddings(graph, { model: embeddingModel });
+      graph = await attachEmbeddings(graph, openaiEmbedAdapter({ model: embeddingModel }));
     }
     const t1 = performance.now();
 

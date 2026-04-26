@@ -80,12 +80,54 @@ export interface HealthReport {
   coverageGaps: string[]; // Entities mentioned but with sparse coverage
 }
 
+/**
+ * Soft-delete reasons follow a namespaced-prefix convention so audit
+ * exports can hide speculative / rolled-back UX events by default while
+ * keeping real lifecycle events visible.
+ *
+ * Recommended prefixes:
+ *   (no prefix)   real lifecycle event — load-bearing for audit
+ *   `user:`       explicit human action (corrections, GDPR deletions)
+ *   `system:`     automated platform action (cascade-delete, retention,
+ *                 reflection decay) — visible by default, filterable
+ *   `preview:`    speculative / rolled-back UX (preview-rejected,
+ *                 preview-expired) — HIDDEN by default
+ *
+ * Convention only — not enforced. Consumers who don't follow it get v0.1
+ * behavior (every soft-delete shown).
+ */
+export interface AuditFilterOptions {
+  /**
+   * Hide events whose `reason` starts with any of these prefixes.
+   * Default: `['preview:']`. Pass `[]` to show everything.
+   */
+  hideReasonPrefixes?: string[];
+  /** Override entirely — show every soft-delete regardless of prefix. */
+  includeAll?: boolean;
+}
+
+/**
+ * Returns true if a `reason` string should be hidden under the given
+ * filter options. Exported so consumers can use the same filter against
+ * their own audit pipelines.
+ */
+export function shouldHideReason(
+  reason: string | undefined,
+  opts: AuditFilterOptions = {}
+): boolean {
+  if (opts.includeAll) return false;
+  if (!reason) return false;
+  const prefixes = opts.hideReasonPrefixes ?? ['preview:'];
+  return prefixes.some(p => reason.startsWith(p));
+}
+
 // Generate a full audit report from the graph
 export function generateAuditReport(
   graph: KnowledgeGraph,
-  tfidfIndex?: TfidfIndex
+  tfidfIndex?: TfidfIndex,
+  filter: AuditFilterOptions = {}
 ): AuditReport {
-  const entities = generateEntityReports(graph);
+  const entities = generateEntityReports(graph, filter);
   const { contradictions, discoveries } = tfidfIndex
     ? generateReflectionReports(graph, tfidfIndex)
     : { contradictions: [], discoveries: [] };
@@ -100,12 +142,19 @@ export function generateAuditReport(
   };
 }
 
-function generateEntityReports(graph: KnowledgeGraph): EntityReport[] {
+function generateEntityReports(
+  graph: KnowledgeGraph,
+  filter: AuditFilterOptions = {}
+): EntityReport[] {
   // Group nodes by their most prominent entity
   const entityNodes = new Map<string, Array<{ nodeId: NodeId; node: GraphNode }>>();
 
   for (const [nodeId, node] of graph.nodes) {
     if (node.type === 'document' || node.type === 'section') continue;
+    // Respect reason-prefix filter for soft-deleted nodes. Live nodes
+    // are always included.
+    const reason = node.metadata?.deleteReason ?? node.metadata?.forgetReason;
+    if (typeof reason === 'string' && shouldHideReason(reason, filter)) continue;
     for (const entity of node.entities) {
       const list = entityNodes.get(entity) || [];
       list.push({ nodeId, node });

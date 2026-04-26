@@ -1,11 +1,11 @@
 import { nanoid } from 'nanoid';
 import type { UndirectedEdge, UndirectedEdgeType, ExtractedChunk, TfidfIndex, NodeId } from '@/core/types';
 import { SIMILARITY_THRESHOLD, ENTITY_JACCARD_THRESHOLD } from '@/core/constants';
-import { getTfidfVector } from '@/core/similarity/tfidf';
+import { getTfidfVector, tokenizeWith } from '@/core/similarity/tfidf';
 import { cosineSimilarity } from '@/core/similarity/cosine';
 import { jaccardSimilarity } from '@/core/similarity/jaccard';
+import { asciiFoldAnalyzer, type TextAnalyzer } from '@/core/similarity/analyzer';
 import { chunkKey } from './directed-edges';
-import { tokenize } from '@/core/similarity/tfidf';
 
 const MAX_SIMILARITY_CANDIDATES = 50; // Max candidates per node to check similarity against
 const MAX_EDGES_PER_NODE = 10; // Cap edges per node to avoid explosion
@@ -13,7 +13,8 @@ const MAX_EDGES_PER_NODE = 10; // Cap edges per node to avoid explosion
 export function buildUndirectedEdges(
   chunks: ExtractedChunk[],
   tfidfIndex: TfidfIndex,
-  nodeIdMap: Map<string, NodeId>
+  nodeIdMap: Map<string, NodeId>,
+  analyzer: TextAnalyzer = asciiFoldAnalyzer
 ): UndirectedEdge[] {
   const edges: UndirectedEdge[] = [];
   const seen = new Set<string>();
@@ -25,7 +26,7 @@ export function buildUndirectedEdges(
   // Build inverted index: term → list of chunk indices (for fast candidate lookup)
   const termIndex = new Map<string, number[]>();
   for (let i = 0; i < contentChunks.length; i++) {
-    const tokens = tokenize(contentChunks[i].content);
+    const tokens = tokenizeWith(analyzer, contentChunks[i].content);
     const uniqueTokens = new Set(tokens);
     for (const token of uniqueTokens) {
       const list = termIndex.get(token) || [];
@@ -43,7 +44,7 @@ export function buildUndirectedEdges(
 
     // Find candidate chunks that share terms with chunk A
     const candidateSet = new Set<number>();
-    const tokensA = tokenize(chunkA.content);
+    const tokensA = tokenizeWith(analyzer, chunkA.content);
     for (const token of new Set(tokensA)) {
       const list = termIndex.get(token);
       if (list && list.length < 500) { // Skip very common terms

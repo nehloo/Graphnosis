@@ -392,7 +392,7 @@ npm install better-sqlite3
 > export default nextConfig;
 > ```
 >
-> `ai` and `@ai-sdk/openai` are peer dependencies — install them only if you call `g.build({ model: '...' })` for semantic embeddings. The core graph build/query pipeline (TF-IDF) works without them.
+> `ai` and `@ai-sdk/openai` are peer dependencies — install them only if you call `g.buildEmbeddings()` / `queryHybrid()` / `promptHybrid()` for semantic retrieval. The core graph build/query pipeline (TF-IDF) works without them.
 
 ### Quick example
 
@@ -522,6 +522,157 @@ g.forgetBefore(Date.now() - 90 * 24 * 60 * 60 * 1000, 'retention-policy');
 g.forgetTopic('John Smith', 'user-deletion-request');
 ```
 
+### Non-English / non-ASCII corpora — pluggable analyzer (v0.2)
+
+Graphnosis ships two built-in analyzers. Pick the one that matches your corpus:
+
+| Analyzer | id | What it does | Use for |
+|---|---|---|---|
+| `asciiFoldAnalyzer` *(default)* | `ascii-fold` | NFD-normalize + strip diacritics + English stopwords. `café` → `cafe`, `cusătura` → `cusatura`. | English; English with foreign proper names (`Beyoncé`, `São Paulo`); Romanian, French, Spanish, Polish — anywhere folding to ASCII is acceptable retrieval. |
+| `unicodeAnalyzer` | `unicode` | Unicode-aware split, preserves diacritics, no stopwords. `cusătura` stays `cusătura`. | Languages where diacritics are phonemic: Turkish (`ı` ≠ `i`), Hungarian, Finnish, German (where `ü` ≠ `ue` distinction matters). |
+
+```ts
+import { Graphnosis, unicodeAnalyzer } from '@nehloo/graphnosis';
+
+// Default (asciiFoldAnalyzer) — English with diacritic robustness:
+const g1 = new Graphnosis({ name: 'docs' });
+g1.addMarkdown('The café opened in São Paulo.', 'note.md');
+g1.build();
+g1.query('cafe sao paulo'); // ✓ matches
+
+// Unicode-preserving — Turkish (where folding would lose meaning):
+const g2 = new Graphnosis({ name: 'docs-tr', analyzer: unicodeAnalyzer });
+g2.addMarkdown('Bu kız çok şık.', 'note.md');
+g2.build();
+g2.query('kız'); // ✓ matches; would also match 'kiz' separately
+```
+
+The analyzer's `id` is persisted on the graph metadata. Loading a graph saved
+with one analyzer against a runtime configured with another throws a typed
+`AnalyzerMismatchError` — token streams are not interchangeable.
+
+For language-specific stemming (Snowball, Zemberek, Hunspell, …) implement
+the `TextAnalyzer` interface yourself, or watch for a future
+`@nehloo/graphnosis-langs` companion package.
+
+### Hybrid retrieval (opt-in)
+
+By default `g.query()` and `g.prompt()` are **sync and fully offline** — pure
+TF-IDF, no network calls. For semantic retrieval that catches paraphrases TF-IDF
+misses ("previous job" ↔ "Acme Corp"), opt into the hybrid path with an
+embedding adapter:
+
+```ts
+import { Graphnosis } from '@nehloo/graphnosis';
+import { openaiEmbedAdapter } from '@nehloo/graphnosis/adapters/openai';
+
+const g = new Graphnosis({
+  name: 'docs',
+  embed: openaiEmbedAdapter({ model: 'text-embedding-3-small' }),
+});
+// … addMarkdown / build … //
+
+// One-time: embed every content node (uses the configured adapter)
+await g.buildEmbeddings({
+  batchSize: 256,
+  onProgress: ({ done, total }) => console.log(`embed ${done}/${total}`),
+  signal: abortController.signal, // optional cancellation
+});
+
+// Hybrid: merges TF-IDF + embedding seed pools (one network call per query)
+const ctx    = await g.queryHybrid('previous job', { similarity: 'hybrid' });
+const prompt = await g.promptHybrid('previous job');
+
+// Pure semantic — skips the TF-IDF pool
+const sem    = await g.queryHybrid('previous job', { similarity: 'embeddings' });
+
+// Keep the index in sync as you append new content
+await g.appendWithEmbeddings(parseMarkdown(newDoc, 'note.md'));
+```
+
+**Pluggable provider — not just OpenAI.** Adapters live behind sub-paths:
+
+| Provider | Import | Notes |
+|----------|--------|-------|
+| OpenAI | `@nehloo/graphnosis/adapters/openai` → `openaiEmbedAdapter({ model })` | Symmetric model — `intent` ignored |
+| Static (tests) | `@nehloo/graphnosis/adapters/static` → `staticEmbedAdapter({ vectors })` | No network, no peer deps |
+| Voyage / Cohere / custom | implement `EmbeddingAdapter` directly | MUST honor `intent: 'document' \| 'query'` |
+
+See [src/sdk/adapters/README.md](src/sdk/adapters/README.md) for the full
+adapter contract, the `id` naming convention, and a Voyage example.
+
+> **Persistence caveat — embeddings are not saved.** `saveGai()` /
+> `saveSqlite()` / `toBuffer()` / `toSqliteBuffer()` only persist the graph
+> and TF-IDF index. The `EmbeddingIndex` is in-memory only — after
+> `loadGai()` / `fromBuffer()` / `loadSqlite*()` you must call
+> `await g.buildEmbeddings()` again before using the hybrid methods.
+> Persisting vectors to disk is on the roadmap; for now, treat the
+> embedding index as a per-process cache.
+
+> **Adapter mismatch is a fail-closed error.** Loading a graph that was
+> embedded with one adapter and trying to query it with a different
+> adapter id throws `EmbeddingAdapterMismatchError`. Vector spaces are
+> not interchangeable across providers / models / dimensions / intents.
+
+The sync `query()` / `prompt()` methods continue to work without an embedding
+index — the hybrid path is purely additive.
+
+### Buffer-based persistence (serverless-friendly)
+
+Vercel, Lambda, Cloudflare Workers, and Fly Machines have no persistent
+local volume. Use the buffer-based methods to round-trip via blob storage
+without `/tmp` gymnastics:
+
+```ts
+// .gai (binary, signed with HMAC if you pass a key)
+const buf = g.toBuffer({ hmacKey: process.env.GAI_HMAC_KEY });
+await blob.put('graphs/myorg/kg.gai', buf);
+
+// later, in a cold serverless invocation
+const fresh = await blob.get('graphs/myorg/kg.gai');
+const g2 = new Graphnosis();
+g2.fromBuffer(Buffer.from(fresh), { hmacKey: process.env.GAI_HMAC_KEY });
+
+// SQLite (writes a transient file under os.tmpdir() — must be writable)
+const sqlBuf = g.toSqliteBuffer();
+await blob.put('graphs/myorg/kg.sqlite', sqlBuf);
+g2.fromSqliteBuffer(sqlBuf, 'myorg-graph-name');
+```
+
+`saveGai()` / `loadGai()` / `saveSqlite()` / `loadSqlite*()` continue to
+work — they're now thin wrappers over the buffer methods.
+
+### Reason conventions for soft-delete (v0.2)
+
+The corrections engine takes a freeform `reason: string` on every
+soft-delete / edit / supersede / forget. By documented convention, prefix
+the reason to indicate the lifecycle event class — the audit exporter uses
+the prefix to filter speculative or rolled-back UX events out of compliance
+exports by default.
+
+| Prefix         | Meaning                                                         | Audit visibility           |
+|----------------|-----------------------------------------------------------------|----------------------------|
+| *(no prefix)*  | Real lifecycle event — load-bearing for audit                   | Always shown               |
+| `user:`        | Explicit human action (corrections, GDPR deletions)             | Always shown               |
+| `system:`      | Automated platform action (cascade, retention, decay)           | Shown by default, filterable |
+| `preview:`     | Speculative / rolled-back UX (preview-rejected, preview-expired)| **Hidden by default**      |
+
+```ts
+// Recommended: prefix preview-only soft-deletes so they don't pollute audit
+g.deleteNode(nodeId, 'preview:user-rejected');
+
+// system: prefix is what Graphnosis itself uses internally
+g.forgetBefore(cutoff, 'system:retention-policy'); // default
+
+// Pass an empty filter to show everything in an audit export
+import { generateAuditReport } from '@nehloo/graphnosis';
+generateAuditReport(graph, tfidfIndex, { hideReasonPrefixes: [] });
+```
+
+This is convention, not enforcement. Skipping prefixes gives v0.1 behavior
+(every soft-delete shown). The convention is dogfooded internally — Graphnosis
+itself prefixes `system:` on cascade-delete, retention, and topic-forget.
+
 ### Persistence
 
 ```ts
@@ -533,6 +684,9 @@ g.loadGai('knowledge.gai', { hmacKey });   // fails closed on any tampering
 // SQLite (requires the optional better-sqlite3 dependency)
 g.saveSqlite('./data/graphnosis.db');
 ```
+
+> Only the graph + TF-IDF index are written. Embedding vectors built via
+> `buildEmbeddings()` are in-memory only — re-embed after loading.
 
 ### Public API surface
 
@@ -550,11 +704,22 @@ import {
   // g.appendPdf(buffer) — async, returns Promise<AppendResult>
   // g.appendFile(path)  — async, auto-detects format, returns Promise<AppendResult>
   // g.appendFolder(path, opts?) — async, walks directory, returns Promise<AppendResult>
-  // g.query / g.prompt
+  // g.query / g.prompt                  — sync, fully offline (TF-IDF only)
+  // g.buildEmbeddings({ adapter? })     — async, embeds nodes via adapter
+  // g.hasEmbeddings()                   — sync, true after buildEmbeddings
+  // g.queryHybrid / g.promptHybrid      — async, hybrid TF-IDF + embeddings
+  // g.appendWithEmbeddings(...)         — async, append + keep index in sync
   // g.reflect()         — full-graph contradiction + decay + discovery audit
   // g.edit / deleteNode / supersede / correct / importMarkdown
   // g.forgetBefore / forgetTopic
-  // g.saveGai / loadGai / saveSqlite / loadSqlite
+  // g.saveGai / loadGai / saveSqlite / loadSqlite / loadSqliteByName
+  // g.toBuffer / fromBuffer             — serverless-friendly .gai I/O
+  // g.toSqliteBuffer / fromSqliteBuffer — serverless-friendly SQLite I/O
+
+  // Built-in analyzers + types
+  asciiFoldAnalyzer, unicodeAnalyzer,  // pass to constructor.analyzer
+  // Typed errors
+  AnalyzerMismatchError, EmbeddingAdapterMismatchError,
 
   // Lower-level primitives
   buildGraph,            // build a graph from ParsedDocument[]

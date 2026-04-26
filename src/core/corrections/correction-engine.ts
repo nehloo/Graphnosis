@@ -264,7 +264,7 @@ export function importCorrections(
 export function forgetByTimeWindow(
   graph: KnowledgeGraph,
   before: number, // Timestamp: forget everything created before this
-  reason: string = 'Bulk time-window forgetting'
+  reason: string = 'system:retention-policy'
 ): { forgotten: number } {
   let forgotten = 0;
   const now = Date.now();
@@ -290,7 +290,7 @@ export function forgetByTimeWindow(
 export function forgetByTopic(
   graph: KnowledgeGraph,
   topic: string,
-  reason: string = `Bulk topic forgetting: ${topic}`
+  reason: string = `system:topic-forget:${topic}`
 ): { forgotten: number } {
   let forgotten = 0;
   const now = Date.now();
@@ -322,7 +322,7 @@ export function forgetByTopic(
 export function cascadeSoftDelete(
   graph: KnowledgeGraph,
   nodeId: NodeId,
-  reason: string = 'Cascade from parent soft-delete'
+  reason: string = 'system:cascade-delete'
 ): { cascaded: number } {
   const now = Date.now();
   const visited = new Set<NodeId>();

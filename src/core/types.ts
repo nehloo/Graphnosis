@@ -121,6 +121,20 @@ export interface GraphMetadata {
   version: number;
   conversationCount?: number;
   personCount?: number;
+  /**
+   * Analyzer id this graph was tokenized with. Always populated on
+   * v0.2+ saves. Persisted so `loadGai` / `loadSqlite*` / `fromBuffer`
+   * fail closed with `AnalyzerMismatchError` when the runtime is
+   * configured with a different analyzer.
+   */
+  analyzerAdapterId?: string;
+  /**
+   * Embedding adapter id, if `buildEmbeddings()` ran. NOT persisted in
+   * v0.2 (the embedding vectors themselves aren't serialized either) but
+   * the field is reserved for future use when `.gai` / SQLite gain vector
+   * persistence.
+   */
+  embeddingAdapterId?: string;
 }
 
 export interface KnowledgeGraph {
@@ -203,12 +217,53 @@ export interface SubgraphContext {
   serialized: string; // The prompt-ready text format
 }
 
+// --- Index Provenance (shared by TfidfIndex + EmbeddingIndex) ---
+
+/**
+ * Stable metadata about how an index was built. Lets the SDK warn at load
+ * time when an index is loaded against an incompatible runtime config
+ * (different analyzer, different embedding adapter / dimensions / intent).
+ */
+export interface IndexProvenance {
+  /**
+   * Stable identifier for the analyzer / adapter. Two indexes with the
+   * same `adapterId` MUST produce values in the same space.
+   *
+   * For TfidfIndex: an analyzer id like 'english' or 'unicode'.
+   * For EmbeddingIndex: an adapter id encoding model + dim + intent, e.g.
+   * 'openai:text-embedding-3-small@1536' or
+   * 'voyage:voyage-3-large@1024:document'.
+   */
+  adapterId: string;
+  /** Wall-clock ms when the index was first populated. */
+  createdAt: number;
+  /**
+   * Staleness fingerprint — NOT a security primitive.
+   *
+   * Cheap FNV-1a over sorted nodeIds + content lengths. Lets `g.stats()`
+   * and the audit exporter detect "index is stale relative to the graph"
+   * without re-scanning content.
+   *
+   * The .gai HMAC trailer is the integrity boundary; this field is for
+   * cheap drift detection only. Two indexes with identical `checksum`
+   * are very likely identical, but this is NOT cryptographically
+   * guaranteed and MUST NOT be used as a tamper-evidence signal.
+   */
+  checksum?: string;
+}
+
 // --- TF-IDF Types ---
 
 export interface TfidfIndex {
   documents: Map<NodeId, Map<string, number>>; // nodeId -> term -> tfidf weight
   idf: Map<string, number>; // term -> idf value
   documentCount: number;
+  /**
+   * Provenance. Optional for backwards compatibility with v0.1 .gai files;
+   * defaults to `{ adapterId: 'english', createdAt: 0 }` on load when
+   * missing. v0.2+ always populates this.
+   */
+  provenance?: IndexProvenance;
 }
 
 // --- Conversation Types (Step 2) ---

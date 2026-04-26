@@ -4,6 +4,8 @@ import type { KnowledgeGraph, ParsedDocument, SubgraphContext, TfidfIndex, NodeI
 import { queryGraph, buildGraphPrompt } from './query-engine';
 import type { RouterDecision } from './router';
 import { embedQuery, type EmbeddingIndex } from '@/core/similarity/embeddings';
+import type { EmbeddingAdapter } from '@/core/similarity/embedding-adapter';
+import { openaiEmbedAdapter } from '@/sdk/adapters/openai';
 import {
   extractPreferences,
   renderPreferenceBlock,
@@ -29,6 +31,12 @@ export interface AnswerOptions {
   retrieval?: RetrievalMode;
   embeddingIndex?: EmbeddingIndex; // required when retrieval !== 'tfidf'
   embeddingModel?: string; // for embedding the query (default text-embedding-3-small)
+  /**
+   * Optional. If provided, used to embed the query. Otherwise an
+   * OpenAI adapter is constructed from `embeddingModel`. Lets callers
+   * (LongMemEval runner, future Voyage path) supply a non-OpenAI source.
+   */
+  embeddingAdapter?: EmbeddingAdapter;
   // Phase 1 router integration. When `useRouter` is true, the query engine
   // classifies the question at runtime and uses the router-provided
   // strategy + prompt variant. When `questionType` is explicitly set, it
@@ -84,7 +92,8 @@ export async function answerQuestion(
         `answerQuestion: retrieval=${retrieval} requires embeddingIndex on the graph (call attachEmbeddings first)`
       );
     }
-    queryEmbedding = await embedQuery(question, { model: opts.embeddingModel });
+    const adapter = opts.embeddingAdapter ?? openaiEmbedAdapter({ model: opts.embeddingModel });
+    queryEmbedding = await embedQuery(adapter, question);
   }
 
   const { subgraph, seeds, router } = queryGraph(graph, tfidfIndex, question, {

@@ -8,7 +8,9 @@ import type {
 } from '@/core/types';
 import { chunkDocument } from '@/core/extraction/chunker';
 import { createTfidfIndex, addDocument, computeIdf } from '@/core/similarity/tfidf';
+import { asciiFoldAnalyzer, type TextAnalyzer } from '@/core/similarity/analyzer';
 import { createEmbeddingIndex, embedNodes, type EmbeddingIndex } from '@/core/similarity/embeddings';
+import type { EmbeddingAdapter } from '@/core/similarity/embedding-adapter';
 import { buildDirectedEdges, chunkKey } from './directed-edges';
 import { buildUndirectedEdges } from './undirected-edges';
 import { pruneGraph } from '@/core/optimization/pruner';
@@ -18,7 +20,11 @@ export type BuiltGraph = KnowledgeGraph & {
   embeddingIndex?: EmbeddingIndex;
 };
 
-export function buildGraph(documents: ParsedDocument[], graphName: string): BuiltGraph {
+export function buildGraph(
+  documents: ParsedDocument[],
+  graphName: string,
+  analyzer: TextAnalyzer = asciiFoldAnalyzer
+): BuiltGraph {
   // Step 1: Chunk all documents
   const allChunks: ExtractedChunk[] = [];
   for (const doc of documents) {
@@ -52,7 +58,7 @@ export function buildGraph(documents: ParsedDocument[], graphName: string): Buil
   }
 
   // Step 3: Build TF-IDF index for similarity computation
-  const tfidfIndex = createTfidfIndex();
+  const tfidfIndex = createTfidfIndex(analyzer);
   for (const chunk of allChunks) {
     const key = chunkKey(chunk);
     const nodeId = chunkKeyToNodeId.get(key);
@@ -77,7 +83,7 @@ export function buildGraph(documents: ParsedDocument[], graphName: string): Buil
   }
 
   // Step 5: Build undirected edges (using TF-IDF similarity)
-  const rawUndirectedEdges = buildUndirectedEdges(allChunks, tfidfIndex, chunkKeyToNodeId);
+  const rawUndirectedEdges = buildUndirectedEdges(allChunks, tfidfIndex, chunkKeyToNodeId, analyzer);
   const undirectedEdges = new Map();
   for (const edge of rawUndirectedEdges) {
     undirectedEdges.set(edge.id, edge);
@@ -101,6 +107,7 @@ export function buildGraph(documents: ParsedDocument[], graphName: string): Buil
       directedEdgeCount: directedEdges.size,
       undirectedEdgeCount: undirectedEdges.size,
       version: 1,
+      analyzerAdapterId: analyzer.id,
     },
   };
 
@@ -128,7 +135,12 @@ export function buildGraph(documents: ParsedDocument[], graphName: string): Buil
 // LongMemEval runner opts into this for now.
 export async function attachEmbeddings(
   graph: BuiltGraph,
-  opts: { model?: string } = {}
+  adapter: EmbeddingAdapter,
+  opts: {
+    batchSize?: number;
+    onProgress?: (info: { done: number; total: number }) => void;
+    signal?: AbortSignal;
+  } = {}
 ): Promise<BuiltGraph> {
   const items: Array<{ nodeId: NodeId; text: string }> = [];
   for (const node of graph.nodes.values()) {
@@ -140,8 +152,13 @@ export async function attachEmbeddings(
   }
   if (items.length === 0) return graph;
 
-  const index = createEmbeddingIndex(opts.model);
-  await embedNodes(index, items, { model: opts.model });
+  const index = createEmbeddingIndex(adapter);
+  await embedNodes(index, adapter, items, {
+    intent: 'document',
+    batchSize: opts.batchSize,
+    onProgress: opts.onProgress,
+    signal: opts.signal,
+  });
   graph.embeddingIndex = index;
   return graph;
 }

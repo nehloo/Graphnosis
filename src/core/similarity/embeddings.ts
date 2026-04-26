@@ -1,112 +1,104 @@
-// Semantic embeddings via OpenAI (text-embedding-3-small by default).
-// Used as an opt-in replacement for TF-IDF in seed-finding so retrieval can
-// match by meaning ("work history", "previous job") rather than literal terms.
+// Embedding-index data structure + helpers, parameterized over an
+// `EmbeddingAdapter`. The adapter handles the actual provider call
+// (OpenAI, Voyage, Cohere, custom); this module just owns the in-memory
+// index and the batched-with-progress wiring.
 //
-// Stays out of the core ingestion path unless explicitly enabled — the app
-// (Chat / Giki / etc.) keeps working without an embedding API call per ingest.
-//
-// `ai` and `@ai-sdk/openai` are PEER dependencies — the consumer must install
-// them. They are loaded lazily here so the package can be imported without
-// error by consumers who never call the embedding functions.
+// `ai` and `@ai-sdk/openai` are NO LONGER referenced from this file.
+// Provider-specific code lives under `src/sdk/adapters/`. Consumers who
+// want OpenAI behavior import `openaiEmbedAdapter` from
+// `@nehloo/graphnosis/adapters/openai`.
 
-import type { NodeId } from '@/core/types';
+import type { NodeId, IndexProvenance } from '@/core/types';
+import type { EmbeddingAdapter } from './embedding-adapter';
 
 export type EmbeddingVector = number[];
 
 export interface EmbeddingIndex {
-  // nodeId -> embedding vector. Vectors are L2-normalized so cosine similarity
-  // collapses to a dot product (the AI SDK's `cosineSimilarity` does the math
-  // either way; normalization here just keeps the index compact and stable).
+  /** nodeId → embedding vector. Vectors are L2-normalized by the adapter. */
   vectors: Map<NodeId, EmbeddingVector>;
-  model: string;
+  /** Vector dimensionality. Set on first add. */
   dimensions: number;
+  /** Index provenance (adapter id, createdAt, optional staleness checksum). */
+  provenance: IndexProvenance;
 }
 
 export interface EmbedOptions {
-  model?: string; // e.g. 'text-embedding-3-small' (default) or 'text-embedding-3-large'
-  // Batch size for `embedMany`. The AI SDK already chunks internally, but
-  // smaller batches are easier to retry on transient failures.
+  /**
+   * Intent for the input texts. Forwarded to `adapter.embed()`.
+   * Defaults to `'document'` (build-time). `queryHybrid` / `promptHybrid`
+   * pass `'query'`.
+   */
+  intent?: 'document' | 'query';
+  /**
+   * Batch size for adapter calls. The adapter is free to chunk further
+   * internally, but smaller batches give us a natural granularity for
+   * `onProgress` callbacks and easier cancellation.
+   */
   batchSize?: number;
+  /** Called after each batch finishes. Useful for long ingest passes. */
+  onProgress?: (info: { done: number; total: number }) => void;
+  /** Forwarded to `adapter.embed(..., signal)`. */
+  signal?: AbortSignal;
 }
 
-const DEFAULT_MODEL = 'text-embedding-3-small';
-
-const PEER_DEP_HINT =
-  'Install the peer dependencies to use embedding features:\n' +
-  '  npm install ai @ai-sdk/openai';
-
-async function loadAiSdk(): Promise<{
-  embedMany: typeof import('ai')['embedMany'];
-  cosineSimilarity: typeof import('ai')['cosineSimilarity'];
-  openai: typeof import('@ai-sdk/openai')['openai'];
-}> {
-  try {
-    const [aiMod, openaiMod] = await Promise.all([
-      import('ai'),
-      import('@ai-sdk/openai'),
-    ]);
-    return { embedMany: aiMod.embedMany, cosineSimilarity: aiMod.cosineSimilarity, openai: openaiMod.openai };
-  } catch {
-    throw new Error(
-      `@nehloo/graphnosis: embedding functions require peer dependencies that are not installed.\n${PEER_DEP_HINT}`
-    );
-  }
+export function createEmbeddingIndex(adapter: EmbeddingAdapter): EmbeddingIndex {
+  return {
+    vectors: new Map(),
+    dimensions: adapter.dimensions,
+    provenance: {
+      adapterId: adapter.id,
+      createdAt: Date.now(),
+    },
+  };
 }
 
-export function createEmbeddingIndex(model: string = DEFAULT_MODEL): EmbeddingIndex {
-  return { vectors: new Map(), model, dimensions: 0 };
-}
-
-// Embed a batch of (nodeId, text) pairs and write into the index.
-// Empty / whitespace-only texts are skipped (the API rejects them anyway).
+/**
+ * Embed a batch of `(nodeId, text)` pairs and write into the index.
+ * Empty / whitespace-only texts are skipped (most providers reject them).
+ */
 export async function embedNodes(
   index: EmbeddingIndex,
+  adapter: EmbeddingAdapter,
   items: Array<{ nodeId: NodeId; text: string }>,
   opts: EmbedOptions = {}
 ): Promise<void> {
   const valid = items.filter(item => item.text.trim().length > 0);
   if (valid.length === 0) return;
 
-  const { embedMany, openai } = await loadAiSdk();
-  const model = opts.model ?? index.model ?? DEFAULT_MODEL;
+  const batchSize = Math.max(1, opts.batchSize ?? 256);
+  const intent = opts.intent ?? 'document';
 
-  const { embeddings } = await embedMany({
-    model: openai.embedding(model),
-    values: valid.map(v => v.text),
-    // LongMemEval haystacks burst ~100K tokens per question. With even modest
-    // parallelism the OpenAI 1M TPM window fills before retries can recover.
-    // Bump well above the SDK default (2) so the rate-limit error surfaces
-    // only on prolonged contention, not transient bursts.
-    maxRetries: 10,
-  });
+  let done = 0;
+  for (let start = 0; start < valid.length; start += batchSize) {
+    const slice = valid.slice(start, start + batchSize);
+    const vectors = await adapter.embed(slice.map(v => v.text), intent, opts.signal);
 
-  for (let i = 0; i < valid.length; i++) {
-    const vec = embeddings[i];
-    if (!vec) continue;
-    index.vectors.set(valid[i].nodeId, vec);
-    if (index.dimensions === 0) index.dimensions = vec.length;
+    if (vectors.length !== slice.length) {
+      throw new Error(
+        `[graphnosis] embedding adapter '${adapter.id}' returned ${vectors.length} vectors for ${slice.length} inputs (must match)`
+      );
+    }
+
+    for (let i = 0; i < slice.length; i++) {
+      const vec = vectors[i];
+      if (!vec) continue;
+      index.vectors.set(slice[i].nodeId, vec);
+      if (index.dimensions === 0) index.dimensions = vec.length;
+    }
+
+    done += slice.length;
+    opts.onProgress?.({ done, total: valid.length });
   }
 }
 
-// Embed a single query string. Returns null on empty input.
+/** Embed a single query string. Returns null on empty input. */
 export async function embedQuery(
+  adapter: EmbeddingAdapter,
   query: string,
-  opts: EmbedOptions = {}
+  opts: { signal?: AbortSignal } = {}
 ): Promise<EmbeddingVector | null> {
   const text = query.trim();
   if (!text) return null;
-  const { embedMany, openai } = await loadAiSdk();
-  const model = opts.model ?? DEFAULT_MODEL;
-  const { embeddings } = await embedMany({
-    model: openai.embedding(model),
-    values: [text],
-    maxRetries: 10,
-  });
-  return embeddings[0] ?? null;
-}
-
-// Re-export cosineSimilarity lazily so callers don't need to depend on `ai` directly.
-export async function getCosineSimilarity(): Promise<typeof import('ai')['cosineSimilarity']> {
-  const { cosineSimilarity } = await loadAiSdk();
-  return cosineSimilarity;
+  const vectors = await adapter.embed([text], 'query', opts.signal);
+  return vectors[0] ?? null;
 }

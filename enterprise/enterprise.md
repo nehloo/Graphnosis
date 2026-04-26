@@ -232,6 +232,43 @@ The current MCP server does not implement authentication. For enterprise deploym
 
 The server is stateless across restarts. Session graphs live in memory only — no database, no write-back unless you call `export`. The only persistent files are the `.gai` binaries on the mounted volume and an optional TF-IDF disk cache (also on the volume). No conversation content, query text, or LLM responses are stored by Graphnosis.
 
+**Embedding indices are not persisted.** When the SDK's `g.buildEmbeddings()` / `g.queryHybrid()` / `g.promptHybrid()` opt-in path is used, the resulting `EmbeddingIndex` lives only in process memory and is **not** written to `.gai`, SQLite, `toBuffer()`, or `toSqliteBuffer()`. After a restart or any `load*` / `fromBuffer*` call, callers must re-run `buildEmbeddings()` (which makes outbound calls to the configured embedding adapter). Plan capacity and egress accordingly, or stay on the default sync TF-IDF path which has no such requirement.
+
+**Embedding egress is via a pluggable adapter, not a hardcoded provider.** v0.2+ requires consumers to supply an `EmbeddingAdapter` (via the constructor `embed` option or `buildEmbeddings({ adapter })`). The SDK ships built-in adapters for OpenAI (`@nehloo/graphnosis/adapters/openai`) and a static fixture adapter for tests (`@nehloo/graphnosis/adapters/static`). Voyage / Cohere / Bedrock / on-prem adapters are 20-line implementations of the contract. Importantly: **no adapter is loaded by default** — auditing the no-egress guarantee is a matter of grepping consumer code for the specific adapter import they use.
+
+**Auditor checklist for embedding egress:**
+
+1. Search for `from '@nehloo/graphnosis/adapters/openai'` / `Voyage` / etc. — these are the only modules that reach the network on behalf of Graphnosis.
+2. Check the `EmbeddingAdapter.id` of every constructed adapter. The id encodes provider + model + dimension + intent and is persisted on the embedding index for fail-closed mismatch detection at load time.
+3. Confirm the consumer's deployment has the matching API key environment variable. Without it the adapter throws synchronously on first call — easier to detect than silent fallback.
+
+### Soft-delete reason conventions
+
+Soft-deletes (and edits / supersedes / forgets) carry a freeform `reason: string`. v0.2 documents a namespaced-prefix convention so audit exports can distinguish real lifecycle events from speculative UX (e.g. a preview-then-reject flow):
+
+| Prefix         | Meaning                                                              | Default audit visibility |
+|----------------|----------------------------------------------------------------------|--------------------------|
+| *(no prefix)*  | Real lifecycle event — load-bearing for audit                        | Always shown             |
+| `user:`        | Explicit human action (corrections, GDPR deletions)                  | Always shown             |
+| `system:`      | Automated platform action (cascade, retention, decay)                | Shown by default, filterable |
+| `preview:`     | Speculative / rolled-back UX (preview-rejected, preview-expired)     | **Hidden by default** in audit exports |
+
+The convention is **not enforced** — the string remains freeform. But the audit exporter (`generateAuditReport(graph, tfidfIndex, filter)`) hides `preview:*` reasons by default so compliance exports don't include phantom add → soft-delete pairs from rejected previews. Pass `{ hideReasonPrefixes: [] }` to override and show everything (e.g. for forensic investigations).
+
+Worked example for compliance pipelines:
+
+```ts
+import { generateAuditReport, auditToMarkdown } from '@nehloo/graphnosis';
+
+// Default: hide preview noise
+const compliance = generateAuditReport(graph, tfidfIndex);
+
+// Forensic mode: include everything, including preview-only soft-deletes
+const forensic = generateAuditReport(graph, tfidfIndex, { hideReasonPrefixes: [] });
+```
+
+Graphnosis itself follows this convention internally — `cascadeSoftDelete`, `forgetByTimeWindow`, and `forgetByTopic` all default to `system:*` reasons so they don't masquerade as user-driven events in the audit.
+
 ---
 
 ## LLM Compatibility

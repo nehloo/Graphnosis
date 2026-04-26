@@ -1,29 +1,50 @@
 // Graphnosis SDK — public entrypoint for using Graphnosis as an NPM dependency.
 //
 // SECURITY INVARIANTS (enforced by what we re-export, not by runtime checks):
-//   1. This module performs ZERO network I/O. No `fetch`, no HTTP client,
-//      no SDK calls. It must not import from `@/core/enrichment/*` or from
-//      `@/core/query/answer.ts` — both of those reach OpenAI. If you are
-//      modifying this file, preserve that property. Enterprise adopters
-//      verify the "no-egress" guarantee by auditing this file alone.
+//   1. The DEFAULT code path performs ZERO network I/O. The sync methods
+//      `query()` / `prompt()` and every `addX` / `appendX` / `save*` /
+//      `load*` method are fully offline. This module must not import from
+//      `@/core/enrichment/*` or from `@/core/query/answer.ts` — both of
+//      those reach OpenAI. Preserve that property when modifying this file.
+//      Enterprise adopters verify the no-egress guarantee by auditing the
+//      symbols listed in invariant 4 — every other code path on this
+//      facade (including the async PDF / file / folder ingestion methods)
+//      is fully offline.
 //   2. `.gai` files that cross a trust boundary must be written AND read
 //      with `hmacKey`. The default additive checksum catches corruption,
 //      NOT tampering.
 //   3. File paths passed to `saveGai/loadGai/saveSqlite/loadSqlite` are
 //      forwarded to `node:fs` and `better-sqlite3` as-is. Do NOT pass
 //      user-controlled strings; canonicalize before calling.
+//   4. EMBEDDING CARVE-OUT: the symbols `attachEmbeddings`, `embedNodes`,
+//      `embedQuery`, and the `Graphnosis` methods `buildEmbeddings()`,
+//      `queryHybrid()`, `promptHybrid()`, `appendWithEmbeddings()` DO
+//      reach the network via the configured `EmbeddingAdapter`. The
+//      adapter is the only egress point — by default the SDK ships
+//      with no built-in adapter at all. Importing
+//      `@nehloo/graphnosis/adapters/openai` activates `ai` +
+//      `@ai-sdk/openai` peer deps; importing
+//      `@nehloo/graphnosis/adapters/static` is offline (no peer deps).
+//      Custom adapters' egress profile is up to the adapter author.
+//      The no-egress guarantee in invariant 1 holds for any code path
+//      that does not touch these symbols — the regular sync `append*()`
+//      methods do NOT update the embedding index. Audit your call sites.
 //
 // See `enterprise/enterprise.md` for the full IT/security posture.
 
-import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync, rmSync } from 'node:fs';
 import { extname, join } from 'node:path';
+import { tmpdir } from 'node:os';
 import type {
   KnowledgeGraph,
   ParsedDocument,
   QueryResult,
   Contradiction,
 } from '@/core/types';
-import { buildGraph, type BuiltGraph } from '@/core/graph/graph-builder';
+import { buildGraph, attachEmbeddings, type BuiltGraph } from '@/core/graph/graph-builder';
+import { embedNodes, embedQuery } from '@/core/similarity/embeddings';
+import type { EmbeddingAdapter } from '@/core/similarity/embedding-adapter';
+import { EmbeddingAdapterMismatchError } from '@/core/errors';
 import { parseMarkdown } from '@/core/ingestion/parsers/markdown-parser';
 import { parseHtml } from '@/core/ingestion/parsers/html-parser';
 import { parseCsv, parseJson } from '@/core/ingestion/parsers/csv-parser';
@@ -38,6 +59,11 @@ import { writeGai, type WriteGaiOptions } from '@/core/format/gai-writer';
 import { readGai, type ReadGaiOptions } from '@/core/format/gai-reader';
 import { openSqliteStore } from '@/core/persistence/sqlite-store';
 import { createTfidfIndex, addDocument, computeIdf } from '@/core/similarity/tfidf';
+import {
+  asciiFoldAnalyzer,
+  type TextAnalyzer,
+} from '@/core/similarity/analyzer';
+import { AnalyzerMismatchError } from '@/core/errors';
 import { addDocumentsToGraph } from '@/core/graph/incremental';
 import { reflect, type ReflectionResult } from '@/core/optimization/reflection';
 import {
@@ -139,6 +165,52 @@ function detectNewContradictions(
 export interface GraphnosisOptions {
   /** Name attached to the built graph. Defaults to "graphnosis". */
   name?: string;
+  /**
+   * Text analyzer for TF-IDF tokenization. Defaults to
+   * `asciiFoldAnalyzer` (diacritic-folded ASCII + English stopwords —
+   * `café` and `cafe` collapse to the same token).
+   *
+   * For corpora where diacritics carry meaning (Turkish, Hungarian,
+   * Finnish, anywhere `ı` ≠ `i`) pass `unicodeAnalyzer` (preserves
+   * diacritics, no stopword list) or implement `TextAnalyzer` yourself.
+   *
+   * The analyzer's `id` is persisted on the index — loading an index
+   * built with a different analyzer throws `AnalyzerMismatchError`.
+   */
+  analyzer?: TextAnalyzer;
+  /**
+   * Default embedding adapter used by `buildEmbeddings()`,
+   * `queryHybrid()`, `promptHybrid()`, and `appendWithEmbeddings()`.
+   *
+   * For OpenAI: `openaiEmbedAdapter({ model })` from
+   * `@nehloo/graphnosis/adapters/openai`. For Voyage / Cohere / custom,
+   * implement `EmbeddingAdapter` directly. Tests can use
+   * `staticEmbedAdapter({ vectors })` from `@nehloo/graphnosis/adapters/static`.
+   *
+   * NETWORK: this adapter is the only opt-in network egress point for
+   * the SDK (the rest of the API is fully offline). Audit your call
+   * sites accordingly. See SECURITY INVARIANT #4.
+   */
+  embed?: EmbeddingAdapter;
+}
+
+/**
+ * Retrieval strategy for `queryHybrid` / `promptHybrid`.
+ *
+ * - `'hybrid'` (default) — merges TF-IDF and embedding seed pools so the
+ *   subgraph contains both literal and semantic matches.
+ * - `'embeddings'` — pure semantic; skips the TF-IDF pool entirely.
+ *
+ * For pure-lexical, fully offline retrieval, call `query()` / `prompt()`
+ * instead — those are sync and never reach the network.
+ */
+export type SimilarityMode = 'tfidf' | 'embeddings' | 'hybrid';
+
+export interface HybridQueryOptions extends QueryOptions {
+  /** Default `'hybrid'`. See {@link SimilarityMode}. */
+  similarity?: 'hybrid' | 'embeddings';
+  /** Optional AbortSignal forwarded to the embedding adapter. */
+  signal?: AbortSignal;
 }
 
 /**
@@ -164,9 +236,18 @@ export class Graphnosis {
   private documents: ParsedDocument[] = [];
   private name: string;
   private built: BuiltGraph | null = null;
+  private analyzer: TextAnalyzer;
+  /**
+   * Default embedding adapter, set on the constructor or by passing an
+   * adapter to `buildEmbeddings()`. Re-used for query embeddings and
+   * incremental appends so the vector space stays consistent.
+   */
+  private embed: EmbeddingAdapter | null = null;
 
   constructor(opts: GraphnosisOptions = {}) {
     this.name = opts.name ?? 'graphnosis';
+    this.analyzer = opts.analyzer ?? asciiFoldAnalyzer;
+    this.embed = opts.embed ?? null;
   }
 
   /** Add a pre-parsed document. */
@@ -220,6 +301,56 @@ export class Graphnosis {
       new Set(incremental.newNodeIds)
     );
     return { ...incremental, contradictions };
+  }
+
+  /**
+   * Same as `append()` but also embeds any newly added nodes into the
+   * existing `embeddingIndex` so `queryHybrid()` / `promptHybrid()` see
+   * them immediately.
+   *
+   * Throws if `buildEmbeddings()` has not been called. For graphs without
+   * an embedding index, use `append()` (the regular sync method).
+   *
+   * NETWORK: makes one OpenAI batch call when there are new nodes to embed.
+   */
+  async appendWithEmbeddings(...docs: ParsedDocument[]): Promise<AppendResult> {
+    const index = this.graph.embeddingIndex;
+    if (!index) {
+      throw new Error(
+        '[graphnosis] appendWithEmbeddings(): call await g.buildEmbeddings() first'
+      );
+    }
+    if (!this.embed) {
+      throw new Error(
+        '[graphnosis] appendWithEmbeddings(): no embedding adapter configured. Pass { embed } to the constructor or call buildEmbeddings({ adapter }).'
+      );
+    }
+    // Reach into addDocumentsToGraph directly so we can keep newNodeIds —
+    // the public AppendResult intentionally hides them.
+    const incremental = addDocumentsToGraph(this.graph, docs);
+    const contradictions = detectNewContradictions(
+      this.graph,
+      new Set(incremental.newNodeIds)
+    );
+    await this.embedNewNodes(incremental.newNodeIds);
+    return { ...incremental, contradictions };
+  }
+
+  /** Internal: embed the given node ids into the existing embedding index. */
+  private async embedNewNodes(newNodeIds: string[]): Promise<void> {
+    const index = this.graph.embeddingIndex;
+    if (!index || !this.embed) return;
+    if (newNodeIds.length === 0) return;
+    const items: Array<{ nodeId: string; text: string }> = [];
+    for (const id of newNodeIds) {
+      const node = this.graph.nodes.get(id);
+      if (!node) continue;
+      if (node.type === 'document' || node.type === 'section') continue;
+      if (!node.content || !node.content.trim()) continue;
+      items.push({ nodeId: id, text: node.content });
+    }
+    if (items.length === 0) return;
+    await embedNodes(index, this.embed, items, { intent: 'document' });
   }
 
   /** Parse markdown and append. Returns AppendResult with contradictions. */
@@ -365,8 +496,122 @@ export class Graphnosis {
    */
   build(name?: string): BuiltGraph {
     if (name) this.name = name;
-    this.built = buildGraph(this.documents, this.name);
+    this.built = buildGraph(this.documents, this.name, this.analyzer);
     return this.built;
+  }
+
+  // --- Embeddings (network) -------------------------------------------------
+
+  /**
+   * Embed every content node and attach an in-memory `EmbeddingIndex` to
+   * the graph. After this resolves, `queryHybrid()` and `promptHybrid()`
+   * are usable. Subsequent `appendWithEmbeddings()` calls keep the index
+   * in sync (one network call per append batch).
+   *
+   * NETWORK: calls the configured embedding adapter. The adapter is
+   * resolved as `opts.adapter ?? this.embed` — pass one or the other.
+   *
+   * NOT PERSISTED: embedding vectors are NOT written by `saveGai()` /
+   * `saveSqlite()`. After `loadGai()` / `loadSqlite()` you must call
+   * `buildEmbeddings()` again to re-embed.
+   *
+   * @param opts.adapter    Embedding adapter (overrides constructor `embed`).
+   * @param opts.batchSize  Items per adapter call. Default 256.
+   * @param opts.onProgress Called after each batch with `{ done, total }`.
+   * @param opts.signal     Optional AbortSignal for cancellation.
+   */
+  async buildEmbeddings(opts: {
+    adapter?: EmbeddingAdapter;
+    batchSize?: number;
+    onProgress?: (info: { done: number; total: number }) => void;
+    signal?: AbortSignal;
+  } = {}): Promise<void> {
+    const adapter = opts.adapter ?? this.embed;
+    if (!adapter) {
+      throw new Error(
+        '[graphnosis] buildEmbeddings(): no embedding adapter configured. ' +
+        'Pass { adapter } here, or set { embed } on the constructor. ' +
+        'For OpenAI, use openaiEmbedAdapter() from @nehloo/graphnosis/adapters/openai.'
+      );
+    }
+    // Persist the adapter so subsequent queryHybrid / promptHybrid /
+    // appendWithEmbeddings calls re-use the same vector space.
+    this.embed = adapter;
+    await attachEmbeddings(this.graph, adapter, {
+      batchSize: opts.batchSize,
+      onProgress: opts.onProgress,
+      signal: opts.signal,
+    });
+    // Stamp on graph metadata for visibility in g.stats() and audit.
+    this.graph.metadata.embeddingAdapterId = adapter.id;
+  }
+
+  /** True if `buildEmbeddings()` has run and the index is attached. */
+  hasEmbeddings(): boolean {
+    return !!this.built?.embeddingIndex;
+  }
+
+  /**
+   * Hybrid retrieval: merges TF-IDF and embedding seed pools so the
+   * subgraph contains both literal and semantic matches. Pass
+   * `{ similarity: 'embeddings' }` to skip the TF-IDF pool entirely.
+   *
+   * NETWORK: makes one adapter call per invocation to embed the question.
+   * Requires `await g.buildEmbeddings()` to have run.
+   */
+  async queryHybrid(
+    question: string,
+    opts: HybridQueryOptions = {}
+  ): Promise<Omit<QueryResult, 'answer'>> {
+    const g = this.graph;
+    const index = g.embeddingIndex;
+    if (!index) {
+      throw new Error(
+        '[graphnosis] queryHybrid(): call await g.buildEmbeddings() before queryHybrid()'
+      );
+    }
+    if (!this.embed) {
+      throw new Error(
+        '[graphnosis] queryHybrid(): no embedding adapter configured. ' +
+        'Pass { embed } to the constructor or call buildEmbeddings({ adapter }).'
+      );
+    }
+    // Fail closed on adapter / index space mismatch — querying with a
+    // different vector space silently returns garbage.
+    if (this.embed.id !== index.provenance.adapterId) {
+      throw new EmbeddingAdapterMismatchError(index.provenance.adapterId, this.embed.id);
+    }
+    const queryEmbedding = await embedQuery(this.embed, question, { signal: opts.signal });
+    if (!queryEmbedding) {
+      // Empty/whitespace question — fall back to the plain (sync) query path.
+      const { similarity: _s, signal: _sig, ...rest } = opts;
+      void _s; void _sig;
+      return queryGraph(g, g.tfidfIndex, question, rest);
+    }
+    const { similarity, signal: _sig, ...rest } = opts;
+    void _sig;
+    return queryGraph(g, g.tfidfIndex, question, {
+      ...rest,
+      embeddingIndex: index,
+      queryEmbedding,
+      embeddingsOnly: similarity === 'embeddings',
+    });
+  }
+
+  /**
+   * Hybrid prompt builder: same as `prompt()` but uses `queryHybrid()` for
+   * retrieval. NETWORK: one adapter call per invocation.
+   */
+  async promptHybrid(
+    question: string,
+    opts: HybridQueryOptions & PromptContext = {}
+  ): Promise<string> {
+    const { questionDate, questionType, ...queryOpts } = opts;
+    const result = await this.queryHybrid(question, queryOpts);
+    return buildGraphPrompt(result.subgraph.serialized, question, {
+      questionDate,
+      questionType,
+    });
   }
 
   /** Access the built graph. Throws if build() was not called. */
@@ -413,7 +658,18 @@ export class Graphnosis {
    */
   rebuildIndex(): void {
     const g = this.graph;
-    const index = createTfidfIndex();
+    // Enforce analyzer compatibility against the saved metadata. v0.1
+    // Every v0.2+ graph stamps `analyzerAdapterId` on save. Missing →
+    // assume the current default so the freshly-built index gets the
+    // matching id stamped back on the metadata in this method.
+    const savedAdapterId = g.metadata?.analyzerAdapterId ?? this.analyzer.id;
+    if (savedAdapterId !== this.analyzer.id) {
+      throw new AnalyzerMismatchError(savedAdapterId, this.analyzer.id);
+    }
+    // Stamp the metadata so re-saves preserve the adapter id even if
+    // this graph was loaded from a v0.1 file.
+    if (!g.metadata.analyzerAdapterId) g.metadata.analyzerAdapterId = this.analyzer.id;
+    const index = createTfidfIndex(this.analyzer);
     for (const [id, node] of g.nodes) {
       if (node.type === 'document' || node.type === 'section') continue;
       addDocument(index, id, node.content);
@@ -434,7 +690,26 @@ export class Graphnosis {
    * not pass user-controlled paths.
    */
   saveGai(filePath: string, opts: WriteGaiOptions = {}): void {
-    writeFileSync(filePath, writeGai(this.graph, opts));
+    writeFileSync(filePath, this.toBuffer(opts));
+  }
+
+  /**
+   * Serialize the graph to a .gai-format `Buffer` without touching the
+   * filesystem. Designed for serverless / edge runtimes (Vercel, Lambda,
+   * Cloudflare Workers, Fly Machines) where writing to `/tmp` and reading
+   * back is wasteful or unavailable.
+   *
+   * ```ts
+   * const buf = g.toBuffer({ hmacKey });
+   * await blobStore.put('knowledge.gai', buf);
+   * ```
+   *
+   * SECURITY: pass `hmacKey` for any buffer that will cross a trust
+   * boundary. Without it the trailer is an additive checksum only —
+   * trivially forgeable.
+   */
+  toBuffer(opts: WriteGaiOptions = {}): Buffer {
+    return writeGai(this.graph, opts);
   }
 
   /**
@@ -446,8 +721,20 @@ export class Graphnosis {
    * unsigned file — a downgrade attempt) throws.
    */
   loadGai(filePath: string, opts: ReadGaiOptions = {}): KnowledgeGraph {
-    const buffer = readFileSync(filePath);
-    const { graph } = readGai(buffer, opts);
+    return this.fromBuffer(readFileSync(filePath), opts);
+  }
+
+  /**
+   * Load a .gai-format `Buffer` (e.g. read from blob storage) and replace
+   * the current graph. The TF-IDF index is automatically rebuilt so
+   * `query()` works immediately.
+   *
+   * SECURITY: same fail-closed semantics as `loadGai` — a buffer signed
+   * with `hmacKey` requires the same key here, and a missing-key /
+   * mismatched-key load throws.
+   */
+  fromBuffer(buf: Buffer, opts: ReadGaiOptions = {}): KnowledgeGraph {
+    const { graph } = readGai(buf, opts);
     this.built = graph as BuiltGraph;
     this.documents = [];
     this.rebuildIndex();
@@ -464,6 +751,33 @@ export class Graphnosis {
   saveSqlite(dbPath: string): void {
     const store = openSqliteStore(dbPath);
     try { store.saveGraph(this.graph); } finally { store.close(); }
+  }
+
+  /**
+   * Persist the graph to a fresh SQLite database and return the database
+   * file as a `Buffer`. Designed for serverless consumers who need to
+   * upload the database to blob storage (S3, Vercel Blob, R2) without a
+   * persistent local volume.
+   *
+   * INTERNAL TMPFILE: better-sqlite3 is fd-based, so this writes a
+   * transient file under `os.tmpdir()` and reads it back. Containers
+   * with a read-only root filesystem must mount `/tmp` writable.
+   *
+   * ```ts
+   * const buf = g.toSqliteBuffer();
+   * await blob.put('graphs/myorg/kg.sqlite', buf);
+   * ```
+   */
+  toSqliteBuffer(): Buffer {
+    const dir = mkdtempSync(join(tmpdir(), 'graphnosis-sqlite-'));
+    const path = join(dir, 'graph.db');
+    try {
+      const store = openSqliteStore(path);
+      try { store.saveGraph(this.graph); } finally { store.close(); }
+      return readFileSync(path);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   }
 
   /**
@@ -521,6 +835,39 @@ export class Graphnosis {
       return g;
     } finally {
       store.close();
+    }
+  }
+
+  /**
+   * Load a SQLite database from a `Buffer` (e.g. fetched from blob
+   * storage) and replace the current graph. If `graphName` is provided,
+   * the most recently updated graph with that name is loaded; otherwise
+   * the first graph in the database is loaded.
+   *
+   * INTERNAL TMPFILE: same caveat as `toSqliteBuffer` — writes a
+   * transient file under `os.tmpdir()`.
+   *
+   * Returns `null` if no matching graph is found.
+   */
+  fromSqliteBuffer(buf: Buffer, graphName?: string): KnowledgeGraph | null {
+    const dir = mkdtempSync(join(tmpdir(), 'graphnosis-sqlite-'));
+    const path = join(dir, 'graph.db');
+    try {
+      writeFileSync(path, buf);
+      const store = openSqliteStore(path);
+      try {
+        const g = graphName ? store.loadGraphByName(graphName) : store.loadGraphByName(this.name);
+        if (g) {
+          this.built = g as BuiltGraph;
+          this.documents = [];
+          this.rebuildIndex();
+        }
+        return g;
+      } finally {
+        store.close();
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   }
 
@@ -607,7 +954,7 @@ export class Graphnosis {
    * Useful for GDPR / data-retention policies.
    * Returns the number of nodes soft-deleted.
    */
-  forgetBefore(beforeMs: number, reason = 'data-retention'): { forgotten: number } {
+  forgetBefore(beforeMs: number, reason = 'system:retention-policy'): { forgotten: number } {
     return forgetByTimeWindow(this.graph, beforeMs, reason);
   }
 
@@ -616,7 +963,7 @@ export class Graphnosis {
    * Uses the same entity + content matching as the query engine.
    * Returns the number of nodes soft-deleted.
    */
-  forgetTopic(topic: string, reason = 'user-request'): { forgotten: number } {
+  forgetTopic(topic: string, reason = 'user:topic-deletion'): { forgotten: number } {
     return forgetByTopic(this.graph, topic, reason);
   }
 }
@@ -697,7 +1044,28 @@ export function queryGraphs(
 // — both perform network I/O (OpenAI). Keeping them out of the SDK surface is
 // how the "no-egress" guarantee is maintained.
 
-export { buildGraph, type BuiltGraph } from '@/core/graph/graph-builder';
+export { buildGraph, attachEmbeddings, type BuiltGraph } from '@/core/graph/graph-builder';
+// Embedding helpers — opt-in network code path. See SECURITY INVARIANT #4.
+export {
+  createEmbeddingIndex,
+  embedNodes,
+  embedQuery,
+  type EmbeddingIndex,
+  type EmbeddingVector,
+  type EmbedOptions,
+} from '@/core/similarity/embeddings';
+export type { EmbeddingAdapter } from '@/core/similarity/embedding-adapter';
+// Built-in analyzers + the TextAnalyzer contract.
+export {
+  asciiFoldAnalyzer,
+  unicodeAnalyzer,
+  type TextAnalyzer,
+} from '@/core/similarity/analyzer';
+// Typed errors for branching without string-matching.
+export {
+  AnalyzerMismatchError,
+  EmbeddingAdapterMismatchError,
+} from '@/core/errors';
 export { addDocumentsToGraph, type IncrementalResult } from '@/core/graph/incremental';
 export { reflect, type ReflectionResult } from '@/core/optimization/reflection';
 export {
