@@ -1,6 +1,6 @@
 {
   "name": "@nehloo/graphnosis",
-  "version": "0.2.0-rc.1",
+  "version": "0.2.0",
   "description": "AI-native dual-graph knowledge representation — build, query, and persist typed knowledge graphs in-process.",
   "license": "MIT",
   "repository": {

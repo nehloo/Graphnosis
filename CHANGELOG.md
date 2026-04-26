@@ -1,9 +1,13 @@
 # Changelog
 
-## v0.2.0-rc.1 (unreleased)
+## v0.2.0
 
 The "make Graphnosis actually work for non-OpenAI / non-English /
 serverless consumers" release. Three breaking changes bundled.
+
+Soaked end-to-end at rc.1 by a v0.1.x production consumer — 10/10
+contractual checks passed: buffer I/O + HMAC tamper detection, adapter
+`intent` / `signal` wiring, typed mismatch errors, analyzer split.
 
 ### BREAKING
 
@@ -87,29 +91,71 @@ serverless consumers" release. Three breaking changes bundled.
 
 ### Migration cookbook
 
+**Embeddings — adopt the adapter contract:**
 ```diff
 - await g.buildEmbeddings({ model: 'text-embedding-3-small' });
 + import { openaiEmbedAdapter } from '@nehloo/graphnosis/adapters/openai';
 + await g.buildEmbeddings({ adapter: openaiEmbedAdapter({ model: 'text-embedding-3-small' }) });
 ```
 
+**Serverless persistence — drop the `/tmp` round-trip:**
+
+If you were previously writing to a temp file, reading it back, and
+uploading the bytes (the typical Vercel / Lambda / Cloudflare pattern):
+
 ```diff
-- writeFileSync('/tmp/kg.gai', g.toBuffer());           // already buffer-native
-- await blob.put('kg.gai', readFileSync('/tmp/kg.gai'));
-+ await blob.put('kg.gai', g.toBuffer({ hmacKey }));
+- import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+- import { tmpdir } from 'node:os';
+- import { join } from 'node:path';
+-
+- const dir = mkdtempSync(join(tmpdir(), 'graph-'));
+- const path = join(dir, 'kg.gai');
+- try {
+-   g.saveGai(path, { hmacKey });
+-   await blob.put('graphs/kg.gai', readFileSync(path));
+- } finally {
+-   rmSync(dir, { recursive: true, force: true });
+- }
++ await blob.put('graphs/kg.gai', g.toBuffer({ hmacKey }));
 ```
 
+And on the reload path:
+
+```diff
+- const dir = mkdtempSync(join(tmpdir(), 'graph-'));
+- const path = join(dir, 'kg.gai');
+- try {
+-   const bytes = await blob.get('graphs/kg.gai');
+-   writeFileSync(path, bytes);
+-   g.loadGai(path, { hmacKey });
+- } finally {
+-   rmSync(dir, { recursive: true, force: true });
+- }
++ const bytes = await blob.get('graphs/kg.gai');
++ g.fromBuffer(Buffer.from(bytes), { hmacKey });
+```
+
+`saveGai` / `loadGai` continue to work as thin wrappers if you have a
+real local volume; use `toBuffer` / `fromBuffer` whenever your runtime
+doesn't.
+
+**Non-English ingestion — choose your analyzer:**
 ```diff
 - const g = new Graphnosis({ name: 'docs-ro' });
 - g.addMarkdown('Cusătura tradițională…');
 - g.build();
-- g.query('cusătură'); // ✗ silently empty — diacritics dropped
-+ import { unicodeAnalyzer } from '@nehloo/graphnosis';
+- g.query('cusătură'); // ✗ silently empty — diacritics dropped in v0.1
++ import { unicodeAnalyzer } from '@nehloo/graphnosis';  // for Turkish / Hungarian / Finnish
 + const g = new Graphnosis({ name: 'docs-ro', analyzer: unicodeAnalyzer });
 + g.addMarkdown('Cusătura tradițională…');
 + g.build();
 + g.query('cusătură'); // ✓
 ```
+
+(For Romanian / French / Spanish / English-with-foreign-names where
+folding to ASCII is acceptable, the v0.2 default `asciiFoldAnalyzer`
+already handles `cusatura` and `Beyoncé` ↔ `beyonce` correctly without
+extra config.)
 
 ---
 
