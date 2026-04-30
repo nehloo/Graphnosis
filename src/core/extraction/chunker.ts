@@ -113,32 +113,123 @@ function splitIntoChunks(text: string): string[] {
 }
 
 function splitSentences(text: string): string[] {
-  // Split on sentence boundaries, keeping the delimiter
+  // Split on sentence boundaries across scripts:
+  // Latin/Cyrillic/Greek: . ! ? … ‽
+  // Chinese/Japanese: 。！？
+  // Arabic/Urdu: ؟ ؛
+  // Greek ano teleia: ·
+  // Thai: ฯ
+  // Ethiopic: ። ፤
+  // Armenian: ։
+  // Devanagari: ।
   return text
-    .split(/(?<=[.!?])\s+/)
+    .split(/(?<=[.!?…‽。！？؟؛·ฯ።፤։।])\s*/)
     .filter(s => s.trim().length > 0);
 }
 
 function classifyChunk(text: string): NodeType {
   const lower = text.toLowerCase();
 
-  // Definition patterns
-  if (/\b(is defined as|refers to|is a|is an|means)\b/.test(lower) && text.length < 200) {
+  // Definition patterns (multilingual)
+  if (text.length < 200 && new RegExp([
+    // English
+    'is defined as', 'refers to', 'is a\\b', 'is an\\b', '\\bmeans\\b',
+    // French
+    'est défini comme', 'se réfère à', 'est un\\b', 'est une\\b', 'signifie',
+    // Spanish
+    'se define como', 'se refiere a', 'es un\\b', 'es una\\b', 'significa',
+    // German
+    'wird definiert als', 'bezieht sich auf', 'ist ein\\b', 'ist eine\\b', 'bedeutet',
+    // Italian
+    'è definito come', 'si riferisce a', 'è un\\b', 'è una\\b',
+    // Portuguese
+    'é definido como', 'refere-se a', 'é um\\b', 'é uma\\b',
+    // Romanian
+    'este definit ca', 'se referă la', 'este un\\b', 'este o\\b', 'înseamnă',
+    // Russian
+    'определяется как', 'относится к', 'означает', 'является',
+    // Turkish
+    'olarak tanımlanır', 'anlamına gelir',
+    // Arabic
+    'يُعرَّف بأنه', 'يشير إلى', 'يعني',
+    // Japanese
+    'とは', 'と定義される', 'を意味する',
+    // Chinese
+    '定义为', '是指', '意味着', '被定义为',
+    // Korean
+    '정의된다', '의미한다', '가리킨다',
+  ].join('|'), 'i').test(lower)) {
     return 'definition';
   }
 
-  // Event patterns (dates, years)
-  if (/\b(in \d{4}|on \w+ \d{1,2}|founded|invented|created|launched|discovered)\b/.test(lower)) {
+  // Event patterns (dates, years — multilingual)
+  if (new RegExp([
+    // Universal date patterns
+    'in \\d{4}', 'on \\w+ \\d{1,2}', '\\d{1,2}[./]\\d{1,2}[./]\\d{2,4}',
+    // English
+    'founded', 'invented', 'created', 'launched', 'discovered',
+    // French
+    'fondé', 'inventé', 'créé', 'lancé', 'découvert',
+    // Spanish
+    'fundado', 'inventado', 'creado', 'lanzado', 'descubierto',
+    // German
+    'gegründet', 'erfunden', 'geschaffen', 'gestartet', 'entdeckt',
+    // Italian
+    'fondato', 'inventato', 'creato', 'lanciato', 'scoperto',
+    // Portuguese
+    'fundado', 'inventado', 'criado', 'lançado', 'descoberto',
+    // Romanian
+    'fondat', 'inventat', 'creat', 'lansat', 'descoperit',
+    // Russian
+    'основан', 'изобретён', 'создан', 'запущен', 'обнаружен',
+    // Japanese
+    '設立', '発明', '創設', '発見', '年に',
+    // Chinese
+    '成立于', '发明', '创建', '发现', '年',
+    // Korean
+    '설립', '발명', '창설', '발견',
+    // Arabic
+    'تأسست', 'اختُرع', 'أُنشئ', 'اكتُشف',
+    // Turkish
+    'kuruldu', 'icat edildi', 'oluşturuldu', 'keşfedildi',
+  ].join('|'), 'i').test(lower)) {
     return 'event';
   }
 
-  // Data point patterns
-  if (/\b(\d+%|\$[\d,.]+|[\d,.]+\s*(million|billion|thousand))\b/.test(lower)) {
+  // Data point patterns (universal — numbers, percentages, currencies)
+  if (/(?:\d+%|[$€£¥₹₽₩₺][\d,.]+|[\d,.]+\s*(?:million|billion|thousand|milliard|millón|millones|milhão|millions|milliards|миллион|миллиард|万|亿|백만|십억))/i.test(lower)) {
     return 'data-point';
   }
 
-  // Claim patterns
-  if (/\b(according to|studies show|research suggests|it is believed)\b/.test(lower)) {
+  // Claim patterns (multilingual)
+  if (new RegExp([
+    // English
+    'according to', 'studies show', 'research suggests', 'it is believed',
+    // French
+    'selon', 'les études montrent', 'la recherche suggère', 'on croit que',
+    // Spanish
+    'según', 'los estudios muestran', 'la investigación sugiere', 'se cree que',
+    // German
+    'laut', 'studien zeigen', 'forschung deutet', 'es wird angenommen',
+    // Italian
+    'secondo', 'gli studi dimostrano', 'la ricerca suggerisce', 'si ritiene',
+    // Portuguese
+    'de acordo com', 'estudos mostram', 'a pesquisa sugere', 'acredita-se',
+    // Romanian
+    'conform', 'studiile arată', 'cercetarea sugerează', 'se crede că',
+    // Russian
+    'согласно', 'исследования показывают', 'считается что',
+    // Turkish
+    'araştırmalar gösteriyor', 'göre',
+    // Arabic
+    'وفقًا لـ', 'تشير الدراسات', 'يُعتقد أن',
+    // Japanese
+    'によると', '研究によれば', 'とされている',
+    // Chinese
+    '根据', '研究表明', '据信',
+    // Korean
+    '에 따르면', '연구에 의하면', '것으로 여겨진다',
+  ].join('|'), 'i').test(lower)) {
     return 'claim';
   }
 

@@ -22,7 +22,7 @@
 // so the analyzer's `id` is persisted on the graph metadata and
 // load-time mismatches throw `AnalyzerMismatchError`.
 
-import { STOPWORDS } from '@/core/constants';
+import { STOPWORDS, STOPWORDS_BY_LANG } from '@/core/constants';
 
 export interface TextAnalyzer {
   /**
@@ -107,3 +107,28 @@ export const unicodeAnalyzer: TextAnalyzer = {
     return matches.filter(t => t.length > 1);
   },
 };
+
+/**
+ * Create a locale-aware analyzer with language-specific stopwords.
+ *
+ * Uses Unicode tokenization (diacritic-preserving) with the stopword
+ * set for the given language code. Falls back to the combined set for
+ * unknown languages.
+ *
+ *   const roAnalyzer = createLocaleAnalyzer('ro');
+ *   const deAnalyzer = createLocaleAnalyzer('de');
+ */
+export function createLocaleAnalyzer(lang: string): TextAnalyzer {
+  const stopwords = STOPWORDS_BY_LANG[lang] ?? STOPWORDS;
+  return {
+    id: `unicode-${lang}`,
+    stopwords,
+    tokenize(text: string): string[] {
+      // Use locale-aware lowercasing (handles Turkish İ→i, ı→ı correctly)
+      const lower = text.toLocaleLowerCase(lang);
+      const matches = lower.match(/[\p{L}\p{N}\p{M}]+/gu);
+      if (!matches) return [];
+      return matches.filter(t => t.length > 1);
+    },
+  };
+}

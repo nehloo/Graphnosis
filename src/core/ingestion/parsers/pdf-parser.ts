@@ -32,10 +32,11 @@ function splitPdfIntoSections(text: string): ParsedSection[] {
     if (!trimmed) continue;
 
     // Heuristic: lines that are short, capitalized, or numbered are likely section headers
+    // Unicode-aware: \p{Lu} matches uppercase in Latin, Cyrillic, Greek, Armenian, etc.
     const isHeader = (
-      (trimmed.length < 80 && /^[A-Z]/.test(trimmed) && !trimmed.endsWith('.')) ||
-      /^\d+\.?\s+[A-Z]/.test(trimmed) ||
-      /^(abstract|introduction|conclusion|references|related work|methodology|results|discussion|acknowledgments)/i.test(trimmed)
+      (trimmed.length < 80 && /^\p{Lu}/u.test(trimmed) && !trimmed.endsWith('.') && !trimmed.endsWith('。')) ||
+      /^\d+\.?\s+\p{Lu}/u.test(trimmed) ||
+      /^(abstract|introduction|conclusion|references|related work|methodology|results|discussion|acknowledgments|résumé|введение|заключение|литература|bibliographie|bibliografía|einleitung|schlussfolgerung|literaturverzeichnis|introdução|conclusão|referências|introducere|concluzii|bibliografie|要旨|はじめに|結論|参考文献|摘要|引言|结论|参考文献|서론|결론|참고문헌)/i.test(trimmed)
     );
 
     if (isHeader && trimmed.length > 2) {

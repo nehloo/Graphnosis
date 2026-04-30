@@ -79,6 +79,10 @@
   "optionalDependencies": {
     "better-sqlite3": "^12.8.0"
   },
+  "overrides": {
+    "postcss": ">=8.5.10",
+    "tar-stream": ">=3.0.0"
+  },
   "devDependencies": {
     "@ai-sdk/openai": "^3.0.52",
     "@ai-sdk/react": "^3.0.160",

@@ -157,7 +157,8 @@ function isLikelyPerson(entity: string): boolean {
   if (/^\d+$/.test(entity)) return false;
   if (entity === entity.toUpperCase()) return false; // Skip acronyms
 
-  return words.every(w => /^[A-Z][a-z]+$/.test(w));
+  // Unicode-aware: matches capitalized words in Latin, Cyrillic, Greek, Armenian, Georgian, etc.
+  return words.every(w => /^\p{Lu}\p{Ll}+$/u.test(w));
 }
 
 function normalizeName(name: string): string {
@@ -185,8 +186,33 @@ function inferPersonAttributes(
     const surrounding = content.slice(Math.max(0, nameIdx - 100), nameIdx + name.length + 100);
 
     const rolePatterns = [
+      // English
       /(?:professor|dr\.|researcher|scientist|engineer|mathematician|inventor|pioneer|founder)/i,
       /(?:ceo|cto|president|director|manager|lead)/i,
+      // French
+      /(?:professeur|chercheur|scientifique|ingénieur|mathématicien|inventeur|fondateur|directeur)/i,
+      // Spanish
+      /(?:profesor|investigador|científico|ingeniero|matemático|inventor|fundador|director)/i,
+      // German
+      /(?:Professor|Forscher|Wissenschaftler|Ingenieur|Mathematiker|Erfinder|Gründer|Direktor)/i,
+      // Italian
+      /(?:professore|ricercatore|scienziato|ingegnere|matematico|inventore|fondatore|direttore)/i,
+      // Portuguese
+      /(?:professor|pesquisador|cientista|engenheiro|matemático|inventor|fundador|diretor)/i,
+      // Romanian
+      /(?:profesor|cercetător|om de știință|inginer|matematician|inventator|fondator|director)/i,
+      // Russian
+      /(?:профессор|исследователь|учёный|инженер|математик|изобретатель|основатель|директор)/i,
+      // Turkish
+      /(?:profesör|araştırmacı|bilim insanı|mühendis|matematikçi|mucit|kurucu|müdür)/i,
+      // Arabic
+      /(?:أستاذ|باحث|عالم|مهندس|رياضي|مخترع|مؤسس|مدير)/,
+      // Japanese
+      /(?:教授|研究者|科学者|技術者|数学者|発明者|創設者|所長)/,
+      // Chinese
+      /(?:教授|研究员|科学家|工程师|数学家|发明家|创始人|主任)/,
+      // Korean
+      /(?:교수|연구원|과학자|엔지니어|수학자|발명가|창립자|이사)/,
     ];
 
     for (const pattern of rolePatterns) {
@@ -196,9 +222,24 @@ function inferPersonAttributes(
       }
     }
 
-    // Look for organization/institution
+    // Look for organization/institution (multilingual prepositions + Unicode names)
     const orgPatterns = [
-      /(?:at|of|from)\s+(?:the\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s+(?:University|Institute|Lab|Corporation|Inc|Company))?)/,
+      // English: at/of/from + capitalized name + optional institution suffix
+      /(?:at|of|from)\s+(?:the\s+)?(\p{Lu}\p{Ll}+(?:\s+\p{Lu}\p{Ll}+)*(?:\s+(?:University|Institute|Lab|Corporation|Inc|Company))?)/u,
+      // French: à/de/du + institution
+      /(?:à|de|du)\s+(?:l[ae']?\s+)?(\p{Lu}\p{Ll}+(?:\s+\p{Lu}\p{Ll}+)*(?:\s+(?:Université|Institut|Laboratoire|Société))?)/u,
+      // Spanish: en/de/del + institution
+      /(?:en|de|del)\s+(?:la\s+)?(\p{Lu}\p{Ll}+(?:\s+\p{Lu}\p{Ll}+)*(?:\s+(?:Universidad|Instituto|Laboratorio|Empresa))?)/u,
+      // German: an/von/bei + institution
+      /(?:an|von|bei)\s+(?:der\s+|dem\s+)?(\p{Lu}\p{Ll}+(?:\s+\p{Lu}\p{Ll}+)*(?:\s+(?:Universität|Institut|Labor|Gesellschaft|GmbH|AG))?)/u,
+      // Romanian: la/de la/din + institution
+      /(?:la|de la|din)\s+(\p{Lu}\p{Ll}+(?:\s+\p{Lu}\p{Ll}+)*(?:\s+(?:Universitatea|Institutul|Laboratorul|Compania))?)/u,
+      // Russian: в/из/при + institution
+      /(?:в|из|при)\s+(\p{Lu}\p{Ll}+(?:\s+\p{Lu}\p{Ll}+)*(?:\s+(?:Университет|Институт|Лаборатория|Компания))?)/u,
+      // Italian: a/di/da + institution
+      /(?:presso|di|da)\s+(?:l[ao']?\s+)?(\p{Lu}\p{Ll}+(?:\s+\p{Lu}\p{Ll}+)*(?:\s+(?:Università|Istituto|Laboratorio|Società))?)/u,
+      // Portuguese: em/de/da + institution
+      /(?:na|no|da|do)\s+(\p{Lu}\p{Ll}+(?:\s+\p{Lu}\p{Ll}+)*(?:\s+(?:Universidade|Instituto|Laboratório|Empresa))?)/u,
     ];
     for (const pattern of orgPatterns) {
       const match = surrounding.match(pattern);

@@ -25,7 +25,18 @@ export function parseConversation(
 function detectFormat(content: string): 'claude' | 'chatgpt' | 'slack' | 'raw' {
   if (content.includes('"mapping"') && content.includes('"message"')) return 'chatgpt';
   if (content.includes('"type": "message"') && content.includes('"channel"')) return 'slack';
-  if (content.includes('Human:') || content.includes('Assistant:') || content.includes('> ')) return 'claude';
+  // Match role labels in multiple languages/formats
+  if (
+    content.includes('Human:') || content.includes('Assistant:') ||
+    content.includes('User:') || content.includes('System:') ||
+    content.includes('Utilisateur:') || content.includes('Humain:') ||  // French
+    content.includes('Usuario:') || content.includes('Asistente:') ||   // Spanish
+    content.includes('Benutzer:') || content.includes('Assistent:') ||  // German
+    content.includes('Utente:') || content.includes('Assistente:') ||   // Italian
+    content.includes('Utilizator:') || content.includes('Asistent:') || // Romanian
+    content.includes('Пользователь:') || content.includes('Ассистент:') || // Russian
+    content.includes('> ')
+  ) return 'claude';
   return 'raw';
 }
 

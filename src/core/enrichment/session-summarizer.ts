@@ -42,20 +42,26 @@ function buildSummaryPrompt(
 
   return `You are compressing a chat session into a searchable index entry. The session happened on ${sessionDate || 'an unknown date'}.
 
+IMPORTANT: The transcript may be in ANY language (English, Romanian, French, German, Spanish, Chinese, Japanese, Arabic, Russian, etc.). You MUST:
+- Write the summary in the SAME language as the transcript
+- Preserve entities in their original script (don't transliterate: keep "東京" not "Tokyo" if the transcript is in Japanese, keep "Müller" not "Mueller", keep "București" not "Bucharest")
+- Extract claims in the speaker's original language and voice
+
 TRANSCRIPT:
 ${transcript}
 
 Respond with ONLY valid JSON, no markdown:
 {
-  "summary": "A single dense paragraph (~200 tokens) describing what the user stated, what they asked, and what the assistant said or recommended. Preserve concrete facts, numbers, names, dates. Omit filler.",
-  "entities": ["canonical names mentioned (people, places, orgs, products) — lowercase, deduped"],
+  "summary": "A single dense paragraph (~200 tokens) describing what the user stated, what they asked, and what the assistant said or recommended. Preserve concrete facts, numbers, names, dates. Omit filler. Write in the transcript's language.",
+  "entities": ["canonical names mentioned (people, places, orgs, products) — in original script, lowercase where applicable, deduped"],
   "dates": ["any dates or times referenced in the turns — prefer YYYY-MM-DD"],
-  "claims": ["short atomic statements worth indexing separately, in the speaker's voice, e.g. 'I bought 30 lbs of coffee beans' or 'The user prefers window seats'"]
+  "claims": ["short atomic statements worth indexing separately, in the speaker's voice and language, e.g. 'I bought 30 lbs of coffee beans' or 'Prefer hotel-uri cu vedere la mare'"]
 }
 
 Rules:
 - Preserve user voice in claims — "I prefer X" not "User prefers X".
 - Claims should each be self-contained; omit vague ones.
+- Keep entities in their original script and language — do not transliterate or translate proper nouns.
 - If the session has no substantive content, return empty arrays and a one-sentence summary.`;
 }
 

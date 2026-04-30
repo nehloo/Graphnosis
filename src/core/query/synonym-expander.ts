@@ -1,4 +1,4 @@
-import type { KnowledgeGraph, NodeId } from '@/core/types';
+import type { KnowledgeGraph } from '@/core/types';
 
 // Build a lightweight synonym map from the graph itself
 // Entities that co-occur in similar-to edges are likely synonyms or related terms
@@ -54,7 +54,9 @@ export function buildSynonymMap(graph: KnowledgeGraph): SynonymMap {
 
 // Expand a query with synonyms from the map
 export function expandQuery(query: string, synonymMap: SynonymMap): string[] {
-  const words = query.toLowerCase().split(/\s+/);
+  // Unicode-aware tokenization: extract runs of letters/numbers/marks
+  // This handles CJK, Arabic, Devanagari, etc. where \s+ splitting loses characters
+  const words = query.toLowerCase().match(/[\p{L}\p{N}\p{M}]+/gu) ?? [];
   const expansions = new Set<string>();
   expansions.add(query); // Original query always included
 

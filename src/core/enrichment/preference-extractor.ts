@@ -67,6 +67,11 @@ function buildExtractionPrompt(
 
   return `You are extracting the SHORTLIST of user statements from a chat session that would change the answer to a specific question.
 
+IMPORTANT: The transcript and question may be in ANY language. You MUST:
+- Extract statements in the user's ORIGINAL language — do not translate
+- Preserve names, places, and terms in their original script
+- Match semantically across languages (a French preference is relevant to an English question about the same topic)
+
 QUESTION: ${question}
 
 SESSION DATE: ${sessionDate || 'unknown'}
@@ -77,21 +82,21 @@ ${transcript}
 Return AT MOST 3 statements. Prefer zero over loose matches. A statement qualifies only if omitting it would make the recommendation worse or wrong.
 
 Qualifying:
-- A concrete user preference, constraint, dislike, allergy, or prior choice that narrows the recommendation (e.g., "I'm allergic to shellfish" for a restaurant question).
-- A fact about the user's situation that the recommender must respect (e.g., "I don't own a car" for a trip question).
+- A concrete user preference, constraint, dislike, allergy, or prior choice that narrows the recommendation (e.g., "I'm allergic to shellfish", "Nu mănânc fructe de mare", "Je suis allergique aux crustacés").
+- A fact about the user's situation that the recommender must respect (e.g., "I don't own a car", "Nu am mașină", "Ich habe kein Auto").
 
 Disqualifying — DO NOT extract:
-- Generic habits or routines unrelated to the question ("I usually wake up at 7").
+- Generic habits or routines unrelated to the question.
 - Past assistant suggestions, even when the user engaged with them.
 - World facts, definitions, or third-party statements.
 - Restatements of the current question.
 - Statements from a different topic than the question.
-- Filler like "that sounds good" or "thanks".
+- Filler like "that sounds good", "merci", "danke", "mulțumesc", etc.
 
 If fewer than 3 statements qualify, return fewer. If none qualify, return an empty list — this is the correct answer for most sessions.
 
 Voice rules:
-- Preserve the user's first-person voice ("I prefer X"), not third-person paraphrase.
+- Preserve the user's first-person voice and original language ("I prefer X" / "Eu prefer X"), not third-person paraphrase.
 - Each statement must be self-contained (readable without the transcript).
 
 Respond with ONLY valid JSON, no markdown:
