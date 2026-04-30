@@ -1059,6 +1059,7 @@ export type { EmbeddingAdapter } from '@/core/similarity/embedding-adapter';
 export {
   asciiFoldAnalyzer,
   unicodeAnalyzer,
+  createLocaleAnalyzer,
   type TextAnalyzer,
 } from '@/core/similarity/analyzer';
 // Typed errors for branching without string-matching.
