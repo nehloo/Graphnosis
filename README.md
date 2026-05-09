@@ -20,6 +20,44 @@ The result: faster retrieval, richer reasoning, and answers that trace back thro
 
 ---
 
+## The Brain Model — Cortex, Hippocampus, Prefrontal Cortex
+
+```
+  ┌────────────────────────┐     ┌────────────────────────────────┐     ┌──────────────────────────┐
+  │        CORTEX          │     │         HIPPOCAMPUS            │     │    PREFRONTAL CORTEX     │
+  │   Long-Term Storage    │────▶│    Indexing & Encoding         │────▶│  Retrieval & Reasoning   │
+  ├────────────────────────┤     ├────────────────────────────────┤     ├──────────────────────────┤
+  │  PDFs · Docs           │     │  ① Parse & chunk               │     │  ① Query decomposition   │
+  │  Markdown · HTML       │     │  ② Entity + identity extract   │     │  ② Synonym expansion     │
+  │  Conversations · APIs  │     │  ③ Directed graph build        │     │  ③ BFS graph traversal   │
+  │                        │     │     causal · temporal ·        │     │     directed + undirected│
+  │  "What you know"       │     │     hierarchical · identity    │     │  ④ Subgraph extraction   │
+  │                        │     │  ④ Undirected graph overlay    │     │  ⑤ Serialize → LLM       │
+  │  everyone has this     │     │     similarity · co-occurrence │     │                          │
+  │                        │     │  ⑤ Temporal + confidence score │     │  everyone does this       │
+  │                        │     │  ⑥ Write .aikg (engram)        │     │                          │
+  │                        │     │                                │     │                          │
+  │                        │     │         GRAPHNOSIS             │     │                          │
+  └────────────────────────┘     └────────────────────────────────┘     └──────────────────────────┘
+                                            ▲
+                               the gap nobody else fills
+                        no hippocampus → no engrams → flat retrieval
+```
+
+**1. The missing layer.**
+Standard RAG — and most AI memory tools — skip directly from files to vector chunks to LLM context. That's a cortex → prefrontal cortex shortcut with no [hippocampus](https://en.wikipedia.org/wiki/Hippocampus). Knowledge is stored, but it isn't *organized for retrieval*: no relationships between entities, no temporal tracking, no contradiction awareness, no identity resolution across documents. The result is that AI "memory" is really just similarity search over a flat pile of text.
+
+**2. What the hippocampus actually does — and what Graphnosis mirrors.**
+The hippocampus doesn't passively hold memories. It encodes them with relational structure: who, what, when, what changed, what contradicts what. This encoding process produces an **[engram](https://en.wikipedia.org/wiki/Engram_(neuropsychology))** — the physical memory trace in the brain. Graphnosis mirrors both the process and the output: entity extraction, typed directed edges (causal / temporal / hierarchical / identity), deduplication by content hash, temporal decay curves, contradiction detection, and a second undirected graph layered over the same nodes — capturing similarity and co-occurrence that the directed edges don't express. The `.aikg` file is the engram: a binary, structured, durable memory trace richer than the source documents it was built from.
+
+**3. Memory consolidation = the graph build. The dual-graph = the engram.**
+In the brain, memory consolidation is the hippocampal process of moving a new experience into a durable engram distributed across cortical storage. In Graphnosis, ingestion (`appendMarkdown`, `appendPdf`, `appendConversation`) is the encoding phase; `build()` is consolidation; and the `.aikg` binary is the durable, portable engram. The dual-graph structure is what makes it richer than flat storage: directed edges carry the explicit logic of the domain (what caused what, what superseded what, who is who); the undirected layer captures the semantic field around each node — so a query can follow a causal chain *and* pull in contextually related nodes that aren't directly linked. A PDF is a flat byte stream; its `.aikg` engram is a two-layer graph of typed relationships, temporal scores, and identity links.
+
+**4. Retrieval closes the loop.**
+When you ask a question, the query engine (prefrontal cortex) doesn't scan the entire graph. It decomposes the query, expands synonyms derived from the graph itself, finds seed nodes via TF-IDF, and traverses up to 3 hops across both graph layers — pulling a subgraph of ~20 nodes (~2K tokens) that is directly relevant. Directed edges provide the reasoning chain; undirected edges ensure semantically related context isn't missed. This mirrors how the prefrontal cortex pulls only what's needed from distributed cortical storage via hippocampal indexing, rather than replaying everything. The LLM receives a structured, relationship-rich context window instead of a bag of chunks.
+
+---
+
 ## The Question That Started This
 
 > *["Are AI models based on non-oriented graphs?"](original-discussion.md)*
