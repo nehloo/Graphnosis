@@ -37,7 +37,7 @@ const server = new McpServer(
 // ── Tool: load_graph ──────────────────────────────────────────────────────────
 server.tool(
   'load_graph',
-  'Load a .gai knowledge graph file into the session. Returns a graphId for use in subsequent calls.',
+  'Load a .aikg knowledge graph file into the session. Returns a graphId for use in subsequent calls.',
   LoadGraphInput.shape,
   async (args: z.infer<typeof LoadGraphInput>) => {
     const result = await loadGraph(args);
@@ -73,7 +73,7 @@ server.tool(
 // ── Tool: update_graph ────────────────────────────────────────────────────────
 server.tool(
   'update_graph',
-  'Incrementally add new files to an existing graph session. Optionally persist back to a .gai file.',
+  'Incrementally add new files to an existing graph session. Optionally persist back to a .aikg file.',
   UpdateGraphInput.shape,
   async (args: z.infer<typeof UpdateGraphInput>) => {
     const result = await updateGraph(args);
@@ -109,7 +109,7 @@ server.tool(
 // ── Tool: export ──────────────────────────────────────────────────────────────
 server.tool(
   'export',
-  'Write the current graph session to a .gai file on disk.',
+  'Write the current graph session to a .aikg file on disk.',
   ExportInput.shape,
   async (args: z.infer<typeof ExportInput>) => {
     const result = await exportGraph(args);

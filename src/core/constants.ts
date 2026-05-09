@@ -1,9 +1,9 @@
 // Graphnosis Constants
 
-// .gai file format magic bytes: "GAI" + version 1
-// .gai = "Graphnosis AI" — the AI-native knowledge graph format
-export const GAI_MAGIC = new Uint8Array([0x47, 0x41, 0x49, 0x01]);
-export const GAI_VERSION = 1;
+// .aikg file format magic bytes: "AIKG" (0x41 0x49 0x4B 0x47)
+// .aikg = "AI Knowledge Graph" — the AI-native binary knowledge format
+export const AIKG_MAGIC = new Uint8Array([0x41, 0x49, 0x4B, 0x47]);
+export const AIKG_VERSION = 1;
 
 // Similarity thresholds
 export const SIMILARITY_THRESHOLD = 0.3; // Minimum cosine similarity for undirected edges

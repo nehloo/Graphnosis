@@ -6,7 +6,7 @@ Core thesis: structured graphs with typed edges outperform flat text chunks for 
 
 ## Architecture
 ```
-RAW FILES → PARSE → CHUNK → EXTRACT → BUILD GRAPH → OPTIMIZE → .gai
+RAW FILES → PARSE → CHUNK → EXTRACT → BUILD GRAPH → OPTIMIZE → .aikg
                                                          ↓
                                               ENRICHMENT (optional LLM)
                                                          ↓
@@ -18,7 +18,7 @@ RAW FILES → PARSE → CHUNK → EXTRACT → BUILD GRAPH → OPTIMIZE → .gai
 - **Similarity:** TF-IDF + cosine (pure JS, zero API calls) with inverted term index optimization
 - **Query:** synonym expansion → query decomposition → merged seed finding → BFS with temporal scoring → enriched subgraph serialization
 - **Persistence:** SQLite (better-sqlite3, WAL mode) or in-memory
-- **Format:** .gai binary — "Graphnosis AI" knowledge format (MessagePack with magic bytes + checksum)
+- **Format:** .aikg binary — "Graphnosis AI" knowledge format (MessagePack with magic bytes + checksum)
 
 ## Key Technical Decisions
 - AI SDK v6: `useChat` from `@ai-sdk/react`, `DefaultChatTransport` for custom API URL, `sendMessage({text})`, `status` not `isLoading`, `msg.parts` not `msg.content`
@@ -69,7 +69,7 @@ src/core/
   similarity/                   # tfidf, cosine, jaccard
   graph/                        # graph-builder, directed-edges, undirected-edges, incremental, graph-store
   optimization/                 # deduplicator, pruner, compressor, reflection (contradictions + discovery)
-  format/                       # gai-writer, gai-reader
+  format/                       # aikg-writer, aikg-reader
   query/                        # query-engine, seed-finder, traverser, subgraph-serializer,
                                   synonym-expander, query-decomposer
   enrichment/                   # node-enricher (LLM synthesis + context)
@@ -80,7 +80,7 @@ src/core/
 src/examples/                   # 4 PoC fetchers (wikipedia, arxiv, nextjs-docs, nasa-mars)
 src/app/                        # Next.js pages + API routes
 tests/longmemeval/              # 12 tests across 4 categories
-data/                           # Runtime: .gai files, SQLite db, cache (gitignored)
+data/                           # Runtime: .aikg files, SQLite db, cache (gitignored)
 ```
 
 ## Guardrails
@@ -96,5 +96,5 @@ data/                           # Runtime: .gai files, SQLite db, cache (gitigno
 - Bulk forget: by time window (before date) or by topic (entity/content match)
 - Cascade soft-delete: follows contains edges + same-source to soft-delete downstream nodes
 - Reflection engine: callable on-demand via POST /api/graph/reflect
-- .gai checksum validates file integrity on read
+- .aikg checksum validates file integrity on read
 - All dependencies MIT or Apache-2.0 licensed

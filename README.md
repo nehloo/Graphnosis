@@ -1,7 +1,7 @@
 # Graphnosis — Dual-Graph Private AI Memory & Knowledge Framework
 
 [![Enterprise](https://img.shields.io/badge/Enterprise-Privacy%20%26%20Security-2ea043?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/enterprise/enterprise.md)
-[![.gai Format](https://img.shields.io/badge/.gai-Format%20Spec-5b3fd1?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/gai-format/gai-format.md)
+[![.aikg Format](https://img.shields.io/badge/.aikg-Format%20Spec-5b3fd1?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/aikg-format/aikg-format.md)
 [![Benchmark](https://img.shields.io/badge/LongMemEval-76.40%25-e25822?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/benchmarks/benchmarks.md)
 [![Demo](https://img.shields.io/badge/demo-graphnosis.vercel.app-blue?style=flat&logo=vercel)](https://graphnosis.vercel.app)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -12,7 +12,9 @@
 
 Graphnosis transforms raw files into AI-optimized directed and undirected graph representations. Instead of feeding AI models flat text chunks (the standard RAG approach), Graphnosis builds a structured knowledge graph with typed relationships — then serializes relevant subgraphs into a format designed for machine comprehension, not human readability.
 
-> The name is a compound of **graph** and **gnosis** (Greek for knowledge) — literally "graph knowledge". The `.gai` file extension stands for **Graphnosis AI**, the AI-native knowledge format at the heart of the system.
+> The name is a compound of **graph** and **gnosis** (Greek for knowledge) — literally "graph knowledge". The `.aikg` extension stands for **AI Knowledge Graph** — the AI-native binary format at the heart of the system.
+>
+> **The architecture maps to the brain.** Graphnosis models how the brain handles structured information: the **cortex** maintains long-term knowledge as a stable, interconnected network; the **hippocampus** encodes and indexes new experiences as they arrive; the **prefrontal cortex** retrieves and reasons over what's relevant on demand. The framework mirrors all three — the similarity/undirected graph is the cortex, the graph builder and identity extractor are the hippocampus, and the query engine is the prefrontal cortex.
 
 The result: faster retrieval, richer reasoning, and answers that trace back through explicit relationship chains.
 
@@ -53,7 +55,7 @@ CONVERSATIONS  ─────────────────────�
                                                                    |
                                                           LLM ENRICHMENT (optional)
                                                                    |
-                                                          ENRICHED GRAPH (.gai)
+                                                          ENRICHED GRAPH (.aikg)
                                                         /      |        \
                                                    QUERY    GIKI       AUDIT
                                                      |    (pages)    (reports)
@@ -119,12 +121,12 @@ Person entities mentioned 2+ times across sources automatically get dedicated pe
 - Relationship edges between co-mentioned persons
 - User profile inference from conversation patterns
 
-# The .gai Format
+# The .aikg Format
 
-Instead of storing knowledge as human-readable markdown, Graphnosis uses a binary format (`.gai` — short for **Graphnosis AI**) built on MessagePack:
+Instead of storing knowledge as human-readable markdown, Graphnosis uses a binary format (`.aikg` — **AI Knowledge Graph**) built on MessagePack:
 
 ```
-[4-byte magic: "GAI" + version]
+[4-byte magic: "AIKG"]
 [4-byte header length]
 [MessagePack header: node count, edge count, levels, metadata]
 [MessagePack body: nodes, directed edges, undirected edges, hierarchy]
@@ -168,7 +170,7 @@ Graph-based RAG is an active research area. Microsoft's **GraphRAG** (2025) pion
 Graphnosis's contribution is a specific combination that hasn't been published as a unified system:
 
 - **Dual-graph** (directed + undirected edges over the same node set) — most systems use one graph type
-- **AI-native binary format** (.gai) optimized for machine consumption, not human readability
+- **AI-native binary format** (.aikg) optimized for machine consumption, not human readability
 - **Zero-API graph construction** (TF-IDF, no embeddings required) — $0 to build the graph
 - **Human audit trail** — giki pages with node citations, contradiction detection, correction API
 - **Temporal awareness** — confidence decay, supersedes edges, access tracking per node
@@ -183,14 +185,14 @@ Graphnosis exists alongside other approaches to persistent AI knowledge. Each ma
 
 | | **Graphnosis** | **GBrain** (Garry Tan) | **MemPalace** (Milla Jovovich) | **Karpathy Wiki** |
 |---|---|---|---|---|
-| **Representation** | Dual-graph (.gai binary) | Markdown files in git | Spatial hierarchy + ChromaDB | Markdown wiki pages |
+| **Representation** | Dual-graph (.aikg binary) | Markdown files in git | Spatial hierarchy + ChromaDB | Markdown wiki pages |
 | **Conversation memory** | Yes (Claude/ChatGPT/Slack) | No | Yes (core feature) | No |
 | **Identity tracking** | Auto-extracted person nodes | Manual (people/ dir) | No | Partial (entity pages) |
 | **Contradiction detection** | Automated | No | No | LLM lint (manual) |
 | **LLM cost to build** | $0 + optional enrichment | ~$5-20/dataset | $0 | ~$10-50/dataset |
 | **Human auditability** | Giki pages + audit export | Native (markdown) | Partial | Native (wiki) |
 | **Relationships** | Explicit typed edges | Implicit links | Tunnels | Implicit cross-refs |
-| **Persistence** | SQLite + .gai files | Git repo | ChromaDB + SQLite | Filesystem |
+| **Persistence** | SQLite + .aikg files | Git repo | ChromaDB + SQLite | Filesystem |
 
 **Where Graphnosis wins:** Relationship-aware reasoning, multi-source knowledge fusion, token efficiency, automated contradiction detection.
 
@@ -276,7 +278,7 @@ For the full benchmark progression story — every iteration from first run to t
 
 ## Graphnosis as AI Middleware (MCP Server)
 
-Graphnosis ships as a portable **MCP (Model Context Protocol) server** — drop-in knowledge-graph middleware for any LLM. Load a `.gai` file, ask a question, and receive a ~2K-token plain-text subgraph snippet ready to inject into any LLM's system prompt.
+Graphnosis ships as a portable **MCP (Model Context Protocol) server** — drop-in knowledge-graph middleware for any LLM. Load a `.aikg` file, ask a question, and receive a ~2K-token plain-text subgraph snippet ready to inject into any LLM's system prompt.
 
 ### Two deployment modes
 
@@ -310,17 +312,17 @@ docker compose up
 # MCP endpoint: http://internal-host:3001/mcp
 ```
 
-Point any MCP-compatible client at your internal host. The `.gai` file stays on your mounted volume inside the enterprise perimeter. See [enterprise/enterprise.md](enterprise/enterprise.md) for the full security and privacy architecture.
+Point any MCP-compatible client at your internal host. The `.aikg` file stays on your mounted volume inside the enterprise perimeter. See [enterprise/enterprise.md](enterprise/enterprise.md) for the full security and privacy architecture.
 
 ### MCP tools
 
 | Tool | What it does |
 |------|-------------|
-| `load_graph` | Load a `.gai` file into session memory |
+| `load_graph` | Load a `.aikg` file into session memory |
 | `ingest_files` | Parse raw files → build graph → store in session |
 | `update_graph` | Add new documents to an existing session graph |
 | `query` | Ask a question → returns a ~2K plain-text subgraph snippet |
-| `export` | Write the session graph back to a `.gai` file |
+| `export` | Write the session graph back to a `.aikg` file |
 
 **Privacy guarantee:** `query` returns only the serialized subgraph text and a node count — never the full graph, raw node list, or binary file. Only the few hundred tokens relevant to your question ever leave the enterprise perimeter.
 
@@ -333,7 +335,7 @@ Cloud-provider memory stores your knowledge on their infrastructure. Graphnosis 
 | **Graph location** | Your machine / enterprise servers | Provider infrastructure |
 | **LLM compatibility** | Any (Claude, GPT-4, Gemini, Ollama…) | Provider-locked |
 | **Privacy** | Full control | Data leaves perimeter |
-| **Format** | Open `.gai` (portable) | Proprietary |
+| **Format** | Open `.aikg` (portable) | Proprietary |
 | **Self-hostable** | Yes | No |
 
 ---
@@ -460,9 +462,9 @@ for (const c of r5.contradictions) {
 }
 
 // Load a saved graph and continue appending to it:
-g.loadGai('knowledge.gai', { hmacKey });
+g.loadAikg('knowledge.aikg', { hmacKey });
 await g.appendFolder('/new-docs');
-g.saveGai('knowledge.gai', { hmacKey });
+g.saveAikg('knowledge.aikg', { hmacKey });
 ```
 
 **Full-graph consistency check** — run after a batch of appends for a comprehensive audit:
@@ -601,10 +603,10 @@ await g.appendWithEmbeddings(parseMarkdown(newDoc, 'note.md'));
 See [src/sdk/adapters/README.md](src/sdk/adapters/README.md) for the full
 adapter contract, the `id` naming convention, and a Voyage example.
 
-> **Persistence caveat — embeddings are not saved.** `saveGai()` /
+> **Persistence caveat — embeddings are not saved.** `saveAikg()` /
 > `saveSqlite()` / `toBuffer()` / `toSqliteBuffer()` only persist the graph
 > and TF-IDF index. The `EmbeddingIndex` is in-memory only — after
-> `loadGai()` / `fromBuffer()` / `loadSqlite*()` you must call
+> `loadAikg()` / `fromBuffer()` / `loadSqlite*()` you must call
 > `await g.buildEmbeddings()` again before using the hybrid methods.
 > Persisting vectors to disk is on the roadmap; for now, treat the
 > embedding index as a per-process cache.
@@ -624,14 +626,14 @@ local volume. Use the buffer-based methods to round-trip via blob storage
 without `/tmp` gymnastics:
 
 ```ts
-// .gai (binary, signed with HMAC if you pass a key)
-const buf = g.toBuffer({ hmacKey: process.env.GAI_HMAC_KEY });
-await blob.put('graphs/myorg/kg.gai', buf);
+// .aikg (binary, signed with HMAC if you pass a key)
+const buf = g.toBuffer({ hmacKey: process.env.AIKG_HMAC_KEY });
+await blob.put('graphs/myorg/kg.aikg', buf);
 
 // later, in a cold serverless invocation
-const fresh = await blob.get('graphs/myorg/kg.gai');
+const fresh = await blob.get('graphs/myorg/kg.aikg');
 const g2 = new Graphnosis();
-g2.fromBuffer(Buffer.from(fresh), { hmacKey: process.env.GAI_HMAC_KEY });
+g2.fromBuffer(Buffer.from(fresh), { hmacKey: process.env.AIKG_HMAC_KEY });
 
 // SQLite (writes a transient file under os.tmpdir() — must be writable)
 const sqlBuf = g.toSqliteBuffer();
@@ -639,7 +641,7 @@ await blob.put('graphs/myorg/kg.sqlite', sqlBuf);
 g2.fromSqliteBuffer(sqlBuf, 'myorg-graph-name');
 ```
 
-`saveGai()` / `loadGai()` / `saveSqlite()` / `loadSqlite*()` continue to
+`saveAikg()` / `loadAikg()` / `saveSqlite()` / `loadSqlite*()` continue to
 work — they're now thin wrappers over the buffer methods.
 
 ### Reason conventions for soft-delete (v0.2)
@@ -676,10 +678,10 @@ itself prefixes `system:` on cascade-delete, retention, and topic-forget.
 ### Persistence
 
 ```ts
-// Signed .gai — use whenever the file crosses a trust boundary
-const hmacKey = process.env.GAI_HMAC_KEY!; // 32+ random bytes
-g.saveGai('knowledge.gai', { hmacKey });
-g.loadGai('knowledge.gai', { hmacKey });   // fails closed on any tampering
+// Signed .aikg — use whenever the file crosses a trust boundary
+const hmacKey = process.env.AIKG_HMAC_KEY!; // 32+ random bytes
+g.saveAikg('knowledge.aikg', { hmacKey });
+g.loadAikg('knowledge.aikg', { hmacKey });   // fails closed on any tampering
 
 // SQLite (requires the optional better-sqlite3 dependency)
 g.saveSqlite('./data/graphnosis.db');
@@ -712,8 +714,8 @@ import {
   // g.reflect()         — full-graph contradiction + decay + discovery audit
   // g.edit / deleteNode / supersede / correct / importMarkdown
   // g.forgetBefore / forgetTopic
-  // g.saveGai / loadGai / saveSqlite / loadSqlite / loadSqliteByName
-  // g.toBuffer / fromBuffer             — serverless-friendly .gai I/O
+  // g.saveAikg / loadAikg / saveSqlite / loadSqlite / loadSqliteByName
+  // g.toBuffer / fromBuffer             — serverless-friendly .aikg I/O
   // g.toSqliteBuffer / fromSqliteBuffer — serverless-friendly SQLite I/O
 
   // Built-in analyzers + types
@@ -736,7 +738,7 @@ import {
   forgetByTimeWindow, forgetByTopic, cascadeSoftDelete,
 
   // Persistence
-  writeGai, readGai,     // .gai binary format (with optional HMAC-SHA256)
+  writeAikg, readAikg,     // .aikg binary format (with optional HMAC-SHA256)
   openSqliteStore,       // path-scoped SQLite store
   toSerializable, fromSerializable,
 } from '@nehloo/graphnosis';
@@ -759,7 +761,7 @@ src/
     similarity/                     # TF-IDF, cosine, Jaccard (pure JS)
     graph/                          # Graph builder, directed/undirected edges, incremental updates
     optimization/                   # Deduplicator, pruner, hierarchical compressor, reflection engine
-    format/                         # .gai binary writer/reader (MessagePack)
+    format/                         # .aikg binary writer/reader (MessagePack)
     query/                          # Seed finder, BFS traverser, subgraph serializer,
                                     # synonym expander, query decomposer
     enrichment/                     # LLM-powered node synthesis + context
@@ -777,7 +779,7 @@ tests/
 
 - **Next.js 16** (App Router, TypeScript)
 - **Vercel AI SDK v6** (chat interface, streaming)
-- **MessagePack** (`msgpackr`) for .gai binary format
+- **MessagePack** (`msgpackr`) for .aikg binary format
 - **TF-IDF + cosine similarity** (pure JS, no embedding APIs)
 - **better-sqlite3** for persistent graph storage (WAL mode)
 - **react-force-graph-2d** for graph visualization
@@ -808,11 +810,11 @@ Explore the working prototype: **[graphnosis.vercel.app](https://graphnosis.verc
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/gai1-2.png" alt="View .gai — Inspect the AI-native binary format — what the machine sees, decoded for humans" width="100%" />
+  <img src="docs/screenshots/gai1-2.png" alt="View .aikg — Inspect the AI-native binary format — what the machine sees, decoded for humans" width="100%" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/gai2-2.png" alt="View .gai — Inspect the AI-native binary format — what the machine sees, decoded for humans" width="100%" />
+  <img src="docs/screenshots/gai2-2.png" alt="View .aikg — Inspect the AI-native binary format — what the machine sees, decoded for humans" width="100%" />
 </p>
 
 ## References & Attribution
@@ -835,5 +837,5 @@ This is an active research project exploring AI-native knowledge representation.
 - Improved relation extraction (NLP-based `causes`, `contradicts` detection)
 - Embedding-based similarity as optional upgrade to TF-IDF
 - Benchmark comparisons against standard RAG pipelines (GraphRAG, LightRAG)
-- Multi-graph merge (combine multiple .gai files)
+- Multi-graph merge (combine multiple .aikg files)
 - Giki page quality improvements (LLM-assisted narrative generation)

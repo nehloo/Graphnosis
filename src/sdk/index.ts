@@ -10,10 +10,10 @@
 //      symbols listed in invariant 4 — every other code path on this
 //      facade (including the async PDF / file / folder ingestion methods)
 //      is fully offline.
-//   2. `.gai` files that cross a trust boundary must be written AND read
+//   2. `.aikg` files that cross a trust boundary must be written AND read
 //      with `hmacKey`. The default additive checksum catches corruption,
 //      NOT tampering.
-//   3. File paths passed to `saveGai/loadGai/saveSqlite/loadSqlite` are
+//   3. File paths passed to `saveAikg/loadAikg/saveSqlite/loadSqlite` are
 //      forwarded to `node:fs` and `better-sqlite3` as-is. Do NOT pass
 //      user-controlled strings; canonicalize before calling.
 //   4. EMBEDDING CARVE-OUT: the symbols `attachEmbeddings`, `embedNodes`,
@@ -55,8 +55,8 @@ import {
   type QueryOptions,
   type PromptContext,
 } from '@/core/query/query-engine';
-import { writeGai, type WriteGaiOptions } from '@/core/format/gai-writer';
-import { readGai, type ReadGaiOptions } from '@/core/format/gai-reader';
+import { writeAikg, type WriteAikgOptions } from '@/core/format/aikg-writer';
+import { readAikg, type ReadAikgOptions } from '@/core/format/aikg-reader';
 import { openSqliteStore } from '@/core/persistence/sqlite-store';
 import { createTfidfIndex, addDocument, computeIdf } from '@/core/similarity/tfidf';
 import {
@@ -511,8 +511,8 @@ export class Graphnosis {
    * NETWORK: calls the configured embedding adapter. The adapter is
    * resolved as `opts.adapter ?? this.embed` — pass one or the other.
    *
-   * NOT PERSISTED: embedding vectors are NOT written by `saveGai()` /
-   * `saveSqlite()`. After `loadGai()` / `loadSqlite()` you must call
+   * NOT PERSISTED: embedding vectors are NOT written by `saveAikg()` /
+   * `saveSqlite()`. After `loadAikg()` / `loadSqlite()` you must call
    * `buildEmbeddings()` again to re-embed.
    *
    * @param opts.adapter    Embedding adapter (overrides constructor `embed`).
@@ -649,7 +649,7 @@ export class Graphnosis {
   /**
    * Reconstruct the TF-IDF index from the content of all existing nodes.
    *
-   * Call this after `loadGai()` or `loadSqlite()` / `loadSqliteByName()` before
+   * Call this after `loadAikg()` or `loadSqlite()` / `loadSqliteByName()` before
    * issuing `query()` calls. It is called automatically by those load methods,
    * so you only need this if you have mutated the graph manually.
    *
@@ -681,7 +681,7 @@ export class Graphnosis {
   // --- Persistence ----------------------------------------------------------
 
   /**
-   * Serialize the graph to .gai binary and write it to disk.
+   * Serialize the graph to .aikg binary and write it to disk.
    *
    * SECURITY: pass `hmacKey` for any file that will cross a trust boundary
    * (shared storage, network transfer, multi-tenant DB). Without it the
@@ -689,52 +689,52 @@ export class Graphnosis {
    * WARNING: `filePath` is forwarded to `fs.writeFileSync` unchanged. Do
    * not pass user-controlled paths.
    */
-  saveGai(filePath: string, opts: WriteGaiOptions = {}): void {
+  saveAikg(filePath: string, opts: WriteAikgOptions = {}): void {
     writeFileSync(filePath, this.toBuffer(opts));
   }
 
   /**
-   * Serialize the graph to a .gai-format `Buffer` without touching the
+   * Serialize the graph to a .aikg-format `Buffer` without touching the
    * filesystem. Designed for serverless / edge runtimes (Vercel, Lambda,
    * Cloudflare Workers, Fly Machines) where writing to `/tmp` and reading
    * back is wasteful or unavailable.
    *
    * ```ts
    * const buf = g.toBuffer({ hmacKey });
-   * await blobStore.put('knowledge.gai', buf);
+   * await blobStore.put('knowledge.aikg', buf);
    * ```
    *
    * SECURITY: pass `hmacKey` for any buffer that will cross a trust
    * boundary. Without it the trailer is an additive checksum only —
    * trivially forgeable.
    */
-  toBuffer(opts: WriteGaiOptions = {}): Buffer {
-    return writeGai(this.graph, opts);
+  toBuffer(opts: WriteAikgOptions = {}): Buffer {
+    return writeAikg(this.graph, opts);
   }
 
   /**
-   * Load a .gai file and replace the current graph. The TF-IDF index is
+   * Load a .aikg file and replace the current graph. The TF-IDF index is
    * automatically rebuilt from node content so `query()` works immediately.
    *
    * SECURITY: if the file was written with `hmacKey`, the same key must be
    * supplied here. Fail-closed: a missing key (or a key against an
    * unsigned file — a downgrade attempt) throws.
    */
-  loadGai(filePath: string, opts: ReadGaiOptions = {}): KnowledgeGraph {
+  loadAikg(filePath: string, opts: ReadAikgOptions = {}): KnowledgeGraph {
     return this.fromBuffer(readFileSync(filePath), opts);
   }
 
   /**
-   * Load a .gai-format `Buffer` (e.g. read from blob storage) and replace
+   * Load a .aikg-format `Buffer` (e.g. read from blob storage) and replace
    * the current graph. The TF-IDF index is automatically rebuilt so
    * `query()` works immediately.
    *
-   * SECURITY: same fail-closed semantics as `loadGai` — a buffer signed
+   * SECURITY: same fail-closed semantics as `loadAikg` — a buffer signed
    * with `hmacKey` requires the same key here, and a missing-key /
    * mismatched-key load throws.
    */
-  fromBuffer(buf: Buffer, opts: ReadGaiOptions = {}): KnowledgeGraph {
-    const { graph } = readGai(buf, opts);
+  fromBuffer(buf: Buffer, opts: ReadAikgOptions = {}): KnowledgeGraph {
+    const { graph } = readAikg(buf, opts);
     this.built = graph as BuiltGraph;
     this.documents = [];
     this.rebuildIndex();
@@ -1087,8 +1087,8 @@ export {
 export { parseMarkdown } from '@/core/ingestion/parsers/markdown-parser';
 export { parseHtml } from '@/core/ingestion/parsers/html-parser';
 export { parseCsv, parseJson } from '@/core/ingestion/parsers/csv-parser';
-export { writeGai, type WriteGaiOptions } from '@/core/format/gai-writer';
-export { readGai, type ReadGaiOptions, type GaiHeader } from '@/core/format/gai-reader';
+export { writeAikg, type WriteAikgOptions } from '@/core/format/aikg-writer';
+export { readAikg, type ReadAikgOptions, type AikgHeader } from '@/core/format/aikg-reader';
 export { openSqliteStore, type SqliteStore } from '@/core/persistence/sqlite-store';
 export { toSerializable, fromSerializable } from '@/core/graph/graph-store';
 

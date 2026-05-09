@@ -4,9 +4,11 @@
 
 **The graph never leaves the enterprise.**
 
-When you use Graphnosis with any LLM — Claude, GPT-4, Gemini, Ollama, Azure OpenAI, AWS Bedrock — only a small plain-text snippet (the subgraph relevant to the user's question, typically ~2,000 tokens) is ever sent to the LLM API. The `.gai` binary file, the full knowledge graph, all indexed nodes, and all edge data remain inside your machine or your enterprise network at all times.
+When you use Graphnosis with any LLM — Claude, GPT-4, Gemini, Ollama, Azure OpenAI, AWS Bedrock — only a small plain-text snippet (the subgraph relevant to the user's question, typically ~2,000 tokens) is ever sent to the LLM API. The `.aikg` binary file, the full knowledge graph, all indexed nodes, and all edge data remain inside your machine or your enterprise network at all times.
 
 This is not a configuration option. It is how the architecture works.
+
+**The architecture maps to the brain.** Graphnosis models how the brain handles structured information: the **cortex** maintains long-term knowledge as a stable, interconnected network; the **hippocampus** encodes and indexes new experiences as they arrive; the **prefrontal cortex** retrieves and reasons over what's relevant on demand. The framework mirrors all three — the similarity/undirected graph is the cortex, the graph builder and identity extractor are the hippocampus, and the query engine is the prefrontal cortex. The `.aikg` extension stands for **AI Knowledge Graph** — the AI-native binary format at the heart of the system.
 
 ---
 
@@ -31,7 +33,7 @@ n2 -[cites:0.8]-> n3
 
 The LLM sees this as ordinary text. It does not know it came from a graph. No binary data is transmitted. No special LLM capability is required.
 
-**What `query` returns to the caller:** only `serialized` (the plain-text snippet above) and `nodeCount`. The full graph, raw node list, edge collection, and `.gai` binary are never returned by any MCP tool.
+**What `query` returns to the caller:** only `serialized` (the plain-text snippet above) and `nodeCount`. The full graph, raw node list, edge collection, and `.aikg` binary are never returned by any MCP tool.
 
 ---
 
@@ -41,7 +43,7 @@ The LLM sees this as ordinary text. It does not know it came from a graph. No bi
 Enterprise Perimeter
 ┌─────────────────────────────────────────────────────────────┐
 │                                                             │
-│  Raw files  ──►  Graphnosis  ──►  .gai  (stays internal)   │
+│  Raw files  ──►  Graphnosis  ──►  .aikg  (stays internal)   │
 │                                    ↓                        │
 │  User query ──►  Query engine ──►  ~2K plain-text snippet   │
 │                                                             │
@@ -52,10 +54,10 @@ Enterprise Perimeter
               External or self-hosted LLM
               (Claude / GPT-4 / Gemini / Ollama / Azure / Bedrock)
               — sees ONLY the relevant subgraph text,
-                never the full graph or .gai binary
+                never the full graph or .aikg binary
 ```
 
-**Data minimization by design:** only the output of `queryGraph` — at most 50 nodes, ~2K tokens of plain text — ever crosses the perimeter. The full graph, all other nodes, and the `.gai` file never do.
+**Data minimization by design:** only the output of `queryGraph` — at most 50 nodes, ~2K tokens of plain text — ever crosses the perimeter. The full graph, all other nodes, and the `.aikg` file never do.
 
 **Maximum privacy:** point `OPENAI_BASE_URL` at Ollama or another self-hosted model endpoint. No data leaves the enterprise at all. The LLM API call stays entirely inside the perimeter.
 
@@ -68,7 +70,7 @@ The enterprise deployment runs Graphnosis as a Docker container on your own infr
 ### Requirements
 
 - Docker and Docker Compose
-- A volume containing your `.gai` files (or an empty volume for fresh ingestion)
+- A volume containing your `.aikg` files (or an empty volume for fresh ingestion)
 - An LLM API key or internal LLM gateway URL
 
 ### Quick start
@@ -81,7 +83,7 @@ cd Graphnosis
 # Configure environment
 cp .env.example .env
 # Edit .env: set OPENAI_API_KEY (or OPENAI_BASE_URL for internal gateway)
-# Set GRAPH_DATA_PATH to the directory containing your .gai files
+# Set GRAPH_DATA_PATH to the directory containing your .aikg files
 
 # Start the server
 docker compose up -d
@@ -116,7 +118,7 @@ services:
 | `OPENAI_BASE_URL` | No | Override the OpenAI-compatible API endpoint — point at Azure OpenAI, AWS Bedrock proxy, or a self-hosted Ollama instance. |
 | `MCP_TRANSPORT` | No (default: stdio) | Set to `http` for network transport (Docker / enterprise). |
 | `MCP_PORT` | No (default: 3001) | Port for the HTTP MCP endpoint. |
-| `GRAPH_DATA_PATH` | No (default: ./data) | Host path mounted as `/data` inside the container. Put `.gai` files here. |
+| `GRAPH_DATA_PATH` | No (default: ./data) | Host path mounted as `/data` inside the container. Put `.aikg` files here. |
 
 ---
 
@@ -194,7 +196,7 @@ await client.connect(new StreamableHTTPClientTransport(
 ));
 
 // Load a graph
-const loaded = await client.callTool({ name: 'load_graph', arguments: { path: '/data/knowledge.gai' } });
+const loaded = await client.callTool({ name: 'load_graph', arguments: { path: '/data/knowledge.aikg' } });
 
 // Query it
 const result = await client.callTool({
@@ -226,13 +228,13 @@ The current MCP server does not implement authentication. For enterprise deploym
 
 ### Data at rest
 
-`.gai` files are binary (MessagePack + checksum). They are not encrypted at rest. If your security policy requires encryption at rest, mount an encrypted volume (LUKS, AWS EBS encryption, Azure Disk Encryption) as the `/data` volume.
+`.aikg` files are binary (MessagePack + checksum). They are not encrypted at rest. If your security policy requires encryption at rest, mount an encrypted volume (LUKS, AWS EBS encryption, Azure Disk Encryption) as the `/data` volume.
 
 ### What Graphnosis stores
 
-The server is stateless across restarts. Session graphs live in memory only — no database, no write-back unless you call `export`. The only persistent files are the `.gai` binaries on the mounted volume and an optional TF-IDF disk cache (also on the volume). No conversation content, query text, or LLM responses are stored by Graphnosis.
+The server is stateless across restarts. Session graphs live in memory only — no database, no write-back unless you call `export`. The only persistent files are the `.aikg` binaries on the mounted volume and an optional TF-IDF disk cache (also on the volume). No conversation content, query text, or LLM responses are stored by Graphnosis.
 
-**Embedding indices are not persisted.** When the SDK's `g.buildEmbeddings()` / `g.queryHybrid()` / `g.promptHybrid()` opt-in path is used, the resulting `EmbeddingIndex` lives only in process memory and is **not** written to `.gai`, SQLite, `toBuffer()`, or `toSqliteBuffer()`. After a restart or any `load*` / `fromBuffer*` call, callers must re-run `buildEmbeddings()` (which makes outbound calls to the configured embedding adapter). Plan capacity and egress accordingly, or stay on the default sync TF-IDF path which has no such requirement.
+**Embedding indices are not persisted.** When the SDK's `g.buildEmbeddings()` / `g.queryHybrid()` / `g.promptHybrid()` opt-in path is used, the resulting `EmbeddingIndex` lives only in process memory and is **not** written to `.aikg`, SQLite, `toBuffer()`, or `toSqliteBuffer()`. After a restart or any `load*` / `fromBuffer*` call, callers must re-run `buildEmbeddings()` (which makes outbound calls to the configured embedding adapter). Plan capacity and egress accordingly, or stay on the default sync TF-IDF path which has no such requirement.
 
 **Embedding egress is via a pluggable adapter, not a hardcoded provider.** v0.2+ requires consumers to supply an `EmbeddingAdapter` (via the constructor `embed` option or `buildEmbeddings({ adapter })`). The SDK ships built-in adapters for OpenAI (`@nehloo/graphnosis/adapters/openai`) and a static fixture adapter for tests (`@nehloo/graphnosis/adapters/static`). Voyage / Cohere / Bedrock / on-prem adapters are 20-line implementations of the contract. Importantly: **no adapter is loaded by default** — auditing the no-egress guarantee is a matter of grepping consumer code for the specific adapter import they use.
 
@@ -292,11 +294,11 @@ The graph construction pipeline (TF-IDF, BFS traversal, subgraph serialization) 
 
 ## Compliance Notes
 
-**Data residency:** The `.gai` file and all indexed knowledge never leave the volume you control. Only the per-query subgraph snippet (plain text, max ~2K tokens) is sent to the LLM endpoint. If your LLM endpoint is self-hosted (Ollama, vLLM) or a region-locked cloud deployment (Azure EU regions, AWS GovCloud), all data processing can be constrained to a specific geographic region or network boundary.
+**Data residency:** The `.aikg` file and all indexed knowledge never leave the volume you control. Only the per-query subgraph snippet (plain text, max ~2K tokens) is sent to the LLM endpoint. If your LLM endpoint is self-hosted (Ollama, vLLM) or a region-locked cloud deployment (Azure EU regions, AWS GovCloud), all data processing can be constrained to a specific geographic region or network boundary.
 
-**Audit trail:** Every node in the graph carries `createdAt`, `lastAccessedAt`, and `accessCount` metadata. The `.gai` format includes a checksum for integrity verification. Corrections are soft-delete only — no knowledge is permanently destroyed, making the graph fully auditable.
+**Audit trail:** Every node in the graph carries `createdAt`, `lastAccessedAt`, and `accessCount` metadata. The `.aikg` format includes a checksum for integrity verification. Corrections are soft-delete only — no knowledge is permanently destroyed, making the graph fully auditable.
 
-**Open source:** The full codebase is MIT-licensed and auditable. No proprietary components, no binary blobs, no vendor lock-in. The `.gai` format specification is documented in `src/core/format/` and can be implemented independently.
+**Open source:** The full codebase is MIT-licensed and auditable. No proprietary components, no binary blobs, no vendor lock-in. The `.aikg` format specification is documented in `src/core/format/` and can be implemented independently.
 
 ---
 
@@ -332,9 +334,9 @@ yourself with whatever client you prefer (Claude SDK, Azure OpenAI,
 Bedrock, Ollama, vLLM). Graphnosis hands you a `prompt` string; you pick the
 model. This is how you keep data residency under your control.
 
-### `.gai` file integrity — use HMAC when files cross a trust boundary
+### `.aikg` file integrity — use HMAC when files cross a trust boundary
 
-The `.gai` format has two integrity modes:
+The `.aikg` format has two integrity modes:
 
 | Mode | Trailer | Protects against | Use for |
 |------|---------|------------------|---------|
@@ -342,15 +344,15 @@ The `.gai` format has two integrity modes:
 | **HMAC-SHA256** (opt-in) | Checksum + 32-byte HMAC | Tampering, downgrade, forgery | **Everything else** |
 
 The additive checksum is **not a security control** — an attacker who can
-write to the file can trivially recompute it. Any `.gai` file that is:
+write to the file can trivially recompute it. Any `.aikg` file that is:
 
 - written by one tenant and read by another,
 - uploaded to shared storage (S3, blob store, NFS),
 - transferred over an untrusted network,
 - received from an external party,
 
-**must** be written with `writeGai(graph, { hmacKey })` and read with
-`readGai(buffer, { hmacKey })`. The reader fails closed on any mismatch,
+**must** be written with `writeAikg(graph, { hmacKey })` and read with
+`readAikg(buffer, { hmacKey })`. The reader fails closed on any mismatch,
 and also rejects the downgrade case where an attacker strips the HMAC
 trailer (a key supplied against an unsigned file throws).
 
@@ -358,7 +360,7 @@ trailer (a key supplied against an unsigned file throws).
 
 - Minimum 32 bytes of CSPRNG-generated keying material per deployment.
 - Rotate on a schedule that matches your other HMAC keys (typically 90
-  days). Re-sign existing `.gai` files during rotation.
+  days). Re-sign existing `.aikg` files during rotation.
 - Store in your existing secrets manager (AWS Secrets Manager, GCP Secret
   Manager, HashiCorp Vault, Azure Key Vault). Do not commit to source or
   bake into images.
@@ -384,7 +386,7 @@ lockfile.
 Without SQLite the SDK still supports:
 
 - In-memory graphs (default).
-- `.gai` binary persistence (file read/write only — no native deps).
+- `.aikg` binary persistence (file read/write only — no native deps).
 - All query, build, and prompt operations.
 
 ### Parser CVE surface — treat user-submitted files as untrusted
@@ -511,14 +513,14 @@ mitigations:
 
 ### Path handling — do not pass user input
 
-`saveGai`, `loadGai`, `saveSqlite`, `loadSqlite`, and `openSqliteStore` all
+`saveAikg`, `loadAikg`, `saveSqlite`, `loadSqlite`, and `openSqliteStore` all
 forward their path argument directly to `node:fs` / `better-sqlite3`. A
 user-controlled string here is a path-traversal vulnerability.
 
 - Only pass paths your code constructs.
 - Canonicalize via `path.resolve` and confirm the result stays inside an
   expected base directory before passing.
-- Never concatenate user input into a DB or `.gai` filename.
+- Never concatenate user input into a DB or `.aikg` filename.
 
 ### Supply chain — what we do, what you do
 
@@ -574,7 +576,7 @@ import { Graphnosis } from '@nehloo/graphnosis';
 
 // On startup — load persisted graph
 const g = new Graphnosis({ name: 'enterprise-kb' });
-g.loadGai('/data/kb.gai', { hmacKey: process.env.GAI_HMAC_KEY! });
+g.loadAikg('/data/kb.aikg', { hmacKey: process.env.GAI_HMAC_KEY! });
 
 // On each user upload — run in a worker thread for crash isolation
 app.post('/ingest', async (req, res) => {
@@ -594,7 +596,7 @@ app.post('/ingest', async (req, res) => {
     });
   }
 
-  g.saveGai('/data/kb.gai', { hmacKey: process.env.GAI_HMAC_KEY! });
+  g.saveAikg('/data/kb.aikg', { hmacKey: process.env.GAI_HMAC_KEY! });
   res.json({ status: 'ok', newNodes: result.newNodes });
 });
 
@@ -607,7 +609,7 @@ app.post('/resolve', (req, res) => {
     g.deleteNode(nodeA, 'reviewer dismissed');
   }
   // action === 'keep_both' — do nothing, both nodes coexist
-  g.saveGai('/data/kb.gai', { hmacKey: process.env.GAI_HMAC_KEY! });
+  g.saveAikg('/data/kb.aikg', { hmacKey: process.env.GAI_HMAC_KEY! });
   res.json({ status: 'ok' });
 });
 
@@ -650,7 +652,7 @@ const tenantGraph = new Graphnosis({ name: `tenant-${tenantId}` });
 tenantGraph.loadSqlite('/data/tenants.db', tenantId);
 
 const globalGraph = new Graphnosis({ name: 'global-policy' });
-globalGraph.loadGai('/data/policy.gai', { hmacKey: process.env.GAI_HMAC_KEY! });
+globalGraph.loadAikg('/data/policy.aikg', { hmacKey: process.env.GAI_HMAC_KEY! });
 
 // Query both — results merged and deduplicated by content hash
 const prompt = queryGraphs([tenantGraph, globalGraph], userQuestion);
@@ -672,9 +674,9 @@ const prompt = queryGraphs([tenantGraph, globalGraph], userQuestion);
 ### Summary — enterprise adoption checklist
 
 - [ ] Reviewed `src/sdk/index.ts` and confirmed the no-egress invariant.
-- [ ] Using HMAC mode (`hmacKey` option) for every `.gai` file that leaves
+- [ ] Using HMAC mode (`hmacKey` option) for every `.aikg` file that leaves
       the single-machine trust boundary. Key stored in a secrets manager.
-- [ ] Decided on SQLite vs. `.gai`-only; installed `better-sqlite3`
+- [ ] Decided on SQLite vs. `.aikg`-only; installed `better-sqlite3`
       explicitly if needed, with pinned version + integrity hash.
 - [ ] Ingest of user-submitted files runs under a resource-limited sandbox
       (worker_threads with resourceLimits + timeout — see sandboxing example).
