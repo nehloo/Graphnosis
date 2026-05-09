@@ -26,7 +26,7 @@ docker-compose.yml
 
 # Data and secrets
 data/
-*.hcai
+*.gai
 *.db
 *.db-*
 .env
@@ -43,4 +43,4 @@ AGENTS.md
 CLAUDE.md
 REFERENCES.md
 original-discussion.md
-hcai-format/
+gai-format/

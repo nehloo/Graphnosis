@@ -1,5 +1,5 @@
 /**
- * HippoCortex MCP Server
+ * Graphnosis MCP Server
  *
  * Mode 1 (stdio, default): started by Claude Code / Claude Desktop via claude_desktop_config.json
  *   MCP_TRANSPORT unset → stdio
@@ -10,10 +10,10 @@
  * Example claude_desktop_config.json entry (Mode 1):
  *   {
  *     "mcpServers": {
- *       "hippocortex": {
+ *       "graphnosis": {
  *         "command": "node",
  *         "args": ["node_modules/.bin/tsx", "src/mcp/server.ts"],
- *         "cwd": "/path/to/HippoCortex"
+ *         "cwd": "/path/to/Graphnosis"
  *       }
  *     }
  *   }
@@ -30,14 +30,14 @@ import { query, QueryInput } from './tools/query.js';
 import { exportGraph, ExportInput } from './tools/export.js';
 
 const server = new McpServer(
-  { name: 'hippocortex', version: '0.1.0' },
+  { name: 'graphnosis', version: '0.1.0' },
   { capabilities: { tools: {} } }
 );
 
 // ── Tool: load_graph ──────────────────────────────────────────────────────────
 server.tool(
   'load_graph',
-  'Load a .hcai knowledge graph file into the session. Returns a graphId for use in subsequent calls.',
+  'Load a .gai knowledge graph file into the session. Returns a graphId for use in subsequent calls.',
   LoadGraphInput.shape,
   async (args: z.infer<typeof LoadGraphInput>) => {
     const result = await loadGraph(args);
@@ -73,7 +73,7 @@ server.tool(
 // ── Tool: update_graph ────────────────────────────────────────────────────────
 server.tool(
   'update_graph',
-  'Incrementally add new files to an existing graph session. Optionally persist back to a .hcai file.',
+  'Incrementally add new files to an existing graph session. Optionally persist back to a .gai file.',
   UpdateGraphInput.shape,
   async (args: z.infer<typeof UpdateGraphInput>) => {
     const result = await updateGraph(args);
@@ -109,7 +109,7 @@ server.tool(
 // ── Tool: export ──────────────────────────────────────────────────────────────
 server.tool(
   'export',
-  'Write the current graph session to a .hcai file on disk.',
+  'Write the current graph session to a .gai file on disk.',
   ExportInput.shape,
   async (args: z.infer<typeof ExportInput>) => {
     const result = await exportGraph(args);
@@ -148,13 +148,13 @@ async function startHttp() {
 
   const port = parseInt(process.env.MCP_PORT ?? '3001', 10);
   app.listen(port, () => {
-    process.stderr.write(`[hippocortex-mcp] HTTP transport listening on port ${port}\n`);
+    process.stderr.write(`[graphnosis-mcp] HTTP transport listening on port ${port}\n`);
   });
 
   return transport;
 }
 
 main().catch(err => {
-  process.stderr.write(`[hippocortex-mcp] Fatal: ${err}\n`);
+  process.stderr.write(`[graphnosis-mcp] Fatal: ${err}\n`);
   process.exit(1);
 });

@@ -1,4 +1,4 @@
-// HippoCortex SDK — public entrypoint for using HippoCortex as an NPM dependency.
+// Graphnosis SDK — public entrypoint for using Graphnosis as an NPM dependency.
 //
 // SECURITY INVARIANTS (enforced by what we re-export, not by runtime checks):
 //   1. The DEFAULT code path performs ZERO network I/O. The sync methods
@@ -10,21 +10,21 @@
 //      symbols listed in invariant 4 — every other code path on this
 //      facade (including the async PDF / file / folder ingestion methods)
 //      is fully offline.
-//   2. `.hcai` files that cross a trust boundary must be written AND read
+//   2. `.gai` files that cross a trust boundary must be written AND read
 //      with `hmacKey`. The default additive checksum catches corruption,
 //      NOT tampering.
-//   3. File paths passed to `saveHcai/loadHcai/saveSqlite/loadSqlite` are
+//   3. File paths passed to `saveGai/loadGai/saveSqlite/loadSqlite` are
 //      forwarded to `node:fs` and `better-sqlite3` as-is. Do NOT pass
 //      user-controlled strings; canonicalize before calling.
 //   4. EMBEDDING CARVE-OUT: the symbols `attachEmbeddings`, `embedNodes`,
-//      `embedQuery`, and the `HippoCortex` methods `buildEmbeddings()`,
+//      `embedQuery`, and the `Graphnosis` methods `buildEmbeddings()`,
 //      `queryHybrid()`, `promptHybrid()`, `appendWithEmbeddings()` DO
 //      reach the network via the configured `EmbeddingAdapter`. The
 //      adapter is the only egress point — by default the SDK ships
 //      with no built-in adapter at all. Importing
-//      `@nehloo/hippocortex/adapters/openai` activates `ai` +
+//      `@nehloo/graphnosis/adapters/openai` activates `ai` +
 //      `@ai-sdk/openai` peer deps; importing
-//      `@nehloo/hippocortex/adapters/static` is offline (no peer deps).
+//      `@nehloo/graphnosis/adapters/static` is offline (no peer deps).
 //      Custom adapters' egress profile is up to the adapter author.
 //      The no-egress guarantee in invariant 1 holds for any code path
 //      that does not touch these symbols — the regular sync `append*()`
@@ -55,8 +55,8 @@ import {
   type QueryOptions,
   type PromptContext,
 } from '@/core/query/query-engine';
-import { writeHcai, type WriteHcaiOptions } from '@/core/format/hcai-writer';
-import { readHcai, type ReadHcaiOptions } from '@/core/format/hcai-reader';
+import { writeGai, type WriteGaiOptions } from '@/core/format/gai-writer';
+import { readGai, type ReadGaiOptions } from '@/core/format/gai-reader';
 import { openSqliteStore } from '@/core/persistence/sqlite-store';
 import { createTfidfIndex, addDocument, computeIdf } from '@/core/similarity/tfidf';
 import {
@@ -162,8 +162,8 @@ function detectNewContradictions(
   return contradictions;
 }
 
-export interface HippoCortexOptions {
-  /** Name attached to the built graph. Defaults to "hippocortex". */
+export interface GraphnosisOptions {
+  /** Name attached to the built graph. Defaults to "graphnosis". */
   name?: string;
   /**
    * Text analyzer for TF-IDF tokenization. Defaults to
@@ -183,9 +183,9 @@ export interface HippoCortexOptions {
    * `queryHybrid()`, `promptHybrid()`, and `appendWithEmbeddings()`.
    *
    * For OpenAI: `openaiEmbedAdapter({ model })` from
-   * `@nehloo/hippocortex/adapters/openai`. For Voyage / Cohere / custom,
+   * `@nehloo/graphnosis/adapters/openai`. For Voyage / Cohere / custom,
    * implement `EmbeddingAdapter` directly. Tests can use
-   * `staticEmbedAdapter({ vectors })` from `@nehloo/hippocortex/adapters/static`.
+   * `staticEmbedAdapter({ vectors })` from `@nehloo/graphnosis/adapters/static`.
    *
    * NETWORK: this adapter is the only opt-in network egress point for
    * the SDK (the rest of the API is fully offline). Audit your call
@@ -217,9 +217,9 @@ export interface HybridQueryOptions extends QueryOptions {
  * Ingests documents, builds a dual-graph, and answers questions against it.
  *
  * ```ts
- * import { HippoCortex } from '@nehloo/hippocortex';
+ * import { Graphnosis } from '@nehloo/graphnosis';
  *
- * const g = new HippoCortex({ name: 'docs' });
+ * const g = new Graphnosis({ name: 'docs' });
  * g.addMarkdown(readmeText, 'README.md');
  * g.build();
  *
@@ -232,7 +232,7 @@ export interface HybridQueryOptions extends QueryOptions {
  * node content as indirect-prompt-injection payload surface. See
  * `enterprise/enterprise.md` for mitigations.
  */
-export class HippoCortex {
+export class Graphnosis {
   private documents: ParsedDocument[] = [];
   private name: string;
   private built: BuiltGraph | null = null;
@@ -244,8 +244,8 @@ export class HippoCortex {
    */
   private embed: EmbeddingAdapter | null = null;
 
-  constructor(opts: HippoCortexOptions = {}) {
-    this.name = opts.name ?? 'hippocortex';
+  constructor(opts: GraphnosisOptions = {}) {
+    this.name = opts.name ?? 'graphnosis';
     this.analyzer = opts.analyzer ?? asciiFoldAnalyzer;
     this.embed = opts.embed ?? null;
   }
@@ -317,12 +317,12 @@ export class HippoCortex {
     const index = this.graph.embeddingIndex;
     if (!index) {
       throw new Error(
-        '[hippocortex] appendWithEmbeddings(): call await g.buildEmbeddings() first'
+        '[graphnosis] appendWithEmbeddings(): call await g.buildEmbeddings() first'
       );
     }
     if (!this.embed) {
       throw new Error(
-        '[hippocortex] appendWithEmbeddings(): no embedding adapter configured. Pass { embed } to the constructor or call buildEmbeddings({ adapter }).'
+        '[graphnosis] appendWithEmbeddings(): no embedding adapter configured. Pass { embed } to the constructor or call buildEmbeddings({ adapter }).'
       );
     }
     // Reach into addDocumentsToGraph directly so we can keep newNodeIds —
@@ -404,7 +404,7 @@ export class HippoCortex {
     const ext = extname(filePath).toLowerCase();
     if (!SUPPORTED_EXTENSIONS.has(ext)) {
       throw new Error(
-        `[hippocortex] Unsupported file extension "${ext}" for ${filePath}. ` +
+        `[graphnosis] Unsupported file extension "${ext}" for ${filePath}. ` +
         `Supported: ${[...SUPPORTED_EXTENSIONS].join(', ')}`
       );
     }
@@ -511,8 +511,8 @@ export class HippoCortex {
    * NETWORK: calls the configured embedding adapter. The adapter is
    * resolved as `opts.adapter ?? this.embed` — pass one or the other.
    *
-   * NOT PERSISTED: embedding vectors are NOT written by `saveHcai()` /
-   * `saveSqlite()`. After `loadHcai()` / `loadSqlite()` you must call
+   * NOT PERSISTED: embedding vectors are NOT written by `saveGai()` /
+   * `saveSqlite()`. After `loadGai()` / `loadSqlite()` you must call
    * `buildEmbeddings()` again to re-embed.
    *
    * @param opts.adapter    Embedding adapter (overrides constructor `embed`).
@@ -529,9 +529,9 @@ export class HippoCortex {
     const adapter = opts.adapter ?? this.embed;
     if (!adapter) {
       throw new Error(
-        '[hippocortex] buildEmbeddings(): no embedding adapter configured. ' +
+        '[graphnosis] buildEmbeddings(): no embedding adapter configured. ' +
         'Pass { adapter } here, or set { embed } on the constructor. ' +
-        'For OpenAI, use openaiEmbedAdapter() from @nehloo/hippocortex/adapters/openai.'
+        'For OpenAI, use openaiEmbedAdapter() from @nehloo/graphnosis/adapters/openai.'
       );
     }
     // Persist the adapter so subsequent queryHybrid / promptHybrid /
@@ -567,12 +567,12 @@ export class HippoCortex {
     const index = g.embeddingIndex;
     if (!index) {
       throw new Error(
-        '[hippocortex] queryHybrid(): call await g.buildEmbeddings() before queryHybrid()'
+        '[graphnosis] queryHybrid(): call await g.buildEmbeddings() before queryHybrid()'
       );
     }
     if (!this.embed) {
       throw new Error(
-        '[hippocortex] queryHybrid(): no embedding adapter configured. ' +
+        '[graphnosis] queryHybrid(): no embedding adapter configured. ' +
         'Pass { embed } to the constructor or call buildEmbeddings({ adapter }).'
       );
     }
@@ -616,7 +616,7 @@ export class HippoCortex {
 
   /** Access the built graph. Throws if build() was not called. */
   get graph(): BuiltGraph {
-    if (!this.built) throw new Error('[hippocortex] call .build() before accessing the graph');
+    if (!this.built) throw new Error('[graphnosis] call .build() before accessing the graph');
     return this.built;
   }
 
@@ -649,7 +649,7 @@ export class HippoCortex {
   /**
    * Reconstruct the TF-IDF index from the content of all existing nodes.
    *
-   * Call this after `loadHcai()` or `loadSqlite()` / `loadSqliteByName()` before
+   * Call this after `loadGai()` or `loadSqlite()` / `loadSqliteByName()` before
    * issuing `query()` calls. It is called automatically by those load methods,
    * so you only need this if you have mutated the graph manually.
    *
@@ -681,7 +681,7 @@ export class HippoCortex {
   // --- Persistence ----------------------------------------------------------
 
   /**
-   * Serialize the graph to .hcai binary and write it to disk.
+   * Serialize the graph to .gai binary and write it to disk.
    *
    * SECURITY: pass `hmacKey` for any file that will cross a trust boundary
    * (shared storage, network transfer, multi-tenant DB). Without it the
@@ -689,52 +689,52 @@ export class HippoCortex {
    * WARNING: `filePath` is forwarded to `fs.writeFileSync` unchanged. Do
    * not pass user-controlled paths.
    */
-  saveHcai(filePath: string, opts: WriteHcaiOptions = {}): void {
+  saveGai(filePath: string, opts: WriteGaiOptions = {}): void {
     writeFileSync(filePath, this.toBuffer(opts));
   }
 
   /**
-   * Serialize the graph to a .hcai-format `Buffer` without touching the
+   * Serialize the graph to a .gai-format `Buffer` without touching the
    * filesystem. Designed for serverless / edge runtimes (Vercel, Lambda,
    * Cloudflare Workers, Fly Machines) where writing to `/tmp` and reading
    * back is wasteful or unavailable.
    *
    * ```ts
    * const buf = g.toBuffer({ hmacKey });
-   * await blobStore.put('knowledge.hcai', buf);
+   * await blobStore.put('knowledge.gai', buf);
    * ```
    *
    * SECURITY: pass `hmacKey` for any buffer that will cross a trust
    * boundary. Without it the trailer is an additive checksum only —
    * trivially forgeable.
    */
-  toBuffer(opts: WriteHcaiOptions = {}): Buffer {
-    return writeHcai(this.graph, opts);
+  toBuffer(opts: WriteGaiOptions = {}): Buffer {
+    return writeGai(this.graph, opts);
   }
 
   /**
-   * Load a .hcai file and replace the current graph. The TF-IDF index is
+   * Load a .gai file and replace the current graph. The TF-IDF index is
    * automatically rebuilt from node content so `query()` works immediately.
    *
    * SECURITY: if the file was written with `hmacKey`, the same key must be
    * supplied here. Fail-closed: a missing key (or a key against an
    * unsigned file — a downgrade attempt) throws.
    */
-  loadHcai(filePath: string, opts: ReadHcaiOptions = {}): KnowledgeGraph {
+  loadGai(filePath: string, opts: ReadGaiOptions = {}): KnowledgeGraph {
     return this.fromBuffer(readFileSync(filePath), opts);
   }
 
   /**
-   * Load a .hcai-format `Buffer` (e.g. read from blob storage) and replace
+   * Load a .gai-format `Buffer` (e.g. read from blob storage) and replace
    * the current graph. The TF-IDF index is automatically rebuilt so
    * `query()` works immediately.
    *
-   * SECURITY: same fail-closed semantics as `loadHcai` — a buffer signed
+   * SECURITY: same fail-closed semantics as `loadGai` — a buffer signed
    * with `hmacKey` requires the same key here, and a missing-key /
    * mismatched-key load throws.
    */
-  fromBuffer(buf: Buffer, opts: ReadHcaiOptions = {}): KnowledgeGraph {
-    const { graph } = readHcai(buf, opts);
+  fromBuffer(buf: Buffer, opts: ReadGaiOptions = {}): KnowledgeGraph {
+    const { graph } = readGai(buf, opts);
     this.built = graph as BuiltGraph;
     this.documents = [];
     this.rebuildIndex();
@@ -769,7 +769,7 @@ export class HippoCortex {
    * ```
    */
   toSqliteBuffer(): Buffer {
-    const dir = mkdtempSync(join(tmpdir(), 'hippocortex-sqlite-'));
+    const dir = mkdtempSync(join(tmpdir(), 'graphnosis-sqlite-'));
     const path = join(dir, 'graph.db');
     try {
       const store = openSqliteStore(path);
@@ -806,16 +806,16 @@ export class HippoCortex {
   /**
    * Load the most recently updated graph with the given **name** from a SQLite
    * database file. This is the stable reload path across process restarts —
-   * use the same `name` you passed to `new HippoCortex({ name })` or `build()`.
+   * use the same `name` you passed to `new Graphnosis({ name })` or `build()`.
    *
    * ```ts
    * // Process A — build and save
-   * const g = new HippoCortex({ name: 'my-docs' });
+   * const g = new Graphnosis({ name: 'my-docs' });
    * g.addMarkdown(content, 'readme.md').build();
    * g.saveSqlite('./data/kg.db');
    *
    * // Process B — cold reload
-   * const g2 = new HippoCortex();
+   * const g2 = new Graphnosis();
    * g2.loadSqliteByName('./data/kg.db', 'my-docs');
    * const ctx = g2.query('how does chunking work?'); // works ✓
    * ```
@@ -850,7 +850,7 @@ export class HippoCortex {
    * Returns `null` if no matching graph is found.
    */
   fromSqliteBuffer(buf: Buffer, graphName?: string): KnowledgeGraph | null {
-    const dir = mkdtempSync(join(tmpdir(), 'hippocortex-sqlite-'));
+    const dir = mkdtempSync(join(tmpdir(), 'graphnosis-sqlite-'));
     const path = join(dir, 'graph.db');
     try {
       writeFileSync(path, buf);
@@ -971,7 +971,7 @@ export class HippoCortex {
 // --- Multi-graph federation --------------------------------------------------
 
 /**
- * Query multiple independent HippoCortex instances in parallel and merge their
+ * Query multiple independent Graphnosis instances in parallel and merge their
  * subgraph results into a single ranked prompt.
  *
  * Each graph is queried independently with the same question. The scored nodes
@@ -987,14 +987,14 @@ export class HippoCortex {
  *
  * **Security:** each graph is queried in-process — no network egress.
  *
- * @param graphs    Array of built HippoCortex instances to query.
+ * @param graphs    Array of built Graphnosis instances to query.
  * @param question  The natural-language question.
  * @param opts      Standard QueryOptions applied to each graph independently.
  * @param maxNodes  Max nodes to include across all graphs (default 20).
  * @returns A merged prompt string ready to send to any LLM.
  */
 export function queryGraphs(
-  graphs: HippoCortex[],
+  graphs: Graphnosis[],
   question: string,
   opts: QueryOptions & PromptContext = {},
   maxNodes = 20
@@ -1087,8 +1087,8 @@ export {
 export { parseMarkdown } from '@/core/ingestion/parsers/markdown-parser';
 export { parseHtml } from '@/core/ingestion/parsers/html-parser';
 export { parseCsv, parseJson } from '@/core/ingestion/parsers/csv-parser';
-export { writeHcai, type WriteHcaiOptions } from '@/core/format/hcai-writer';
-export { readHcai, type ReadHcaiOptions, type HcaiHeader } from '@/core/format/hcai-reader';
+export { writeGai, type WriteGaiOptions } from '@/core/format/gai-writer';
+export { readGai, type ReadGaiOptions, type GaiHeader } from '@/core/format/gai-reader';
 export { openSqliteStore, type SqliteStore } from '@/core/persistence/sqlite-store';
 export { toSerializable, fromSerializable } from '@/core/graph/graph-store';
 

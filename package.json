@@ -1,11 +1,11 @@
 {
-  "name": "@nehloo/hippocortex",
-  "version": "0.3.0",
-  "description": "HippoCortex — an AI-native knowledge and memory framework. Cortex (storage) + hippocampus (indexing) + prefrontal cortex (retrieval), built in-process as a typed dual graph.",
+  "name": "@nehloo/graphnosis",
+  "version": "0.2.2",
+  "description": "AI-native dual-graph knowledge representation — build, query, and persist typed knowledge graphs in-process.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nehloo/HippoCortex.git"
+    "url": "https://github.com/nehloo/Graphnosis.git"
   },
   "main": "dist/sdk/index.js",
   "types": "dist/sdk/index.d.ts",
@@ -112,12 +112,8 @@
     "typescript": "^5"
   },
   "keywords": [
-    "hippocortex",
     "graph",
     "knowledge-graph",
-    "dual-graph",
-    "hippocampus",
-    "neocortex",
     "rag",
     "llm",
     "ai",

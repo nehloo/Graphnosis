@@ -1,4 +1,4 @@
-# HippoCortex — References & Attribution
+# Graphnosis — References & Attribution
 
 ---
 
@@ -21,7 +21,7 @@ Anthropic / Linux Foundation (2024).
 **Model Context Protocol Specification.**
 https://modelcontextprotocol.io
 
-The open protocol implemented by the HippoCortex MCP server (`src/mcp/`). Both the stdio transport (Mode 1, local / Claude Desktop) and the StreamableHTTP transport (Mode 2, enterprise Docker) conform to this specification.
+The open protocol implemented by the Graphnosis MCP server (`src/mcp/`). Both the stdio transport (Mode 1, local / Claude Desktop) and the StreamableHTTP transport (Mode 2, enterprise Docker) conform to this specification.
 
 ---
 
@@ -29,7 +29,7 @@ MessagePack project.
 **MessagePack Specification.**
 https://msgpack.org
 
-The binary serialization format underlying the `.hcai` (HippoCortex AI) file format. Implemented via the `msgpackr` npm package in `src/core/format/gai-writer.ts` and `gai-reader.ts`.
+The binary serialization format underlying the `.gai` (Graphnosis AI) file format. Implemented via the `msgpackr` npm package in `src/core/format/gai-writer.ts` and `gai-reader.ts`.
 
 ---
 
@@ -55,20 +55,20 @@ OpenAI (2024). **text-embedding-3-small** — semantic retrieval embeddings in h
 
 Lazar, N. (late 1990s).
 **Neural Network C++ class** (personal project; also contributed to a computer science assignment at Transilvania University, Brașov, Romania).
-A handwritten C++ training loop that ingested pixel-drawn letter sketches, ran repeated training cycles, and identified the drawn character. The first personal experiment in machine pattern recognition — and the direct intellectual precursor to HippoCortex's approach of structured, typed knowledge representation for AI comprehension.
+A handwritten C++ training loop that ingested pixel-drawn letter sketches, ran repeated training cycles, and identified the drawn character. The first personal experiment in machine pattern recognition — and the direct intellectual precursor to Graphnosis's approach of structured, typed knowledge representation for AI comprehension.
 
 ---
 
 Lazar, N. (late 1990s).
 **EditIcon** — pixel editor companion tool (personal project).
 https://github.com/nehloo/EditIcon
-The pixel drawing tool used to create hand-drawn letter inputs for the neural network class above. Preserved as an artifact of that era. Referenced in the README ("The Question That Started This") as part of HippoCortex's origin story.
+The pixel drawing tool used to create hand-drawn letter inputs for the neural network class above. Preserved as an artifact of that era. Referenced in the README ("The Question That Started This") as part of Graphnosis's origin story.
 
 ---
 
 ## Related Work
 
-The following papers and systems address similar problems and are discussed in the README for context and comparison. HippoCortex was developed independently and does not derive from any of these works.
+The following papers and systems address similar problems and are discussed in the README for context and comparison. Graphnosis was developed independently and does not derive from any of these works.
 
 ---
 

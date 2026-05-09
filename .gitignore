@@ -37,10 +37,10 @@ yarn-error.log*
 .env*
 !.env.example
 
-# HippoCortex data
+# Graphnosis data
 /data/
 
-# HippoCortex plans
+# Graphnosis plans
 /plans/
 
 # vercel

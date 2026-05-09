@@ -1,10 +1,9 @@
-// HippoCortex Constants
+// Graphnosis Constants
 
-// .hcai file format magic bytes: "HCAI" (4 bytes ASCII)
-// .hcai = "HippoCortex AI" — the AI-native knowledge graph format
-// The format version is stored separately in the msgpack header.
-export const HCAI_MAGIC = new Uint8Array([0x48, 0x43, 0x41, 0x49]);
-export const HCAI_VERSION = 1;
+// .gai file format magic bytes: "GAI" + version 1
+// .gai = "Graphnosis AI" — the AI-native knowledge graph format
+export const GAI_MAGIC = new Uint8Array([0x47, 0x41, 0x49, 0x01]);
+export const GAI_VERSION = 1;
 
 // Similarity thresholds
 export const SIMILARITY_THRESHOLD = 0.3; // Minimum cosine similarity for undirected edges

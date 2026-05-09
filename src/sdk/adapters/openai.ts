@@ -24,7 +24,7 @@ async function loadAiSdk(): Promise<{
     ]);
     return { embedMany: aiMod.embedMany, openai: openaiMod.openai };
   } catch {
-    throw new Error(`[hippocortex] ${PEER_DEP_HINT}`);
+    throw new Error(`[graphnosis] ${PEER_DEP_HINT}`);
   }
 }
 

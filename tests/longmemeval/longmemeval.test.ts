@@ -1,4 +1,4 @@
-// LongMemEval-style benchmark suite for HippoCortex
+// LongMemEval-style benchmark suite for Graphnosis
 // Tests knowledge retention, recall accuracy, contradiction handling,
 // temporal awareness, and cross-source reasoning
 //

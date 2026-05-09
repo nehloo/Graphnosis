@@ -1,4 +1,4 @@
-# HippoCortex MCP Server — Mode 2 (Enterprise On-Premises)
+# Graphnosis MCP Server — Mode 2 (Enterprise On-Premises)
 #
 # Usage:
 #   docker compose up
@@ -10,12 +10,12 @@
 #   OPENAI_API_KEY: ollama   # or whatever your gateway expects
 
 services:
-  hippocortex-mcp:
+  graphnosis-mcp:
     build: .
     ports:
       - "3001:3001"
     volumes:
-      # Mount the directory containing your .hcai files
+      # Mount the directory containing your .gai files
       - ${GRAPH_DATA_PATH:-./data}:/data
     environment:
       MCP_TRANSPORT: http

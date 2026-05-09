@@ -123,7 +123,7 @@ export function buildGraph(
     : { prunedEdges: 0, prunedNodes: 0 };
 
   if (prunedNodes > 0 || prunedEdges > 0) {
-    console.log(`[hippocortex] Pruned ${prunedNodes} orphan nodes, ${prunedEdges} low-weight edges`);
+    console.log(`[graphnosis] Pruned ${prunedNodes} orphan nodes, ${prunedEdges} low-weight edges`);
   }
 
   return { ...graph, tfidfIndex } as BuiltGraph;

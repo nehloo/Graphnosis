@@ -116,14 +116,14 @@ export default function BenchmarkPage() {
 
           {/* Explanation */}
           <div className="bg-surface rounded-lg border border-border p-4 text-xs text-muted space-y-2">
-            <p><strong className="text-foreground">How it works:</strong> Each query is processed through the HippoCortex pipeline:</p>
+            <p><strong className="text-foreground">How it works:</strong> Each query is processed through the Graphnosis pipeline:</p>
             <ol className="list-decimal list-inside space-y-1 ml-2">
               <li>TF-IDF matching finds seed nodes (most relevant to the query)</li>
               <li>BFS traversal with score decay collects a subgraph from seed nodes</li>
               <li>The subgraph is serialized into a structured format for the LLM</li>
               <li>Token estimate is ~4 characters per token</li>
             </ol>
-            <p className="mt-2"><strong className="text-foreground">vs. flat RAG:</strong> Standard RAG returns unconnected text chunks. HippoCortex returns a structured subgraph with typed nodes and edges, giving the LLM explicit relationship information for reasoning.</p>
+            <p className="mt-2"><strong className="text-foreground">vs. flat RAG:</strong> Standard RAG returns unconnected text chunks. Graphnosis returns a structured subgraph with typed nodes and edges, giving the LLM explicit relationship information for reasoning.</p>
           </div>
         </>
       )}

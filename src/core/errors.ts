@@ -15,8 +15,8 @@ export class AnalyzerMismatchError extends Error {
     public readonly runtimeAdapterId: string
   ) {
     super(
-      `[hippocortex] analyzer mismatch: index was built with '${savedAdapterId}' but the runtime is configured with '${runtimeAdapterId}'. ` +
-      `Re-build the index with the matching analyzer or pass { analyzer } to the HippoCortex constructor.`
+      `[graphnosis] analyzer mismatch: index was built with '${savedAdapterId}' but the runtime is configured with '${runtimeAdapterId}'. ` +
+      `Re-build the index with the matching analyzer or pass { analyzer } to the Graphnosis constructor.`
     );
   }
 }
@@ -33,8 +33,8 @@ export class EmbeddingAdapterMismatchError extends Error {
     public readonly runtimeAdapterId: string
   ) {
     super(
-      `[hippocortex] embedding adapter mismatch: index was built with '${savedAdapterId}' but the runtime is configured with '${runtimeAdapterId}'. ` +
-      `Re-embed with the matching adapter or pass { embed } to the HippoCortex constructor.`
+      `[graphnosis] embedding adapter mismatch: index was built with '${savedAdapterId}' but the runtime is configured with '${runtimeAdapterId}'. ` +
+      `Re-embed with the matching adapter or pass { embed } to the Graphnosis constructor.`
     );
   }
 }

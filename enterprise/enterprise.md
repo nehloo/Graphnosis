@@ -1,10 +1,10 @@
-# HippoCortex — Enterprise Deployment & Privacy Architecture
+# Graphnosis — Enterprise Deployment & Privacy Architecture
 
 ## The Core Privacy Guarantee
 
 **The graph never leaves the enterprise.**
 
-When you use HippoCortex with any LLM — Claude, GPT-4, Gemini, Ollama, Azure OpenAI, AWS Bedrock — only a small plain-text snippet (the subgraph relevant to the user's question, typically ~2,000 tokens) is ever sent to the LLM API. The `.hcai` binary file, the full knowledge graph, all indexed nodes, and all edge data remain inside your machine or your enterprise network at all times.
+When you use Graphnosis with any LLM — Claude, GPT-4, Gemini, Ollama, Azure OpenAI, AWS Bedrock — only a small plain-text snippet (the subgraph relevant to the user's question, typically ~2,000 tokens) is ever sent to the LLM API. The `.gai` binary file, the full knowledge graph, all indexed nodes, and all edge data remain inside your machine or your enterprise network at all times.
 
 This is not a configuration option. It is how the architecture works.
 
@@ -31,7 +31,7 @@ n2 -[cites:0.8]-> n3
 
 The LLM sees this as ordinary text. It does not know it came from a graph. No binary data is transmitted. No special LLM capability is required.
 
-**What `query` returns to the caller:** only `serialized` (the plain-text snippet above) and `nodeCount`. The full graph, raw node list, edge collection, and `.hcai` binary are never returned by any MCP tool.
+**What `query` returns to the caller:** only `serialized` (the plain-text snippet above) and `nodeCount`. The full graph, raw node list, edge collection, and `.gai` binary are never returned by any MCP tool.
 
 ---
 
@@ -41,7 +41,7 @@ The LLM sees this as ordinary text. It does not know it came from a graph. No bi
 Enterprise Perimeter
 ┌─────────────────────────────────────────────────────────────┐
 │                                                             │
-│  Raw files  ──►  HippoCortex  ──►  .hcai  (stays internal)   │
+│  Raw files  ──►  Graphnosis  ──►  .gai  (stays internal)   │
 │                                    ↓                        │
 │  User query ──►  Query engine ──►  ~2K plain-text snippet   │
 │                                                             │
@@ -52,10 +52,10 @@ Enterprise Perimeter
               External or self-hosted LLM
               (Claude / GPT-4 / Gemini / Ollama / Azure / Bedrock)
               — sees ONLY the relevant subgraph text,
-                never the full graph or .hcai binary
+                never the full graph or .gai binary
 ```
 
-**Data minimization by design:** only the output of `queryGraph` — at most 50 nodes, ~2K tokens of plain text — ever crosses the perimeter. The full graph, all other nodes, and the `.hcai` file never do.
+**Data minimization by design:** only the output of `queryGraph` — at most 50 nodes, ~2K tokens of plain text — ever crosses the perimeter. The full graph, all other nodes, and the `.gai` file never do.
 
 **Maximum privacy:** point `OPENAI_BASE_URL` at Ollama or another self-hosted model endpoint. No data leaves the enterprise at all. The LLM API call stays entirely inside the perimeter.
 
@@ -63,25 +63,25 @@ Enterprise Perimeter
 
 ## Deployment: Enterprise On-Premises (Docker)
 
-The enterprise deployment runs HippoCortex as a Docker container on your own infrastructure. It exposes an MCP endpoint over HTTP that any MCP-compatible client can connect to.
+The enterprise deployment runs Graphnosis as a Docker container on your own infrastructure. It exposes an MCP endpoint over HTTP that any MCP-compatible client can connect to.
 
 ### Requirements
 
 - Docker and Docker Compose
-- A volume containing your `.hcai` files (or an empty volume for fresh ingestion)
+- A volume containing your `.gai` files (or an empty volume for fresh ingestion)
 - An LLM API key or internal LLM gateway URL
 
 ### Quick start
 
 ```bash
 # Clone the repository
-git clone https://github.com/nehloo/HippoCortex
-cd HippoCortex
+git clone https://github.com/nehloo/Graphnosis
+cd Graphnosis
 
 # Configure environment
 cp .env.example .env
 # Edit .env: set OPENAI_API_KEY (or OPENAI_BASE_URL for internal gateway)
-# Set GRAPH_DATA_PATH to the directory containing your .hcai files
+# Set GRAPH_DATA_PATH to the directory containing your .gai files
 
 # Start the server
 docker compose up -d
@@ -94,7 +94,7 @@ docker compose up -d
 
 ```yaml
 services:
-  hippocortex-mcp:
+  graphnosis-mcp:
     build: .
     ports:
       - "${MCP_PORT:-3001}:3001"
@@ -116,13 +116,13 @@ services:
 | `OPENAI_BASE_URL` | No | Override the OpenAI-compatible API endpoint — point at Azure OpenAI, AWS Bedrock proxy, or a self-hosted Ollama instance. |
 | `MCP_TRANSPORT` | No (default: stdio) | Set to `http` for network transport (Docker / enterprise). |
 | `MCP_PORT` | No (default: 3001) | Port for the HTTP MCP endpoint. |
-| `GRAPH_DATA_PATH` | No (default: ./data) | Host path mounted as `/data` inside the container. Put `.hcai` files here. |
+| `GRAPH_DATA_PATH` | No (default: ./data) | Host path mounted as `/data` inside the container. Put `.gai` files here. |
 
 ---
 
 ## Using a Self-Hosted LLM (Ollama)
 
-For maximum data isolation — no data leaves the enterprise at all — run Ollama alongside HippoCortex and point the API base URL at it:
+For maximum data isolation — no data leaves the enterprise at all — run Ollama alongside Graphnosis and point the API base URL at it:
 
 ```yaml
 # docker-compose.yml addition
@@ -134,7 +134,7 @@ services:
     ports:
       - "11434:11434"
 
-  hippocortex-mcp:
+  graphnosis-mcp:
     environment:
       OPENAI_BASE_URL: "http://ollama:11434/v1"
       OPENAI_API_KEY: "ollama"  # placeholder, required by the SDK
@@ -142,7 +142,7 @@ services:
 
 With this configuration, every LLM call — preference extraction, session summaries, and the final answer — stays inside the container network. Zero external API calls.
 
-HippoCortex uses the OpenAI-compatible API (`/v1/chat/completions`). Any self-hosted model that implements this interface works: Ollama, vLLM, LM Studio, LocalAI, text-generation-webui with the OpenAI extension, and others.
+Graphnosis uses the OpenAI-compatible API (`/v1/chat/completions`). Any self-hosted model that implements this interface works: Ollama, vLLM, LM Studio, LocalAI, text-generation-webui with the OpenAI extension, and others.
 
 ---
 
@@ -175,7 +175,7 @@ Add to your MCP server config:
 ```json
 {
   "mcpServers": {
-    "hippocortex": {
+    "graphnosis": {
       "type": "http",
       "url": "http://your-internal-host:3001/mcp"
     }
@@ -194,7 +194,7 @@ await client.connect(new StreamableHTTPClientTransport(
 ));
 
 // Load a graph
-const loaded = await client.callTool({ name: 'load_graph', arguments: { path: '/data/knowledge.hcai' } });
+const loaded = await client.callTool({ name: 'load_graph', arguments: { path: '/data/knowledge.gai' } });
 
 // Query it
 const result = await client.callTool({
@@ -226,19 +226,19 @@ The current MCP server does not implement authentication. For enterprise deploym
 
 ### Data at rest
 
-`.hcai` files are binary (MessagePack + checksum). They are not encrypted at rest. If your security policy requires encryption at rest, mount an encrypted volume (LUKS, AWS EBS encryption, Azure Disk Encryption) as the `/data` volume.
+`.gai` files are binary (MessagePack + checksum). They are not encrypted at rest. If your security policy requires encryption at rest, mount an encrypted volume (LUKS, AWS EBS encryption, Azure Disk Encryption) as the `/data` volume.
 
-### What HippoCortex stores
+### What Graphnosis stores
 
-The server is stateless across restarts. Session graphs live in memory only — no database, no write-back unless you call `export`. The only persistent files are the `.hcai` binaries on the mounted volume and an optional TF-IDF disk cache (also on the volume). No conversation content, query text, or LLM responses are stored by HippoCortex.
+The server is stateless across restarts. Session graphs live in memory only — no database, no write-back unless you call `export`. The only persistent files are the `.gai` binaries on the mounted volume and an optional TF-IDF disk cache (also on the volume). No conversation content, query text, or LLM responses are stored by Graphnosis.
 
-**Embedding indices are not persisted.** When the SDK's `g.buildEmbeddings()` / `g.queryHybrid()` / `g.promptHybrid()` opt-in path is used, the resulting `EmbeddingIndex` lives only in process memory and is **not** written to `.hcai`, SQLite, `toBuffer()`, or `toSqliteBuffer()`. After a restart or any `load*` / `fromBuffer*` call, callers must re-run `buildEmbeddings()` (which makes outbound calls to the configured embedding adapter). Plan capacity and egress accordingly, or stay on the default sync TF-IDF path which has no such requirement.
+**Embedding indices are not persisted.** When the SDK's `g.buildEmbeddings()` / `g.queryHybrid()` / `g.promptHybrid()` opt-in path is used, the resulting `EmbeddingIndex` lives only in process memory and is **not** written to `.gai`, SQLite, `toBuffer()`, or `toSqliteBuffer()`. After a restart or any `load*` / `fromBuffer*` call, callers must re-run `buildEmbeddings()` (which makes outbound calls to the configured embedding adapter). Plan capacity and egress accordingly, or stay on the default sync TF-IDF path which has no such requirement.
 
-**Embedding egress is via a pluggable adapter, not a hardcoded provider.** v0.2+ requires consumers to supply an `EmbeddingAdapter` (via the constructor `embed` option or `buildEmbeddings({ adapter })`). The SDK ships built-in adapters for OpenAI (`@nehloo/hippocortex/adapters/openai`) and a static fixture adapter for tests (`@nehloo/hippocortex/adapters/static`). Voyage / Cohere / Bedrock / on-prem adapters are 20-line implementations of the contract. Importantly: **no adapter is loaded by default** — auditing the no-egress guarantee is a matter of grepping consumer code for the specific adapter import they use.
+**Embedding egress is via a pluggable adapter, not a hardcoded provider.** v0.2+ requires consumers to supply an `EmbeddingAdapter` (via the constructor `embed` option or `buildEmbeddings({ adapter })`). The SDK ships built-in adapters for OpenAI (`@nehloo/graphnosis/adapters/openai`) and a static fixture adapter for tests (`@nehloo/graphnosis/adapters/static`). Voyage / Cohere / Bedrock / on-prem adapters are 20-line implementations of the contract. Importantly: **no adapter is loaded by default** — auditing the no-egress guarantee is a matter of grepping consumer code for the specific adapter import they use.
 
 **Auditor checklist for embedding egress:**
 
-1. Search for `from '@nehloo/hippocortex/adapters/openai'` / `Voyage` / etc. — these are the only modules that reach the network on behalf of HippoCortex.
+1. Search for `from '@nehloo/graphnosis/adapters/openai'` / `Voyage` / etc. — these are the only modules that reach the network on behalf of Graphnosis.
 2. Check the `EmbeddingAdapter.id` of every constructed adapter. The id encodes provider + model + dimension + intent and is persisted on the embedding index for fail-closed mismatch detection at load time.
 3. Confirm the consumer's deployment has the matching API key environment variable. Without it the adapter throws synchronously on first call — easier to detect than silent fallback.
 
@@ -258,7 +258,7 @@ The convention is **not enforced** — the string remains freeform. But the audi
 Worked example for compliance pipelines:
 
 ```ts
-import { generateAuditReport, auditToMarkdown } from '@nehloo/hippocortex';
+import { generateAuditReport, auditToMarkdown } from '@nehloo/graphnosis';
 
 // Default: hide preview noise
 const compliance = generateAuditReport(graph, tfidfIndex);
@@ -267,13 +267,13 @@ const compliance = generateAuditReport(graph, tfidfIndex);
 const forensic = generateAuditReport(graph, tfidfIndex, { hideReasonPrefixes: [] });
 ```
 
-HippoCortex itself follows this convention internally — `cascadeSoftDelete`, `forgetByTimeWindow`, and `forgetByTopic` all default to `system:*` reasons so they don't masquerade as user-driven events in the audit.
+Graphnosis itself follows this convention internally — `cascadeSoftDelete`, `forgetByTimeWindow`, and `forgetByTopic` all default to `system:*` reasons so they don't masquerade as user-driven events in the audit.
 
 ---
 
 ## LLM Compatibility
 
-HippoCortex works with any LLM that accepts a system prompt. The subgraph snippet is plain text — no special model capability is required.
+Graphnosis works with any LLM that accepts a system prompt. The subgraph snippet is plain text — no special model capability is required.
 
 | LLM | Mode | Notes |
 |-----|------|-------|
@@ -292,25 +292,25 @@ The graph construction pipeline (TF-IDF, BFS traversal, subgraph serialization) 
 
 ## Compliance Notes
 
-**Data residency:** The `.hcai` file and all indexed knowledge never leave the volume you control. Only the per-query subgraph snippet (plain text, max ~2K tokens) is sent to the LLM endpoint. If your LLM endpoint is self-hosted (Ollama, vLLM) or a region-locked cloud deployment (Azure EU regions, AWS GovCloud), all data processing can be constrained to a specific geographic region or network boundary.
+**Data residency:** The `.gai` file and all indexed knowledge never leave the volume you control. Only the per-query subgraph snippet (plain text, max ~2K tokens) is sent to the LLM endpoint. If your LLM endpoint is self-hosted (Ollama, vLLM) or a region-locked cloud deployment (Azure EU regions, AWS GovCloud), all data processing can be constrained to a specific geographic region or network boundary.
 
-**Audit trail:** Every node in the graph carries `createdAt`, `lastAccessedAt`, and `accessCount` metadata. The `.hcai` format includes a checksum for integrity verification. Corrections are soft-delete only — no knowledge is permanently destroyed, making the graph fully auditable.
+**Audit trail:** Every node in the graph carries `createdAt`, `lastAccessedAt`, and `accessCount` metadata. The `.gai` format includes a checksum for integrity verification. Corrections are soft-delete only — no knowledge is permanently destroyed, making the graph fully auditable.
 
-**Open source:** The full codebase is MIT-licensed and auditable. No proprietary components, no binary blobs, no vendor lock-in. The `.hcai` format specification is documented in `src/core/format/` and can be implemented independently.
+**Open source:** The full codebase is MIT-licensed and auditable. No proprietary components, no binary blobs, no vendor lock-in. The `.gai` format specification is documented in `src/core/format/` and can be implemented independently.
 
 ---
 
-## Adopting HippoCortex as an NPM Dependency — Security & IT Guidance
+## Adopting Graphnosis as an NPM Dependency — Security & IT Guidance
 
-This section is for engineering and security teams evaluating HippoCortex as an
+This section is for engineering and security teams evaluating Graphnosis as an
 embedded dependency inside a larger enterprise application (not the Docker/MCP
-deployment described above). The SDK is published as `@nehloo/hippocortex` and
+deployment described above). The SDK is published as `@nehloo/graphnosis` and
 wraps the same graph engine used by the Next.js app — but restricted to a pure,
 in-process surface that enterprise reviewers can audit in a single file.
 
 ### The "no-egress" guarantee — and how to verify it
 
-**Guarantee:** importing `@nehloo/hippocortex` and using any of its public APIs
+**Guarantee:** importing `@nehloo/graphnosis` and using any of its public APIs
 never initiates a network connection. No `fetch`, no HTTP client, no OpenAI
 SDK call.
 
@@ -329,12 +329,12 @@ SDK call.
 
 **What this means for the LLM step:** you, the consumer, make the LLM call
 yourself with whatever client you prefer (Claude SDK, Azure OpenAI,
-Bedrock, Ollama, vLLM). HippoCortex hands you a `prompt` string; you pick the
+Bedrock, Ollama, vLLM). Graphnosis hands you a `prompt` string; you pick the
 model. This is how you keep data residency under your control.
 
-### `.hcai` file integrity — use HMAC when files cross a trust boundary
+### `.gai` file integrity — use HMAC when files cross a trust boundary
 
-The `.hcai` format has two integrity modes:
+The `.gai` format has two integrity modes:
 
 | Mode | Trailer | Protects against | Use for |
 |------|---------|------------------|---------|
@@ -342,15 +342,15 @@ The `.hcai` format has two integrity modes:
 | **HMAC-SHA256** (opt-in) | Checksum + 32-byte HMAC | Tampering, downgrade, forgery | **Everything else** |
 
 The additive checksum is **not a security control** — an attacker who can
-write to the file can trivially recompute it. Any `.hcai` file that is:
+write to the file can trivially recompute it. Any `.gai` file that is:
 
 - written by one tenant and read by another,
 - uploaded to shared storage (S3, blob store, NFS),
 - transferred over an untrusted network,
 - received from an external party,
 
-**must** be written with `writeHcai(graph, { hmacKey })` and read with
-`readHcai(buffer, { hmacKey })`. The reader fails closed on any mismatch,
+**must** be written with `writeGai(graph, { hmacKey })` and read with
+`readGai(buffer, { hmacKey })`. The reader fails closed on any mismatch,
 and also rejects the downgrade case where an attacker strips the HMAC
 trailer (a key supplied against an unsigned file throws).
 
@@ -358,7 +358,7 @@ trailer (a key supplied against an unsigned file throws).
 
 - Minimum 32 bytes of CSPRNG-generated keying material per deployment.
 - Rotate on a schedule that matches your other HMAC keys (typically 90
-  days). Re-sign existing `.hcai` files during rotation.
+  days). Re-sign existing `.gai` files during rotation.
 - Store in your existing secrets manager (AWS Secrets Manager, GCP Secret
   Manager, HashiCorp Vault, Azure Key Vault). Do not commit to source or
   bake into images.
@@ -373,7 +373,7 @@ lazily — if it isn't installed, the SDK works for everything except
 installs can skip it:
 
 ```bash
-npm install @nehloo/hippocortex --omit=optional
+npm install @nehloo/graphnosis --omit=optional
 ```
 
 This avoids pulling in native (C++) code and the `node-gyp` / prebuilt-binary
@@ -384,7 +384,7 @@ lockfile.
 Without SQLite the SDK still supports:
 
 - In-memory graphs (default).
-- `.hcai` binary persistence (file read/write only — no native deps).
+- `.gai` binary persistence (file read/write only — no native deps).
 - All query, build, and prompt operations.
 
 ### Parser CVE surface — treat user-submitted files as untrusted
@@ -408,7 +408,7 @@ prototype pollution). Enterprise review should treat the following as
 
 1. **Sandbox ingest.** If you ingest files from end users, run the parse
    step in a short-lived worker (Node `worker_threads`, a container, or a
-   subprocess) with CPU + memory limits. HippoCortex is in-process, but the
+   subprocess) with CPU + memory limits. Graphnosis is in-process, but the
    ingest step can be split into its own sandbox without changing the SDK.
 
    **Minimal `worker_threads` example:**
@@ -416,7 +416,7 @@ prototype pollution). Enterprise review should treat the following as
    ```ts
    // ingest-worker.ts — runs in a worker thread, crash-isolated from host
    import { workerData, parentPort } from 'node:worker_threads';
-   import { HippoCortex } from '@nehloo/hippocortex';
+   import { Graphnosis } from '@nehloo/graphnosis';
 
    const { content, filename, graphName } = workerData as {
      content: string;
@@ -424,7 +424,7 @@ prototype pollution). Enterprise review should treat the following as
      graphName: string;
    };
 
-   const g = new HippoCortex({ name: graphName });
+   const g = new Graphnosis({ name: graphName });
    g.addMarkdown(content, filename);
    g.build();
    const serialized = g.toSerializable();
@@ -482,18 +482,18 @@ prototype pollution). Enterprise review should treat the following as
 3. **Pin versions + commit the lockfile.** Use `npm ci` in CI so the
    resolved transitive tree is the one you audited.
 4. **Mirror via internal registry.** For air-gapped or regulated
-   environments, mirror `@nehloo/hippocortex` and its deps through
+   environments, mirror `@nehloo/graphnosis` and its deps through
    Artifactory / Nexus / CodeArtifact. Enable `npm audit signatures` to
    verify provenance against the public registry.
 
 ### Indirect prompt injection — a shared-responsibility risk
 
-`hippocortex.prompt(question)` inlines node `content` verbatim into the LLM
+`graphnosis.prompt(question)` inlines node `content` verbatim into the LLM
 system prompt. If any of that content originated from a user-submitted
 source, the resulting prompt is a textbook indirect prompt-injection vector
 — a user can plant instructions in a document that later hijack the model.
 
-This is inherent to all RAG systems and not specific to HippoCortex. Your
+This is inherent to all RAG systems and not specific to Graphnosis. Your
 mitigations:
 
 - **Sanitize at ingest.** Strip known injection markers (e.g. `<|im_start|>`,
@@ -504,27 +504,27 @@ mitigations:
   and never let tool output bypass your auth layer.
 - **Output filtering.** Log and review LLM responses for signals of hijack
   (unexpected formatting, attempts to exfiltrate, role-break attempts).
-- **Provenance in the prompt.** HippoCortex already tags every node with its
+- **Provenance in the prompt.** Graphnosis already tags every node with its
   source file (`src:...`). Use that in your downstream system prompt to
   instruct the model to trust system turns over any `src:User (...)`
   content.
 
 ### Path handling — do not pass user input
 
-`saveHcai`, `loadHcai`, `saveSqlite`, `loadSqlite`, and `openSqliteStore` all
+`saveGai`, `loadGai`, `saveSqlite`, `loadSqlite`, and `openSqliteStore` all
 forward their path argument directly to `node:fs` / `better-sqlite3`. A
 user-controlled string here is a path-traversal vulnerability.
 
 - Only pass paths your code constructs.
 - Canonicalize via `path.resolve` and confirm the result stays inside an
   expected base directory before passing.
-- Never concatenate user input into a DB or `.hcai` filename.
+- Never concatenate user input into a DB or `.gai` filename.
 
 ### Supply chain — what we do, what you do
 
 **What we do (publisher side):**
 
-- Scoped package (`@nehloo/hippocortex`) so only members of the `nehloo` npm
+- Scoped package (`@nehloo/graphnosis`) so only members of the `nehloo` npm
   org can publish.
 - `publishConfig.access: "restricted"` by default. Consumers need explicit
   access; the package is not on the public registry until we flip it.
@@ -539,17 +539,17 @@ user-controlled string here is a path-traversal vulnerability.
 - Enable `npm audit signatures` in CI (`npm audit signatures --omit=dev`).
 - Mirror through an internal registry for air-gapped or regulated envs.
 - Pin the version. Do not use `^` or `~` for security-sensitive graphs.
-- Monitor the `@nehloo/hippocortex` package for new releases and review
+- Monitor the `@nehloo/graphnosis` package for new releases and review
   changelogs before bumping.
 - Attach an SBOM to your release pipeline. `npm sbom --sbom-format cyclonedx`
-  emits one that includes the HippoCortex subtree.
+  emits one that includes the Graphnosis subtree.
 
 ### Data in transit — there is no TLS surface
 
 The SDK is strictly in-process. It does not bind a port, does not serve a
-network endpoint, does not accept remote connections. If you wrap HippoCortex
+network endpoint, does not accept remote connections. If you wrap Graphnosis
 in an HTTP / gRPC service, terminate TLS at your gateway or service mesh —
-HippoCortex has no networking layer of its own to configure.
+Graphnosis has no networking layer of its own to configure.
 
 This is deliberate: the attack surface is whatever your wrapper code
 exposes, not the library. Enterprise review reduces to reviewing your
@@ -570,11 +570,11 @@ is **not** automatically modified — your application surface presents the
 conflicts to the appropriate approver (human reviewer, workflow, or LLM judge).
 
 ```ts
-import { HippoCortex } from '@nehloo/hippocortex';
+import { Graphnosis } from '@nehloo/graphnosis';
 
 // On startup — load persisted graph
-const g = new HippoCortex({ name: 'enterprise-kb' });
-g.loadHcai('/data/kb.hcai', { hmacKey: process.env.HCAI_HMAC_KEY! });
+const g = new Graphnosis({ name: 'enterprise-kb' });
+g.loadGai('/data/kb.gai', { hmacKey: process.env.GAI_HMAC_KEY! });
 
 // On each user upload — run in a worker thread for crash isolation
 app.post('/ingest', async (req, res) => {
@@ -594,7 +594,7 @@ app.post('/ingest', async (req, res) => {
     });
   }
 
-  g.saveHcai('/data/kb.hcai', { hmacKey: process.env.HCAI_HMAC_KEY! });
+  g.saveGai('/data/kb.gai', { hmacKey: process.env.GAI_HMAC_KEY! });
   res.json({ status: 'ok', newNodes: result.newNodes });
 });
 
@@ -607,7 +607,7 @@ app.post('/resolve', (req, res) => {
     g.deleteNode(nodeA, 'reviewer dismissed');
   }
   // action === 'keep_both' — do nothing, both nodes coexist
-  g.saveHcai('/data/kb.hcai', { hmacKey: process.env.HCAI_HMAC_KEY! });
+  g.saveGai('/data/kb.gai', { hmacKey: process.env.GAI_HMAC_KEY! });
   res.json({ status: 'ok' });
 });
 
@@ -643,14 +643,14 @@ classification level, `queryGraphs()` merges results at query time without
 sharing any graph state between instances.
 
 ```ts
-import { HippoCortex, queryGraphs } from '@nehloo/hippocortex';
+import { Graphnosis, queryGraphs } from '@nehloo/graphnosis';
 
 // Each tenant graph loaded from its own isolated store
-const tenantGraph = new HippoCortex({ name: `tenant-${tenantId}` });
+const tenantGraph = new Graphnosis({ name: `tenant-${tenantId}` });
 tenantGraph.loadSqlite('/data/tenants.db', tenantId);
 
-const globalGraph = new HippoCortex({ name: 'global-policy' });
-globalGraph.loadHcai('/data/policy.hcai', { hmacKey: process.env.HCAI_HMAC_KEY! });
+const globalGraph = new Graphnosis({ name: 'global-policy' });
+globalGraph.loadGai('/data/policy.gai', { hmacKey: process.env.GAI_HMAC_KEY! });
 
 // Query both — results merged and deduplicated by content hash
 const prompt = queryGraphs([tenantGraph, globalGraph], userQuestion);
@@ -672,9 +672,9 @@ const prompt = queryGraphs([tenantGraph, globalGraph], userQuestion);
 ### Summary — enterprise adoption checklist
 
 - [ ] Reviewed `src/sdk/index.ts` and confirmed the no-egress invariant.
-- [ ] Using HMAC mode (`hmacKey` option) for every `.hcai` file that leaves
+- [ ] Using HMAC mode (`hmacKey` option) for every `.gai` file that leaves
       the single-machine trust boundary. Key stored in a secrets manager.
-- [ ] Decided on SQLite vs. `.hcai`-only; installed `better-sqlite3`
+- [ ] Decided on SQLite vs. `.gai`-only; installed `better-sqlite3`
       explicitly if needed, with pinned version + integrity hash.
 - [ ] Ingest of user-submitted files runs under a resource-limited sandbox
       (worker_threads with resourceLimits + timeout — see sandboxing example).
@@ -689,4 +689,4 @@ const prompt = queryGraphs([tenantGraph, globalGraph], userQuestion);
       tools, output filtering, role-provenance in system prompt).
 - [ ] No path arguments to persistence APIs are user-controlled.
 - [ ] Wrapper service (if any) terminates TLS at a gateway, with its own
-      authn/authz layer in front of HippoCortex APIs.
+      authn/authz layer in front of Graphnosis APIs.

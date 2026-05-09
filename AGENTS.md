@@ -1,20 +1,20 @@
-# HippoCortex — Agent Guidelines
+# Graphnosis — Agent Guidelines
 
 ## Project Overview
 
-HippoCortex is a research prototype that converts raw files into AI-optimized dual-graph knowledge representations. It explores whether structured graphs with typed edges can outperform flat-text RAG for AI comprehension and retrieval.
+Graphnosis is a research prototype that converts raw files into AI-optimized dual-graph knowledge representations. It explores whether structured graphs with typed edges can outperform flat-text RAG for AI comprehension and retrieval.
 
-**Name:** HippoCortex = **graph** + **gnosis** (knowledge) — "graph knowledge" for AI. Formerly "graphAI" (collided with `receptron/graphai` and the GraphAI Inc. trademark) and briefly "Bignosis" before settling here. The `.hcai` file extension stands for **HippoCortex AI** — the AI-native knowledge format.
+**Name:** Graphnosis = **graph** + **gnosis** (knowledge) — "graph knowledge" for AI. Formerly "graphAI" (collided with `receptron/graphai` and the GraphAI Inc. trademark) and briefly "Bignosis" before settling here. The `.gai` file extension stands for **Graphnosis AI** — the AI-native knowledge format.
 
 **Origin:** The project began with the question "Are AI models based on non-oriented graphs?" — which evolved into exploring whether knowledge represented as directed + undirected graphs, serialized in a binary format not designed for human readability, could produce better AI outputs than human-readable formats like markdown.
 
-**Prior art:** Microsoft GraphRAG, LightRAG, LazyGraphRAG explore graph-based RAG. HippoCortex's contribution is the specific combination of dual-graph (directed+undirected over same nodes) + AI-native binary format + human audit trail + temporal awareness + identity extraction + reflection engine — which hasn't been published as a unified system.
+**Prior art:** Microsoft GraphRAG, LightRAG, LazyGraphRAG explore graph-based RAG. Graphnosis's contribution is the specific combination of dual-graph (directed+undirected over same nodes) + AI-native binary format + human audit trail + temporal awareness + identity extraction + reflection engine — which hasn't been published as a unified system.
 
 ## Architecture Principles
 
 1. **Dual-graph over same node set.** Every knowledge unit (node) has both directed edges (causal, temporal, hierarchical, identity) and undirected edges (similarity, association). This provides richer reasoning paths than either graph type alone.
 
-2. **AI-native serialization.** The .hcai binary format (MessagePack) is optimized for token efficiency, not human readability. The subgraph serialization format (`[nodeId|type|score] content`) is designed for LLM consumption.
+2. **AI-native serialization.** The .gai binary format (MessagePack) is optimized for token efficiency, not human readability. The subgraph serialization format (`[nodeId|type|score] content`) is designed for LLM consumption.
 
 3. **Zero-API similarity.** TF-IDF + cosine similarity runs entirely in-process with no external API calls. This makes the pipeline fully local and open-source friendly. Embedding support is optional.
 
@@ -38,7 +38,7 @@ HippoCortex is a research prototype that converts raw files into AI-optimized du
 ### Graph Integrity
 - **Content hash deduplication:** Identical content produces identical hashes; duplicates are merged
 - **Auto-pruning:** Orphan nodes (zero edges) are removed after graph construction
-- **Checksum verification:** .hcai files include a 4-byte checksum; corrupted files are rejected
+- **Checksum verification:** .gai files include a 4-byte checksum; corrupted files are rejected
 - **Edge weight thresholds:** Similarity >= 0.3, entity Jaccard >= 0.2. Below these, edges aren't created
 - **Soft-delete only:** Corrections never hard-delete. Soft-delete sets validUntil + confidence 0.1
 
@@ -86,7 +86,7 @@ HippoCortex is a research prototype that converts raw files into AI-optimized du
 | `src/core/graph/graph-builder.ts` | Central module: documents -> dual graph (with auto-pruning) |
 | `src/core/graph/undirected-edges.ts` | TF-IDF similarity + entity overlap edges |
 | `src/core/query/query-engine.ts` | Enhanced query: decompose + expand + merge seeds + enrich |
-| `src/core/format/hcai-writer.ts` | .hcai binary serialization |
+| `src/core/format/gai-writer.ts` | .gai binary serialization |
 | `src/core/query/subgraph-serializer.ts` | Structured format sent to LLM |
 | `src/core/optimization/reflection.ts` | Contradiction detection, connection discovery, decay, inference |
 | `src/core/corrections/correction-engine.ts` | Human corrections: add/edit/supersede/delete/bulk |

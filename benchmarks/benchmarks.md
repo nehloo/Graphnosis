@@ -1,8 +1,8 @@
-# HippoCortex — Benchmark History
+# Graphnosis — Benchmark History
 
-This document tells the full story of how HippoCortex went from a conceptual question about AI and graphs to a system that scores **76.40%** on the official LongMemEval benchmark — above Zep (71.20%) — using end-to-end QA with a GPT-4 judge and pure TypeScript only:
+This document tells the full story of how Graphnosis went from a conceptual question about AI and graphs to a system that scores **76.40%** on the official LongMemEval benchmark — above Zep (71.20%) — using end-to-end QA with a GPT-4 judge and pure TypeScript only:
 
-### What it took for HippoCortex to score **76.40%** on LongMemEval end-to-end QA with an official GPT-4 judge:
+### What it took for Graphnosis to score **76.40%** on LongMemEval end-to-end QA with an official GPT-4 judge:
 - Pure TypeScript, no vector DB, no fine-tuning
 - text-embedding-3-small (cheapest embedding model)
 - gpt-4o answer model + gpt-4o judge
@@ -31,7 +31,7 @@ The deeper question underneath it: **why do knowledge and memory files have to b
 
 Markdown, prose, plain text — these formats are optimized for humans. They carry redundant phrasing, implicit relationships, linear structure that buries non-linear connections, and ambiguity that humans resolve with world knowledge but AI has to guess at. But AI doesn't need prose. It needs structure — typed relationships, weighted edges, traversable paths. What if knowledge was stored in a format designed for machine comprehension rather than human readability? Fewer tokens, explicit edges, richer reasoning paths.
 
-That question became the hypothesis behind HippoCortex: **structured typed edges outperform flat text chunks for AI comprehension**.
+That question became the hypothesis behind Graphnosis: **structured typed edges outperform flat text chunks for AI comprehension**.
 
 ---
 
@@ -41,7 +41,7 @@ The hypothesis suggested a specific design:
 
 - **Dual-graph** over the same node set — directed edges for causal, temporal, and hierarchical relationships; undirected edges for similarity and co-occurrence. Most graph RAG systems use one graph type. Using both gives AI models richer traversal paths.
 - **Zero-API graph construction** — TF-IDF similarity (pure JS), no embedding API calls required to build the graph. $0 to ingest.
-- **AI-native binary format (.hcai)** — built on MessagePack with a 4-byte magic header, node/edge count metadata, and a checksum. Not designed to be opened in a text editor. Designed for fast machine consumption.
+- **AI-native binary format (.gai)** — built on MessagePack with a 4-byte magic header, node/edge count metadata, and a checksum. Not designed to be opened in a text editor. Designed for fast machine consumption.
 - **Temporal awareness** — every node tracks `createdAt`, `lastAccessedAt`, `accessCount`, `validUntil`, and `confidence` (which decays ~1%/day after 7 days without access). Knowledge that isn't reinforced fades.
 - **Human correction layer** — add facts, supersede outdated info, bulk-import markdown. Human-corrected nodes get maximum confidence (1.0) and never decay.
 
@@ -236,7 +236,7 @@ The key addition was **aggregation-aware retrieval**: recognizing when a questio
 
 **Overall: 72.20% (361/500)**
 
-This placed HippoCortex above Zep (71.20%) on the published leaderboard, measured by the same end-to-end QA methodology.
+This placed Graphnosis above Zep (71.20%) on the published leaderboard, measured by the same end-to-end QA methodology.
 
 ---
 
@@ -402,7 +402,7 @@ All scores below are **end-to-end QA** with an official GPT-4 judge, using the L
 | OMEGA | 95.40% |
 | Mastra | 94.87% |
 | Supermemory | 85.86% |
-| **HippoCortex** | **76.40%** |
+| **Graphnosis** | **76.40%** |
 | Zep | 71.20% |
 
 **On MemPalace:** MemPalace reports 96.6% (ChromaDB baseline) and 100% (Hybrid v4 + Haiku rerank) — but these are **retrieval recall R@5** scores (is the correct session in the top 5 retrieved?), not end-to-end QA. MemPalace's own BENCHMARKS.md is explicit about this distinction: *"MemPal's strength is retrieval recall, not end-to-end QA accuracy — a different metric than some competitors publish."* Their honest end-to-end generalizable figure on held-out questions is 98.4% R@5 — still retrieval, not QA.

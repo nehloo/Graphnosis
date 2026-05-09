@@ -1,48 +1,8 @@
 # Changelog
 
-## v0.3.0
-
-The **Graphnosis → HippoCortex** rebrand release. The framework now mirrors
-the brain systems it models — cortex (storage), hippocampus (indexing),
-prefrontal cortex (retrieval).
-
-### BREAKING
-
-- **Package renamed.** `@nehloo/graphnosis` → `@nehloo/hippocortex`. Update
-  your imports:
-  ```ts
-  // before
-  import { Graphnosis } from '@nehloo/graphnosis';
-  // after
-  import { HippoCortex } from '@nehloo/hippocortex';
-  ```
-  Adapter subpaths follow the same rename: `@nehloo/hippocortex/adapters/openai`,
-  `@nehloo/hippocortex/adapters/static`.
-
-- **File format renamed `.gai` → `.hcai`.** The Adobe Photoshop `.gai`
-  extension collision forced a clean break. New magic bytes (`HCAI`,
-  `0x48 0x43 0x41 0x49`) and new extension. **v0.2.x `.gai` files cannot
-  be read by v0.3.x.** No migration tool — re-build from source.
-
-- **SDK API renamed.** `saveGai`/`loadGai`/`writeGai`/`readGai` →
-  `saveHcai`/`loadHcai`/`writeHcai`/`readHcai`. Types `WriteGaiOptions`,
-  `ReadGaiOptions`, `GaiHeader` → `WriteHcaiOptions`, `ReadHcaiOptions`,
-  `HcaiHeader`. Class `Graphnosis` → `HippoCortex`; interface
-  `GraphnosisOptions` → `HippoCortexOptions`.
-
-- **Default SQLite filename.** `data/graphnosis.db` →
-  `data/hippocortex.db`. Existing local DBs need to be renamed (or pass an
-  explicit `dbPath`).
-
-- **GitHub repo moved.** `github.com/nehloo/Graphnosis` →
-  `github.com/nehloo/HippoCortex`. GitHub auto-redirects the old URL.
-
-- **MCP server identity.** Reports `name: 'hippocortex'`. Docker image tag
-  `graphnosis-mcp` → `hippocortex-mcp`.
-
 ## v0.2.0
 
-The "make HippoCortex actually work for non-OpenAI / non-English /
+The "make Graphnosis actually work for non-OpenAI / non-English /
 serverless consumers" release. Three breaking changes bundled.
 
 Soaked end-to-end at rc.1 by a v0.1.x production consumer — 10/10
@@ -61,13 +21,13 @@ contractual checks passed: buffer I/O + HMAC tamper detection, adapter
 
 - **Peer dependency layout.** `ai` and `@ai-sdk/openai` are still peer
   deps, but they are only loaded when you import
-  `@nehloo/hippocortex/adapters/openai`. Consumers using Voyage / Cohere /
+  `@nehloo/graphnosis/adapters/openai`. Consumers using Voyage / Cohere /
   custom adapters never touch them.
 
 - **`TfidfIndex` carries `provenance`.** `TfidfIndex` and `EmbeddingIndex`
   both gained a `provenance: IndexProvenance` field
   (`{ adapterId, createdAt, checksum? }`). `GraphMetadata` gained
-  `analyzerAdapterId`. **v0.1 `.hcai` files are NOT supported** —
+  `analyzerAdapterId`. **v0.1 `.gai` files are NOT supported** —
   re-build any v0.1 graphs against v0.2 (no production v0.1 deployments
   existed at the time of the v0.2 cut, so no migration path is shipped).
 
@@ -89,7 +49,7 @@ contractual checks passed: buffer I/O + HMAC tamper detection, adapter
   filesystem-based `saveGai`/`loadGai`/`saveSqlite`/`loadSqlite*` keep
   working as thin wrappers.
 
-- **Pluggable text analyzer.** `new HippoCortex({ analyzer })` accepts a
+- **Pluggable text analyzer.** `new Graphnosis({ analyzer })` accepts a
   `TextAnalyzer`. Two built-ins ship:
   - `asciiFoldAnalyzer` *(default, id `ascii-fold`)* — NFD-normalize +
     strip diacritics + English stopwords. `café` and `cafe` collapse
@@ -101,12 +61,12 @@ contractual checks passed: buffer I/O + HMAC tamper detection, adapter
     Finnish, anywhere phonemic distinctions matter.
 
   Stemming-aware language analyzers (Snowball, Zemberek, …) belong in a
-  future `@nehloo/hippocortex-langs` companion package.
+  future `@nehloo/graphnosis-langs` companion package.
 
-- **Pluggable embedding adapter.** `new HippoCortex({ embed })` accepts
+- **Pluggable embedding adapter.** `new Graphnosis({ embed })` accepts
   an `EmbeddingAdapter`. Built-in adapters at
-  `@nehloo/hippocortex/adapters/openai` (`openaiEmbedAdapter`) and
-  `@nehloo/hippocortex/adapters/static` (`staticEmbedAdapter` for tests).
+  `@nehloo/graphnosis/adapters/openai` (`openaiEmbedAdapter`) and
+  `@nehloo/graphnosis/adapters/static` (`staticEmbedAdapter` for tests).
   See `src/sdk/adapters/README.md` for the full contract and a Voyage
   example.
 
@@ -134,7 +94,7 @@ contractual checks passed: buffer I/O + HMAC tamper detection, adapter
 **Embeddings — adopt the adapter contract:**
 ```diff
 - await g.buildEmbeddings({ model: 'text-embedding-3-small' });
-+ import { openaiEmbedAdapter } from '@nehloo/hippocortex/adapters/openai';
++ import { openaiEmbedAdapter } from '@nehloo/graphnosis/adapters/openai';
 + await g.buildEmbeddings({ adapter: openaiEmbedAdapter({ model: 'text-embedding-3-small' }) });
 ```
 
@@ -149,29 +109,29 @@ uploading the bytes (the typical Vercel / Lambda / Cloudflare pattern):
 - import { join } from 'node:path';
 -
 - const dir = mkdtempSync(join(tmpdir(), 'graph-'));
-- const path = join(dir, 'kg.hcai');
+- const path = join(dir, 'kg.gai');
 - try {
 -   g.saveGai(path, { hmacKey });
--   await blob.put('graphs/kg.hcai', readFileSync(path));
+-   await blob.put('graphs/kg.gai', readFileSync(path));
 - } finally {
 -   rmSync(dir, { recursive: true, force: true });
 - }
-+ await blob.put('graphs/kg.hcai', g.toBuffer({ hmacKey }));
++ await blob.put('graphs/kg.gai', g.toBuffer({ hmacKey }));
 ```
 
 And on the reload path:
 
 ```diff
 - const dir = mkdtempSync(join(tmpdir(), 'graph-'));
-- const path = join(dir, 'kg.hcai');
+- const path = join(dir, 'kg.gai');
 - try {
--   const bytes = await blob.get('graphs/kg.hcai');
+-   const bytes = await blob.get('graphs/kg.gai');
 -   writeFileSync(path, bytes);
 -   g.loadGai(path, { hmacKey });
 - } finally {
 -   rmSync(dir, { recursive: true, force: true });
 - }
-+ const bytes = await blob.get('graphs/kg.hcai');
++ const bytes = await blob.get('graphs/kg.gai');
 + g.fromBuffer(Buffer.from(bytes), { hmacKey });
 ```
 
@@ -181,12 +141,12 @@ doesn't.
 
 **Non-English ingestion — choose your analyzer:**
 ```diff
-- const g = new HippoCortex({ name: 'docs-ro' });
+- const g = new Graphnosis({ name: 'docs-ro' });
 - g.addMarkdown('Cusătura tradițională…');
 - g.build();
 - g.query('cusătură'); // ✗ silently empty — diacritics dropped in v0.1
-+ import { unicodeAnalyzer } from '@nehloo/hippocortex';  // for Turkish / Hungarian / Finnish
-+ const g = new HippoCortex({ name: 'docs-ro', analyzer: unicodeAnalyzer });
++ import { unicodeAnalyzer } from '@nehloo/graphnosis';  // for Turkish / Hungarian / Finnish
++ const g = new Graphnosis({ name: 'docs-ro', analyzer: unicodeAnalyzer });
 + g.addMarkdown('Cusătura tradițională…');
 + g.build();
 + g.query('cusătură'); // ✓

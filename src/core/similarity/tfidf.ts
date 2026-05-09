@@ -29,8 +29,8 @@ export function createTfidfIndex(analyzer: TextAnalyzer = asciiFoldAnalyzer): Tf
 }
 
 /**
- * Re-attach an analyzer to an index loaded from .hcai / SQLite. Called by
- * the SDK on `loadHcai` / `loadSqlite*` after `AnalyzerMismatchError`
+ * Re-attach an analyzer to an index loaded from .gai / SQLite. Called by
+ * the SDK on `loadGai` / `loadSqlite*` after `AnalyzerMismatchError`
  * checks pass.
  */
 export function attachAnalyzer(index: TfidfIndex, analyzer: TextAnalyzer): void {
