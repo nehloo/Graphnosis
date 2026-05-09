@@ -15,7 +15,7 @@
 [![Demo](https://img.shields.io/badge/demo-graphnosis.vercel.app-blue?style=flat&logo=vercel)](https://graphnosis.vercel.app)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![References](https://img.shields.io/badge/References-Attribution-6a737d?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/REFERENCES.md)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/LICENSE)
 
 </div>
 
@@ -875,7 +875,7 @@ Edge et al. [GraphRAG](https://arxiv.org/abs/2404.16130) · Guo et al. [LightRAG
 
 ## License
 
-MIT
+Apache-2.0
 
 ## Contributing
 
