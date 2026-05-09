@@ -6,7 +6,7 @@
 // `ai` and `@ai-sdk/openai` are NO LONGER referenced from this file.
 // Provider-specific code lives under `src/sdk/adapters/`. Consumers who
 // want OpenAI behavior import `openaiEmbedAdapter` from
-// `@nehloo/graphnosis/adapters/openai`.
+// `@nehloo/hippocortex/adapters/openai`.
 
 import type { NodeId, IndexProvenance } from '@/core/types';
 import type { EmbeddingAdapter } from './embedding-adapter';
@@ -75,7 +75,7 @@ export async function embedNodes(
 
     if (vectors.length !== slice.length) {
       throw new Error(
-        `[graphnosis] embedding adapter '${adapter.id}' returned ${vectors.length} vectors for ${slice.length} inputs (must match)`
+        `[hippocortex] embedding adapter '${adapter.id}' returned ${vectors.length} vectors for ${slice.length} inputs (must match)`
       );
     }
 

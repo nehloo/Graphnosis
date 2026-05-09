@@ -1,18 +1,18 @@
-# Graphnosis — Dual-Graph Private AI Memory & Knowledge Framework
+# HippoCortex — Dual-Graph AI Memory & Knowledge Processing Framework
 
-[![Enterprise](https://img.shields.io/badge/Enterprise-Privacy%20%26%20Security-2ea043?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/enterprise/enterprise.md)
-[![.gai Format](https://img.shields.io/badge/.gai-Format%20Spec-5b3fd1?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/gai-format/gai-format.md)
-[![Benchmark](https://img.shields.io/badge/LongMemEval-76.40%25-e25822?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/benchmarks/benchmarks.md)
-[![Demo](https://img.shields.io/badge/demo-graphnosis.vercel.app-blue?style=flat&logo=vercel)](https://graphnosis.vercel.app)
+[![Enterprise](https://img.shields.io/badge/Enterprise-Privacy%20%26%20Security-2ea043?style=flat)](https://github.com/nehloo/HippoCortex/blob/main/enterprise/enterprise.md)
+[![.hcai Format](https://img.shields.io/badge/.hcai-Format%20Spec-5b3fd1?style=flat)](https://github.com/nehloo/HippoCortex/blob/main/hcai-format/hcai-format.md)
+[![Benchmark](https://img.shields.io/badge/LongMemEval-76.40%25-e25822?style=flat)](https://github.com/nehloo/HippoCortex/blob/main/benchmarks/benchmarks.md)
+[![Demo](https://img.shields.io/badge/demo-hippocortex.vercel.app-blue?style=flat&logo=vercel)](https://hippocortex.vercel.app)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![References](https://img.shields.io/badge/References-Attribution-6a737d?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/REFERENCES.md)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/LICENSE)
+[![References](https://img.shields.io/badge/References-Attribution-6a737d?style=flat)](https://github.com/nehloo/HippoCortex/blob/main/REFERENCES.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat)](https://github.com/nehloo/HippoCortex/blob/main/LICENSE)
 
 **Instead of raw files that humans can read (md, txt, pdf, doc etc.), can humans feed AI with context binary files that LLMs understand better than humans can read them?**
 
-Graphnosis transforms raw files into AI-optimized directed and undirected graph representations. Instead of feeding AI models flat text chunks (the standard RAG approach), Graphnosis builds a structured knowledge graph with typed relationships — then serializes relevant subgraphs into a format designed for machine comprehension, not human readability.
+HippoCortex transforms raw files into AI-optimized directed and undirected graph representations. Instead of feeding AI models flat text chunks (the standard RAG approach), HippoCortex builds a structured knowledge graph with typed relationships — then serializes relevant subgraphs into a format designed for machine comprehension, not human readability.
 
-> The name is a compound of **graph** and **gnosis** (Greek for knowledge) — literally "graph knowledge". The `.gai` file extension stands for **Graphnosis AI**, the AI-native knowledge format at the heart of the system.
+> **The name maps to the brain.** HippoCortex models how the brain handles structured information: the **cortex** stores long-term knowledge, the **hippocampus** indexes and encodes new experiences, and the **prefrontal cortex** retrieves and reasons over what's relevant. The framework mirrors all three — the similarity / undirected graph is the cortex, the graph builder + identity extractor is the hippocampus, and the query engine is the prefrontal cortex. The `.hcai` file extension stands for **HippoCortex AI**, the AI-native knowledge format at the heart of the system.
 
 The result: faster retrieval, richer reasoning, and answers that trace back through explicit relationship chains.
 
@@ -38,11 +38,11 @@ The graphs from high school. The neural network from C++. The harness routing fr
 
 **The insight: human-readable formats are lossy for AI consumption.** Prose contains redundant phrasing, implicit relationships, linear structure that hides non-linear connections, and ambiguity that humans resolve with world knowledge but AI must guess at. A purpose-built AI-native format could be dramatically more efficient.
 
-Graphnosis is what happens when three decades of scattered ideas finally find their moment.
+HippoCortex is what happens when three decades of scattered ideas finally find their moment.
 
-## How Graphnosis Works for AI
+## How HippoCortex Works for AI
 
-**Graphnosis intakes humans' raw files meant for AI context (md, txt, pdf, doc etc) and generates dual-graph knowledge memory binary files that humans can't read - but AI best can.**
+**HippoCortex intakes humans' raw files meant for AI context (md, txt, pdf, doc etc) and generates dual-graph knowledge memory binary files that humans can't read - but AI best can.**
 
 ### The Pipeline
 
@@ -53,7 +53,7 @@ CONVERSATIONS  ─────────────────────�
                                                                    |
                                                           LLM ENRICHMENT (optional)
                                                                    |
-                                                          ENRICHED GRAPH (.gai)
+                                                          ENRICHED GRAPH (.hcai)
                                                         /      |        \
                                                    QUERY    GIKI       AUDIT
                                                      |    (pages)    (reports)
@@ -110,7 +110,7 @@ The query engine applies temporal scoring: recently accessed nodes score higher,
 
 ### Conversation Memory
 
-Graphnosis ingests conversations (Claude, ChatGPT, Slack, raw text) into the same graph as domain knowledge. Each conversation turn becomes a node with `discussed-in` edges linking to the knowledge it references. This means the system remembers *what you discussed* alongside *what it knows*.
+HippoCortex ingests conversations (Claude, ChatGPT, Slack, raw text) into the same graph as domain knowledge. Each conversation turn becomes a node with `discussed-in` edges linking to the knowledge it references. This means the system remembers *what you discussed* alongside *what it knows*.
 
 ### Identity Layer
 
@@ -119,9 +119,9 @@ Person entities mentioned 2+ times across sources automatically get dedicated pe
 - Relationship edges between co-mentioned persons
 - User profile inference from conversation patterns
 
-# The .gai Format
+# The .hcai Format
 
-Instead of storing knowledge as human-readable markdown, Graphnosis uses a binary format (`.gai` — short for **Graphnosis AI**) built on MessagePack:
+Instead of storing knowledge as human-readable markdown, HippoCortex uses a binary format (`.hcai` — short for **HippoCortex AI**) built on MessagePack:
 
 ```
 [4-byte magic: "GAI" + version]
@@ -165,10 +165,10 @@ n1 ~[similar-to:0.7]~ n2
 
 Graph-based RAG is an active research area. Microsoft's **GraphRAG** (2025) pioneered community detection and hierarchical summaries on knowledge graphs. **LightRAG** (EMNLP 2025) introduced dual-level retrieval combining entity extraction with abstract reasoning. **LazyGraphRAG** achieved 700x query cost reduction vs GraphRAG.
 
-Graphnosis's contribution is a specific combination that hasn't been published as a unified system:
+HippoCortex's contribution is a specific combination that hasn't been published as a unified system:
 
 - **Dual-graph** (directed + undirected edges over the same node set) — most systems use one graph type
-- **AI-native binary format** (.gai) optimized for machine consumption, not human readability
+- **AI-native binary format** (.hcai) optimized for machine consumption, not human readability
 - **Zero-API graph construction** (TF-IDF, no embeddings required) — $0 to build the graph
 - **Human audit trail** — giki pages with node citations, contradiction detection, correction API
 - **Temporal awareness** — confidence decay, supersedes edges, access tracking per node
@@ -179,28 +179,28 @@ No single technique here is new. The novelty is the combination into a unified, 
 
 ## Landscape Comparison
 
-Graphnosis exists alongside other approaches to persistent AI knowledge. Each makes different tradeoffs:
+HippoCortex exists alongside other approaches to persistent AI knowledge. Each makes different tradeoffs:
 
-| | **Graphnosis** | **GBrain** (Garry Tan) | **MemPalace** (Milla Jovovich) | **Karpathy Wiki** |
+| | **HippoCortex** | **GBrain** (Garry Tan) | **MemPalace** (Milla Jovovich) | **Karpathy Wiki** |
 |---|---|---|---|---|
-| **Representation** | Dual-graph (.gai binary) | Markdown files in git | Spatial hierarchy + ChromaDB | Markdown wiki pages |
+| **Representation** | Dual-graph (.hcai binary) | Markdown files in git | Spatial hierarchy + ChromaDB | Markdown wiki pages |
 | **Conversation memory** | Yes (Claude/ChatGPT/Slack) | No | Yes (core feature) | No |
 | **Identity tracking** | Auto-extracted person nodes | Manual (people/ dir) | No | Partial (entity pages) |
 | **Contradiction detection** | Automated | No | No | LLM lint (manual) |
 | **LLM cost to build** | $0 + optional enrichment | ~$5-20/dataset | $0 | ~$10-50/dataset |
 | **Human auditability** | Giki pages + audit export | Native (markdown) | Partial | Native (wiki) |
 | **Relationships** | Explicit typed edges | Implicit links | Tunnels | Implicit cross-refs |
-| **Persistence** | SQLite + .gai files | Git repo | ChromaDB + SQLite | Filesystem |
+| **Persistence** | SQLite + .hcai files | Git repo | ChromaDB + SQLite | Filesystem |
 
-**Where Graphnosis wins:** Relationship-aware reasoning, multi-source knowledge fusion, token efficiency, automated contradiction detection.
+**Where HippoCortex wins:** Relationship-aware reasoning, multi-source knowledge fusion, token efficiency, automated contradiction detection.
 
 **Where others win:** GBrain has native git version control. MemPalace achieves 96.6% retrieval recall R@5 on LongMemEval (different metric than end-to-end QA — see [benchmarks.md](benchmarks/benchmarks.md)). Karpathy's pattern produces richer narrative synthesis.
 
-**They complement each other:** MemPalace for conversation memory, GBrain for personal knowledge management, Graphnosis for structured domain knowledge with explicit relationships.
+**They complement each other:** MemPalace for conversation memory, GBrain for personal knowledge management, HippoCortex for structured domain knowledge with explicit relationships.
 
 ## Why This Matters (vs. Standard RAG)
 
-| Aspect | Standard RAG | Graphnosis |
+| Aspect | Standard RAG | HippoCortex |
 |--------|-------------|---------|
 | Context format | Flat text chunks | Structured subgraph with typed edges |
 | Relationships | Implicit (AI must infer) | Explicit (edges with types and weights) |
@@ -267,16 +267,16 @@ Benchmarked on the Wikipedia dataset (12,199 nodes, 67,578 edges):
 | OMEGA | 95.40% |
 | Mastra | 94.87% |
 | Supermemory | 85.86% |
-| **Graphnosis** | **76.40%** |
+| **HippoCortex** | **76.40%** |
 | Zep | 71.20% |
 
 > MemPalace's 96.6%/100% figures measure **retrieval recall R@5** (is the correct conversation session in the top 5 results?) — a different metric than end-to-end QA with a GPT-4 judge. Both are valid; they measure different things. This runner uses the verbatim official judge prompts from [xiaowu0162/LongMemEval](https://github.com/xiaowu0162/LongMemEval).
 
 For the full benchmark progression story — every iteration from first run to this result — see [benchmarks.md](benchmarks/benchmarks.md).
 
-## Graphnosis as AI Middleware (MCP Server)
+## HippoCortex as AI Middleware (MCP Server)
 
-Graphnosis ships as a portable **MCP (Model Context Protocol) server** — drop-in knowledge-graph middleware for any LLM. Load a `.gai` file, ask a question, and receive a ~2K-token plain-text subgraph snippet ready to inject into any LLM's system prompt.
+HippoCortex ships as a portable **MCP (Model Context Protocol) server** — drop-in knowledge-graph middleware for any LLM. Load a `.hcai` file, ask a question, and receive a ~2K-token plain-text subgraph snippet ready to inject into any LLM's system prompt.
 
 ### Two deployment modes
 
@@ -287,10 +287,10 @@ Add to `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "graphnosis": {
+    "hippocortex": {
       "command": "node",
-      "args": ["/path/to/Graphnosis/node_modules/.bin/tsx", "src/mcp/server.ts"],
-      "cwd": "/path/to/Graphnosis",
+      "args": ["/path/to/HippoCortex/node_modules/.bin/tsx", "src/mcp/server.ts"],
+      "cwd": "/path/to/HippoCortex",
       "env": { "OPENAI_API_KEY": "sk-..." }
     }
   }
@@ -310,30 +310,30 @@ docker compose up
 # MCP endpoint: http://internal-host:3001/mcp
 ```
 
-Point any MCP-compatible client at your internal host. The `.gai` file stays on your mounted volume inside the enterprise perimeter. See [enterprise/enterprise.md](enterprise/enterprise.md) for the full security and privacy architecture.
+Point any MCP-compatible client at your internal host. The `.hcai` file stays on your mounted volume inside the enterprise perimeter. See [enterprise/enterprise.md](enterprise/enterprise.md) for the full security and privacy architecture.
 
 ### MCP tools
 
 | Tool | What it does |
 |------|-------------|
-| `load_graph` | Load a `.gai` file into session memory |
+| `load_graph` | Load a `.hcai` file into session memory |
 | `ingest_files` | Parse raw files → build graph → store in session |
 | `update_graph` | Add new documents to an existing session graph |
 | `query` | Ask a question → returns a ~2K plain-text subgraph snippet |
-| `export` | Write the session graph back to a `.gai` file |
+| `export` | Write the session graph back to a `.hcai` file |
 
 **Privacy guarantee:** `query` returns only the serialized subgraph text and a node count — never the full graph, raw node list, or binary file. Only the few hundred tokens relevant to your question ever leave the enterprise perimeter.
 
 ### Why not just use Anthropic/OpenAI memory?
 
-Cloud-provider memory stores your knowledge on their infrastructure. Graphnosis keeps the graph on your machine or your servers — always.
+Cloud-provider memory stores your knowledge on their infrastructure. HippoCortex keeps the graph on your machine or your servers — always.
 
-| | Graphnosis | Cloud-provider memory |
+| | HippoCortex | Cloud-provider memory |
 |---|---|---|
 | **Graph location** | Your machine / enterprise servers | Provider infrastructure |
 | **LLM compatibility** | Any (Claude, GPT-4, Gemini, Ollama…) | Provider-locked |
 | **Privacy** | Full control | Data leaves perimeter |
-| **Format** | Open `.gai` (portable) | Proprietary |
+| **Format** | Open `.hcai` (portable) | Proprietary |
 | **Self-hostable** | Yes | No |
 
 ---
@@ -365,18 +365,18 @@ Open http://localhost:3000 and use the navigation:
 | **Audit** | Entity reports, contradictions, health dashboard, markdown export |
 | **Benchmarks** | Query performance metrics across 10 test queries |
 
-## Using Graphnosis as an NPM Dependency
+## Using HippoCortex as an NPM Dependency
 
-Graphnosis ships a Node SDK so you can embed the graph engine inside your own
+HippoCortex ships a Node SDK so you can embed the graph engine inside your own
 service without running the Next.js app. The SDK is **in-process** and
 performs **zero network I/O** — the core query path never calls OpenAI or
-any other remote service. See [`enterprise/enterprise.md`](./enterprise/enterprise.md#adopting-graphnosis-as-an-npm-dependency--security--it-guidance)
+any other remote service. See [`enterprise/enterprise.md`](./enterprise/enterprise.md#adopting-hippocortex-as-an-npm-dependency--security--it-guidance)
 for the full enterprise security posture.
 
 ### Install
 
 ```bash
-npm install @nehloo/graphnosis
+npm install @nehloo/hippocortex
 
 # Optional — only needed for embedding-based retrieval (semantic search):
 npm install ai @ai-sdk/openai
@@ -398,9 +398,9 @@ npm install better-sqlite3
 
 ```ts
 import { readFileSync } from 'node:fs';
-import { Graphnosis } from '@nehloo/graphnosis';
+import { HippoCortex } from '@nehloo/hippocortex';
 
-const g = new Graphnosis({ name: 'docs' });
+const g = new HippoCortex({ name: 'docs' });
 g.addMarkdown(readFileSync('README.md', 'utf8'), 'README.md');
 g.addText('Chunking splits documents into 3-sentence units.', 'notes.txt');
 g.build();
@@ -424,9 +424,9 @@ Every append method returns an **`AppendResult`** that includes any contradictio
 
 ```ts
 import { readFileSync } from 'node:fs';
-import { Graphnosis } from '@nehloo/graphnosis';
+import { HippoCortex } from '@nehloo/hippocortex';
 
-const g = new Graphnosis({ name: 'kb' });
+const g = new HippoCortex({ name: 'kb' });
 g.addMarkdown(initialContent, 'base.md');
 g.build();
 
@@ -460,9 +460,9 @@ for (const c of r5.contradictions) {
 }
 
 // Load a saved graph and continue appending to it:
-g.loadGai('knowledge.gai', { hmacKey });
+g.loadHcai('knowledge.hcai', { hmacKey });
 await g.appendFolder('/new-docs');
-g.saveGai('knowledge.gai', { hmacKey });
+g.saveHcai('knowledge.hcai', { hmacKey });
 ```
 
 **Full-graph consistency check** — run after a batch of appends for a comprehensive audit:
@@ -479,15 +479,15 @@ const { contradictions, discoveries, decayed } = g.reflect();
 You can maintain **separate, independent knowledge graphs** — per domain, per user, per data source — and query across all of them at once. Results are merged, deduplicated by content hash, and ranked into a single LLM-ready prompt.
 
 ```ts
-import { Graphnosis, queryGraphs } from '@nehloo/graphnosis';
+import { HippoCortex, queryGraphs } from '@nehloo/hippocortex';
 
-const productGraph = new Graphnosis({ name: 'product' });
+const productGraph = new HippoCortex({ name: 'product' });
 productGraph.addMarkdown(productDocs, 'product.md').build();
 
-const supportGraph = new Graphnosis({ name: 'support' });
+const supportGraph = new HippoCortex({ name: 'support' });
 supportGraph.addMarkdown(supportTickets, 'tickets.md').build();
 
-const policyGraph = new Graphnosis({ name: 'policy' });
+const policyGraph = new HippoCortex({ name: 'policy' });
 policyGraph.addMarkdown(policies, 'policy.md').build();
 
 // Single call — queries all three graphs, merges top-20 nodes by relevance
@@ -524,7 +524,7 @@ g.forgetTopic('John Smith', 'user-deletion-request');
 
 ### Non-English / non-ASCII corpora — pluggable analyzer (v0.2)
 
-Graphnosis ships two built-in analyzers. Pick the one that matches your corpus:
+HippoCortex ships two built-in analyzers. Pick the one that matches your corpus:
 
 | Analyzer | id | What it does | Use for |
 |---|---|---|---|
@@ -532,16 +532,16 @@ Graphnosis ships two built-in analyzers. Pick the one that matches your corpus:
 | `unicodeAnalyzer` | `unicode` | Unicode-aware split, preserves diacritics, no stopwords. `cusătura` stays `cusătura`. | Languages where diacritics are phonemic: Turkish (`ı` ≠ `i`), Hungarian, Finnish, German (where `ü` ≠ `ue` distinction matters). |
 
 ```ts
-import { Graphnosis, unicodeAnalyzer } from '@nehloo/graphnosis';
+import { HippoCortex, unicodeAnalyzer } from '@nehloo/hippocortex';
 
 // Default (asciiFoldAnalyzer) — English with diacritic robustness:
-const g1 = new Graphnosis({ name: 'docs' });
+const g1 = new HippoCortex({ name: 'docs' });
 g1.addMarkdown('The café opened in São Paulo.', 'note.md');
 g1.build();
 g1.query('cafe sao paulo'); // ✓ matches
 
 // Unicode-preserving — Turkish (where folding would lose meaning):
-const g2 = new Graphnosis({ name: 'docs-tr', analyzer: unicodeAnalyzer });
+const g2 = new HippoCortex({ name: 'docs-tr', analyzer: unicodeAnalyzer });
 g2.addMarkdown('Bu kız çok şık.', 'note.md');
 g2.build();
 g2.query('kız'); // ✓ matches; would also match 'kiz' separately
@@ -553,7 +553,7 @@ with one analyzer against a runtime configured with another throws a typed
 
 For language-specific stemming (Snowball, Zemberek, Hunspell, …) implement
 the `TextAnalyzer` interface yourself, or watch for a future
-`@nehloo/graphnosis-langs` companion package.
+`@nehloo/hippocortex-langs` companion package.
 
 ### Hybrid retrieval (opt-in)
 
@@ -563,10 +563,10 @@ misses ("previous job" ↔ "Acme Corp"), opt into the hybrid path with an
 embedding adapter:
 
 ```ts
-import { Graphnosis } from '@nehloo/graphnosis';
-import { openaiEmbedAdapter } from '@nehloo/graphnosis/adapters/openai';
+import { HippoCortex } from '@nehloo/hippocortex';
+import { openaiEmbedAdapter } from '@nehloo/hippocortex/adapters/openai';
 
-const g = new Graphnosis({
+const g = new HippoCortex({
   name: 'docs',
   embed: openaiEmbedAdapter({ model: 'text-embedding-3-small' }),
 });
@@ -594,17 +594,17 @@ await g.appendWithEmbeddings(parseMarkdown(newDoc, 'note.md'));
 
 | Provider | Import | Notes |
 |----------|--------|-------|
-| OpenAI | `@nehloo/graphnosis/adapters/openai` → `openaiEmbedAdapter({ model })` | Symmetric model — `intent` ignored |
-| Static (tests) | `@nehloo/graphnosis/adapters/static` → `staticEmbedAdapter({ vectors })` | No network, no peer deps |
+| OpenAI | `@nehloo/hippocortex/adapters/openai` → `openaiEmbedAdapter({ model })` | Symmetric model — `intent` ignored |
+| Static (tests) | `@nehloo/hippocortex/adapters/static` → `staticEmbedAdapter({ vectors })` | No network, no peer deps |
 | Voyage / Cohere / custom | implement `EmbeddingAdapter` directly | MUST honor `intent: 'document' \| 'query'` |
 
 See [src/sdk/adapters/README.md](src/sdk/adapters/README.md) for the full
 adapter contract, the `id` naming convention, and a Voyage example.
 
-> **Persistence caveat — embeddings are not saved.** `saveGai()` /
+> **Persistence caveat — embeddings are not saved.** `saveHcai()` /
 > `saveSqlite()` / `toBuffer()` / `toSqliteBuffer()` only persist the graph
 > and TF-IDF index. The `EmbeddingIndex` is in-memory only — after
-> `loadGai()` / `fromBuffer()` / `loadSqlite*()` you must call
+> `loadHcai()` / `fromBuffer()` / `loadSqlite*()` you must call
 > `await g.buildEmbeddings()` again before using the hybrid methods.
 > Persisting vectors to disk is on the roadmap; for now, treat the
 > embedding index as a per-process cache.
@@ -624,14 +624,14 @@ local volume. Use the buffer-based methods to round-trip via blob storage
 without `/tmp` gymnastics:
 
 ```ts
-// .gai (binary, signed with HMAC if you pass a key)
-const buf = g.toBuffer({ hmacKey: process.env.GAI_HMAC_KEY });
-await blob.put('graphs/myorg/kg.gai', buf);
+// .hcai (binary, signed with HMAC if you pass a key)
+const buf = g.toBuffer({ hmacKey: process.env.HCAI_HMAC_KEY });
+await blob.put('graphs/myorg/kg.hcai', buf);
 
 // later, in a cold serverless invocation
-const fresh = await blob.get('graphs/myorg/kg.gai');
-const g2 = new Graphnosis();
-g2.fromBuffer(Buffer.from(fresh), { hmacKey: process.env.GAI_HMAC_KEY });
+const fresh = await blob.get('graphs/myorg/kg.hcai');
+const g2 = new HippoCortex();
+g2.fromBuffer(Buffer.from(fresh), { hmacKey: process.env.HCAI_HMAC_KEY });
 
 // SQLite (writes a transient file under os.tmpdir() — must be writable)
 const sqlBuf = g.toSqliteBuffer();
@@ -639,7 +639,7 @@ await blob.put('graphs/myorg/kg.sqlite', sqlBuf);
 g2.fromSqliteBuffer(sqlBuf, 'myorg-graph-name');
 ```
 
-`saveGai()` / `loadGai()` / `saveSqlite()` / `loadSqlite*()` continue to
+`saveHcai()` / `loadHcai()` / `saveSqlite()` / `loadSqlite*()` continue to
 work — they're now thin wrappers over the buffer methods.
 
 ### Reason conventions for soft-delete (v0.2)
@@ -661,28 +661,28 @@ exports by default.
 // Recommended: prefix preview-only soft-deletes so they don't pollute audit
 g.deleteNode(nodeId, 'preview:user-rejected');
 
-// system: prefix is what Graphnosis itself uses internally
+// system: prefix is what HippoCortex itself uses internally
 g.forgetBefore(cutoff, 'system:retention-policy'); // default
 
 // Pass an empty filter to show everything in an audit export
-import { generateAuditReport } from '@nehloo/graphnosis';
+import { generateAuditReport } from '@nehloo/hippocortex';
 generateAuditReport(graph, tfidfIndex, { hideReasonPrefixes: [] });
 ```
 
 This is convention, not enforcement. Skipping prefixes gives v0.1 behavior
-(every soft-delete shown). The convention is dogfooded internally — Graphnosis
+(every soft-delete shown). The convention is dogfooded internally — HippoCortex
 itself prefixes `system:` on cascade-delete, retention, and topic-forget.
 
 ### Persistence
 
 ```ts
-// Signed .gai — use whenever the file crosses a trust boundary
-const hmacKey = process.env.GAI_HMAC_KEY!; // 32+ random bytes
-g.saveGai('knowledge.gai', { hmacKey });
-g.loadGai('knowledge.gai', { hmacKey });   // fails closed on any tampering
+// Signed .hcai — use whenever the file crosses a trust boundary
+const hmacKey = process.env.HCAI_HMAC_KEY!; // 32+ random bytes
+g.saveHcai('knowledge.hcai', { hmacKey });
+g.loadHcai('knowledge.hcai', { hmacKey });   // fails closed on any tampering
 
 // SQLite (requires the optional better-sqlite3 dependency)
-g.saveSqlite('./data/graphnosis.db');
+g.saveSqlite('./data/hippocortex.db');
 ```
 
 > Only the graph + TF-IDF index are written. Embedding vectors built via
@@ -693,10 +693,10 @@ g.saveSqlite('./data/graphnosis.db');
 ```ts
 import {
   // Core facade
-  Graphnosis,          // class — ingest, build, query, append, correct, persist
-  queryGraphs,         // federated query across multiple Graphnosis instances
+  HippoCortex,          // class — ingest, build, query, append, correct, persist
+  queryGraphs,         // federated query across multiple HippoCortex instances
 
-  // Graphnosis class methods (reference)
+  // HippoCortex class methods (reference)
   // g.addMarkdown / addHtml / addCsv / addJson / addText / addDocument
   // g.build()
   // g.append()          — append ParsedDocument[], returns AppendResult
@@ -712,8 +712,8 @@ import {
   // g.reflect()         — full-graph contradiction + decay + discovery audit
   // g.edit / deleteNode / supersede / correct / importMarkdown
   // g.forgetBefore / forgetTopic
-  // g.saveGai / loadGai / saveSqlite / loadSqlite / loadSqliteByName
-  // g.toBuffer / fromBuffer             — serverless-friendly .gai I/O
+  // g.saveHcai / loadHcai / saveSqlite / loadSqlite / loadSqliteByName
+  // g.toBuffer / fromBuffer             — serverless-friendly .hcai I/O
   // g.toSqliteBuffer / fromSqliteBuffer — serverless-friendly SQLite I/O
 
   // Built-in analyzers + types
@@ -736,10 +736,10 @@ import {
   forgetByTimeWindow, forgetByTopic, cascadeSoftDelete,
 
   // Persistence
-  writeGai, readGai,     // .gai binary format (with optional HMAC-SHA256)
+  writeHcai, readHcai,     // .hcai binary format (with optional HMAC-SHA256)
   openSqliteStore,       // path-scoped SQLite store
   toSerializable, fromSerializable,
-} from '@nehloo/graphnosis';
+} from '@nehloo/hippocortex';
 ```
 
 The facade intentionally does **not** re-export anything from
@@ -759,7 +759,7 @@ src/
     similarity/                     # TF-IDF, cosine, Jaccard (pure JS)
     graph/                          # Graph builder, directed/undirected edges, incremental updates
     optimization/                   # Deduplicator, pruner, hierarchical compressor, reflection engine
-    format/                         # .gai binary writer/reader (MessagePack)
+    format/                         # .hcai binary writer/reader (MessagePack)
     query/                          # Seed finder, BFS traverser, subgraph serializer,
                                     # synonym expander, query decomposer
     enrichment/                     # LLM-powered node synthesis + context
@@ -777,7 +777,7 @@ tests/
 
 - **Next.js 16** (App Router, TypeScript)
 - **Vercel AI SDK v6** (chat interface, streaming)
-- **MessagePack** (`msgpackr`) for .gai binary format
+- **MessagePack** (`msgpackr`) for .hcai binary format
 - **TF-IDF + cosine similarity** (pure JS, no embedding APIs)
 - **better-sqlite3** for persistent graph storage (WAL mode)
 - **react-force-graph-2d** for graph visualization
@@ -787,12 +787,12 @@ All dependencies are MIT or Apache-2.0 licensed. No GPL/LGPL/AGPL.
 
 ## Live Demo
 
-Explore the working prototype: **[graphnosis.vercel.app](https://graphnosis.vercel.app)**
+Explore the working prototype: **[hippocortex.vercel.app](https://hippocortex.vercel.app)**
 
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/examples-2.png" alt="Example Datasets — load public datasets into Graphnosis" width="100%" />
+  <img src="docs/screenshots/examples-2.png" alt="Example Datasets — load public datasets into HippoCortex" width="100%" />
 </p>
 
 <p align="center">
@@ -808,11 +808,11 @@ Explore the working prototype: **[graphnosis.vercel.app](https://graphnosis.verc
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/gai1-2.png" alt="View .gai — Inspect the AI-native binary format — what the machine sees, decoded for humans" width="100%" />
+  <img src="docs/screenshots/gai1-2.png" alt="View .hcai — Inspect the AI-native binary format — what the machine sees, decoded for humans" width="100%" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/gai2-2.png" alt="View .gai — Inspect the AI-native binary format — what the machine sees, decoded for humans" width="100%" />
+  <img src="docs/screenshots/gai2-2.png" alt="View .hcai — Inspect the AI-native binary format — what the machine sees, decoded for humans" width="100%" />
 </p>
 
 ## References & Attribution
@@ -835,5 +835,5 @@ This is an active research project exploring AI-native knowledge representation.
 - Improved relation extraction (NLP-based `causes`, `contradicts` detection)
 - Embedding-based similarity as optional upgrade to TF-IDF
 - Benchmark comparisons against standard RAG pipelines (GraphRAG, LightRAG)
-- Multi-graph merge (combine multiple .gai files)
+- Multi-graph merge (combine multiple .hcai files)
 - Giki page quality improvements (LLM-assisted narrative generation)

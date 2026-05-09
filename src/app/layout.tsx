@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Graphnosis — Dual-Graph Knowledge System",
+  title: "HippoCortex — Dual-Graph Knowledge System",
   description: "Transform raw files into AI-optimized directed & undirected graph representations",
 };
 
@@ -26,7 +26,7 @@ const navItems = [
   { href: "/correct", label: "Correct" },
   { href: "/giki", label: "Giki" },
   { href: "/audit", label: "Audit" },
-  { href: "/view-gai", label: "View .gai" },
+  { href: "/view-hcai", label: "View .hcai" },
   { href: "/longmemeval", label: "LongMemEval" },
 ];
 
@@ -45,9 +45,9 @@ export default function RootLayout({
           <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-md bg-accent flex items-center justify-center text-white text-xs font-bold">
-                G
+                H
               </div>
-              <span className="font-semibold text-sm tracking-tight">Graphnosis</span>
+              <span className="font-semibold text-sm tracking-tight">HippoCortex</span>
             </Link>
             <nav className="flex gap-1">
               {navItems.map((item) => (
@@ -68,11 +68,11 @@ export default function RootLayout({
         <footer className="border-t border-border bg-surface mt-8">
           <div className="max-w-7xl mx-auto px-4 py-6 space-y-2">
             <p className="text-xs text-muted leading-relaxed max-w-3xl">
-              <strong className="text-foreground">Graphnosis</strong> explores a novel approach to AI knowledge representation: dual-graph structures (directed + undirected edges over the same node set) serialized in an AI-native binary format (.gai — the Graphnosis AI knowledge format) — optimized for machine comprehension, not human readability. Graph construction costs $0 (pure JS, no embedding APIs). Human corrections, giki pages, and audit reports provide a full audit trail.
+              <strong className="text-foreground">HippoCortex</strong> explores a novel approach to AI knowledge representation: dual-graph structures (directed + undirected edges over the same node set) serialized in an AI-native binary format (.hcai — the HippoCortex AI knowledge format) — optimized for machine comprehension, not human readability. Graph construction costs $0 (pure JS, no embedding APIs). Human corrections, giki pages, and audit reports provide a full audit trail.
             </p>
             <div className="flex items-center gap-3 text-xs text-muted">
               <a
-                href="https://github.com/nehloo/Graphnosis"
+                href="https://github.com/nehloo/HippoCortex"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-foreground transition-colors"

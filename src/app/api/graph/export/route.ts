@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getGraph } from '@/core/graph/graph-store';
-import { writeGai } from '@/core/format/gai-writer';
-import { readGai } from '@/core/format/gai-reader';
+import { writeHcai } from '@/core/format/hcai-writer';
+import { readHcai } from '@/core/format/hcai-reader';
 
-// GET: Export the current graph as .gai and show what's inside
-// ?format=binary → download the raw .gai file
+// GET: Export the current graph as .hcai and show what's inside
+// ?format=binary → download the raw .hcai file
 // ?format=inspect → show decoded structure + hex preview
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -15,20 +15,20 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'No graph loaded' }, { status: 404 });
   }
 
-  // Write the graph to .gai binary
-  const gaiBuf = writeGai(graphData);
+  // Write the graph to .hcai binary
+  const gaiBuf = writeHcai(graphData);
 
   if (format === 'binary') {
     return new Response(new Uint8Array(gaiBuf), {
       headers: {
         'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${graphData.name.replace(/[^a-zA-Z0-9]/g, '-')}.gai"`,
+        'Content-Disposition': `attachment; filename="${graphData.name.replace(/[^a-zA-Z0-9]/g, '-')}.hcai"`,
       },
     });
   }
 
   // Read it back to verify round-trip integrity
-  const { graph: decoded, header } = readGai(gaiBuf);
+  const { graph: decoded, header } = readHcai(gaiBuf);
 
   // Build hex preview of first 256 bytes
   const hexLines: string[] = [];
@@ -84,7 +84,7 @@ export async function GET(request: Request) {
   });
 }
 
-function countEdges(graph: ReturnType<typeof readGai>['graph'], nodeId: string): number {
+function countEdges(graph: ReturnType<typeof readHcai>['graph'], nodeId: string): number {
   let count = 0;
   for (const e of graph.directedEdges.values()) {
     if (e.from === nodeId || e.to === nodeId) count++;

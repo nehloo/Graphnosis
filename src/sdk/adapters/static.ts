@@ -45,7 +45,7 @@ export function staticEmbedAdapter(opts: StaticEmbedAdapterOptions): EmbeddingAd
         const vec = map.get(t);
         if (vec) return vec;
         if (onMiss === 'zeros') return new Array(dimensions).fill(0);
-        throw new Error(`[graphnosis] staticEmbedAdapter('${id}'): no vector for input ${JSON.stringify(t.slice(0, 80))}`);
+        throw new Error(`[hippocortex] staticEmbedAdapter('${id}'): no vector for input ${JSON.stringify(t.slice(0, 80))}`);
       });
     },
   };

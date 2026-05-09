@@ -1,4 +1,4 @@
-# Graphnosis — Project Context
+# HippoCortex — Project Context
 
 ## What This Is
 A research prototype exploring AI-native knowledge representation through dual-graph structures.
@@ -6,7 +6,7 @@ Core thesis: structured graphs with typed edges outperform flat text chunks for 
 
 ## Architecture
 ```
-RAW FILES → PARSE → CHUNK → EXTRACT → BUILD GRAPH → OPTIMIZE → .gai
+RAW FILES → PARSE → CHUNK → EXTRACT → BUILD GRAPH → OPTIMIZE → .hcai
                                                          ↓
                                               ENRICHMENT (optional LLM)
                                                          ↓
@@ -18,7 +18,7 @@ RAW FILES → PARSE → CHUNK → EXTRACT → BUILD GRAPH → OPTIMIZE → .gai
 - **Similarity:** TF-IDF + cosine (pure JS, zero API calls) with inverted term index optimization
 - **Query:** synonym expansion → query decomposition → merged seed finding → BFS with temporal scoring → enriched subgraph serialization
 - **Persistence:** SQLite (better-sqlite3, WAL mode) or in-memory
-- **Format:** .gai binary — "Graphnosis AI" knowledge format (MessagePack with magic bytes + checksum)
+- **Format:** .hcai binary — "HippoCortex AI" knowledge format (MessagePack with magic bytes + checksum)
 
 ## Key Technical Decisions
 - AI SDK v6: `useChat` from `@ai-sdk/react`, `DefaultChatTransport` for custom API URL, `sendMessage({text})`, `status` not `isLoading`, `msg.parts` not `msg.content`
@@ -80,7 +80,7 @@ src/core/
 src/examples/                   # 4 PoC fetchers (wikipedia, arxiv, nextjs-docs, nasa-mars)
 src/app/                        # Next.js pages + API routes
 tests/longmemeval/              # 12 tests across 4 categories
-data/                           # Runtime: .gai files, SQLite db, cache (gitignored)
+data/                           # Runtime: .hcai files, SQLite db, cache (gitignored)
 ```
 
 ## Guardrails
@@ -96,5 +96,5 @@ data/                           # Runtime: .gai files, SQLite db, cache (gitigno
 - Bulk forget: by time window (before date) or by topic (entity/content match)
 - Cascade soft-delete: follows contains edges + same-source to soft-delete downstream nodes
 - Reflection engine: callable on-demand via POST /api/graph/reflect
-- .gai checksum validates file integrity on read
+- .hcai checksum validates file integrity on read
 - All dependencies MIT or Apache-2.0 licensed

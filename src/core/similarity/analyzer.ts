@@ -1,9 +1,9 @@
 // Pluggable text analyzer for TF-IDF tokenization.
 //
-// Graphnosis ships two built-in analyzers. Custom analyzers (Snowball
+// HippoCortex ships two built-in analyzers. Custom analyzers (Snowball
 // stemmers, language-specific Zemberek/Hunspell, etc.) implement the
 // `TextAnalyzer` interface and live in user code or in a future
-// `@nehloo/graphnosis-langs` companion package.
+// `@nehloo/hippocortex-langs` companion package.
 //
 //   - `asciiFoldAnalyzer`  (default) — diacritic-folded ASCII
 //                                      tokenization. `café` and `cafe`

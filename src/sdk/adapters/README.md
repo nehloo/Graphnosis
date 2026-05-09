@@ -1,19 +1,19 @@
-# Graphnosis embedding adapters
+# HippoCortex embedding adapters
 
-Adapters bridge the Graphnosis `EmbeddingAdapter` contract to a specific
+Adapters bridge the HippoCortex `EmbeddingAdapter` contract to a specific
 embedding provider (OpenAI, Voyage, Cohere, local sentence-transformers,
 custom). The core SDK ships with no built-in adapter — you import the one
 you want.
 
 ## Built-in adapters
 
-### `@nehloo/graphnosis/adapters/openai`
+### `@nehloo/hippocortex/adapters/openai`
 
 ```ts
-import { Graphnosis } from '@nehloo/graphnosis';
-import { openaiEmbedAdapter } from '@nehloo/graphnosis/adapters/openai';
+import { HippoCortex } from '@nehloo/hippocortex';
+import { openaiEmbedAdapter } from '@nehloo/hippocortex/adapters/openai';
 
-const g = new Graphnosis({
+const g = new HippoCortex({
   name: 'docs',
   embed: openaiEmbedAdapter({ model: 'text-embedding-3-small' }),
 });
@@ -22,10 +22,10 @@ const g = new Graphnosis({
 Peer deps: `ai`, `@ai-sdk/openai`. Reads `OPENAI_API_KEY` from the
 environment. Symmetric model — `intent` is ignored.
 
-### `@nehloo/graphnosis/adapters/static`
+### `@nehloo/hippocortex/adapters/static`
 
 ```ts
-import { staticEmbedAdapter } from '@nehloo/graphnosis/adapters/static';
+import { staticEmbedAdapter } from '@nehloo/hippocortex/adapters/static';
 
 const adapter = staticEmbedAdapter({
   vectors: { 'hello': [0.1, 0.2, 0.3], 'world': [0.4, 0.5, 0.6] },
@@ -39,11 +39,11 @@ miss by default; pass `onMiss: 'zeros'` to return zero-vectors instead.
 
 The natural shape for an asymmetric provider (Voyage, Cohere) is a
 **bidirectional** adapter — one object that handles both intents per call.
-Graphnosis passes `intent` on every `embed()` invocation so the adapter
+HippoCortex passes `intent` on every `embed()` invocation so the adapter
 can route to the right `input_type` without two separate instances.
 
 ```ts
-import type { EmbeddingAdapter } from '@nehloo/graphnosis';
+import type { EmbeddingAdapter } from '@nehloo/hippocortex';
 
 export function voyageEmbedAdapter(opts: {
   apiKey: string;
@@ -97,12 +97,12 @@ By convention, encode every property that affects the vector space — but
 There are two valid shapes for an asymmetric-provider adapter:
 
 1. **Bidirectional (recommended).** One adapter object handles both
-   intents per call — Graphnosis passes `intent` on every `embed()`
+   intents per call — HippoCortex passes `intent` on every `embed()`
    invocation, the adapter routes accordingly. The `voyageEmbedAdapter`
    above is bidirectional. Its `id` does **not** include the intent
    suffix because `intent` is a call-time parameter, not a property of
    the object. The vector spaces for `'document'` and `'query'` calls
-   differ, but Graphnosis itself guarantees the correct intent at each
+   differ, but HippoCortex itself guarantees the correct intent at each
    call site (`buildEmbeddings()` always uses `'document'`,
    `queryHybrid()` always uses `'query'`), so cross-contamination is
    impossible by construction.
@@ -114,11 +114,11 @@ There are two valid shapes for an asymmetric-provider adapter:
    Example ids: `'voyage:voyage-3-large@1024:document'` and
    `'voyage:voyage-3-large@1024:query'`. If you ship pinned adapters,
    you MUST wire the document-pinned one into `buildEmbeddings()` and
-   the query-pinned one into `queryHybrid()` yourself — Graphnosis only
-   tracks one default `embed` adapter per `Graphnosis` instance.
+   the query-pinned one into `queryHybrid()` yourself — HippoCortex only
+   tracks one default `embed` adapter per `HippoCortex` instance.
 
 In short: if a single adapter object is going to be assigned to
-`new Graphnosis({ embed: ... })`, it's bidirectional, and its `id`
+`new HippoCortex({ embed: ... })`, it's bidirectional, and its `id`
 should not include the intent.
 
 Examples (good ids):
@@ -128,7 +128,7 @@ Examples (good ids):
 - `'voyage:voyage-3-large@1024'` (bidirectional)
 - `'cohere:embed-english-v3.0@1024'` (bidirectional)
 
-The convention is not validated by Graphnosis. But two adapters with the
+The convention is not validated by HippoCortex. But two adapters with the
 same `id` MUST produce vectors in the same space — otherwise loading a
 saved index against a different runtime adapter will silently return
 garbage instead of throwing `EmbeddingAdapterMismatchError`.
@@ -138,7 +138,7 @@ garbage instead of throwing `EmbeddingAdapterMismatchError`.
 If your provider distinguishes document vs. query embeddings (Voyage,
 Cohere), your `embed()` MUST honor the `intent` parameter:
 
-| Graphnosis `intent` | Voyage `input_type` | Cohere `input_type` |
+| HippoCortex `intent` | Voyage `input_type` | Cohere `input_type` |
 | ------------------- | ------------------- | ------------------- |
 | `'document'`        | `'document'`        | `'search_document'` |
 | `'query'`           | `'query'`           | `'search_query'`    |
@@ -154,9 +154,9 @@ or container shutdown.
 
 ### Batching and retries
 
-Graphnosis pre-batches inputs (default 256 per call); your adapter is
+HippoCortex pre-batches inputs (default 256 per call); your adapter is
 free to chunk further internally. Implement provider-appropriate retry
-and rate-limit backoff inside `embed()` — Graphnosis treats each call as
+and rate-limit backoff inside `embed()` — HippoCortex treats each call as
 atomic.
 
 ### Testing your adapter without network — the recording adapter pattern
@@ -172,8 +172,8 @@ every invocation. This is the cleanest way to assert that:
 - Batching matches what you expect for your adapter's batch size.
 
 ```ts
-import type { EmbeddingAdapter } from '@nehloo/graphnosis';
-import { staticEmbedAdapter } from '@nehloo/graphnosis/adapters/static';
+import type { EmbeddingAdapter } from '@nehloo/hippocortex';
+import { staticEmbedAdapter } from '@nehloo/hippocortex/adapters/static';
 
 interface Call {
   texts: string[];
@@ -202,7 +202,7 @@ const inner = staticEmbedAdapter({
 });
 const adapter = recordingAdapter(inner);
 
-const g = new Graphnosis({ embed: adapter });
+const g = new HippoCortex({ embed: adapter });
 g.addMarkdown('…', 'a.md').build();
 
 await g.buildEmbeddings();

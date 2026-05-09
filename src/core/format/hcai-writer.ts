@@ -1,24 +1,24 @@
 import { pack } from 'msgpackr';
 import { createHmac } from 'node:crypto';
 import type { KnowledgeGraph } from '@/core/types';
-import { GAI_MAGIC, GAI_VERSION } from '@/core/constants';
+import { HCAI_MAGIC, HCAI_VERSION } from '@/core/constants';
 import { toSerializable } from '@/core/graph/graph-store';
 
-export interface WriteGaiOptions {
+export interface WriteHcaiOptions {
   /**
    * When set, the file is signed with HMAC-SHA256 over `headerBuf || bodyBuf`.
-   * Readers must supply the same key. Use this for any `.gai` file crossing a
+   * Readers must supply the same key. Use this for any `.hcai` file crossing a
    * trust boundary — the default additive checksum only catches corruption,
    * not a motivated attacker.
    */
   hmacKey?: Buffer | string;
 }
 
-export function writeGai(graph: KnowledgeGraph, opts: WriteGaiOptions = {}): Buffer {
+export function writeHcai(graph: KnowledgeGraph, opts: WriteHcaiOptions = {}): Buffer {
   const serializable = toSerializable(graph);
 
   const header: Record<string, unknown> = {
-    version: GAI_VERSION,
+    version: HCAI_VERSION,
     nodeCount: serializable.metadata.nodeCount,
     directedEdgeCount: serializable.metadata.directedEdgeCount,
     undirectedEdgeCount: serializable.metadata.undirectedEdgeCount,
@@ -50,7 +50,7 @@ export function writeGai(graph: KnowledgeGraph, opts: WriteGaiOptions = {}): Buf
   checksumBuf.writeUInt32BE(checksum, 0);
 
   const parts: Buffer[] = [
-    Buffer.from(GAI_MAGIC),
+    Buffer.from(HCAI_MAGIC),
     headerLenBuf,
     headerBuf,
     bodyBuf,

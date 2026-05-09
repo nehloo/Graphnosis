@@ -130,7 +130,7 @@ export async function parseVideo(
   if (options.enableTranscription && process.env.OPENAI_API_KEY) {
     sections.push({
       title: 'Transcription',
-      content: 'Audio transcription via Whisper API is a planned feature. Currently, the framework is in place but requires ffmpeg for audio extraction from video containers. Contribute at github.com/nehloo/Graphnosis.',
+      content: 'Audio transcription via Whisper API is a planned feature. Currently, the framework is in place but requires ffmpeg for audio extraction from video containers. Contribute at github.com/nehloo/HippoCortex.',
       depth: 1,
       children: [],
     });

@@ -16,7 +16,7 @@
 //      cancel long `buildEmbeddings()` runs on user nav / container
 //      shutdown.
 //   3. `id` is the persistence anchor. Two adapters with the same `id`
-//      MUST produce vectors in the same space — Graphnosis uses this
+//      MUST produce vectors in the same space — HippoCortex uses this
 //      to fail closed at load time when an index is restored against
 //      an incompatible runtime.
 
@@ -58,7 +58,7 @@ export interface EmbeddingAdapter {
    *                the underlying fetch / SDK call.
    *
    * Implementations are responsible for batching, retries, and rate-limit
-   * backoff. Consumers of `EmbeddingAdapter` (i.e. the Graphnosis core)
+   * backoff. Consumers of `EmbeddingAdapter` (i.e. the HippoCortex core)
    * MUST NOT assume the adapter chunks internally — they pass through
    * arbitrarily large text arrays.
    */

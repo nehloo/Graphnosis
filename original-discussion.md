@@ -1,3 +1,5 @@
+> Historical context: this discussion sparked the project that was originally called **Graphnosis** and is now known as **HippoCortex**. Names below preserve the original wording.
+
 # Nelu Lazar Q1:
 are AI models based on non-oriented graphs?
 

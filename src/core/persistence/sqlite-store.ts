@@ -10,7 +10,7 @@ import type {
 import { fromSerializable, toSerializable } from '@/core/graph/graph-store';
 import path from 'path';
 
-const DB_PATH = path.join(process.cwd(), 'data', 'graphnosis.db');
+const DB_PATH = path.join(process.cwd(), 'data', 'hippocortex.db');
 
 // Lazy-load better-sqlite3 so it can be listed as an optional dependency. The
 // import fails loudly only when a persistence call is actually attempted.
@@ -25,7 +25,7 @@ function loadDatabase(): typeof import('better-sqlite3') {
     return DatabaseCtor;
   } catch {
     throw new Error(
-      '[graphnosis] SQLite persistence requires better-sqlite3. ' +
+      '[hippocortex] SQLite persistence requires better-sqlite3. ' +
         'Install it with: npm install better-sqlite3'
     );
   }

@@ -2,13 +2,13 @@ import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 import { homedir } from 'os';
 import { z } from 'zod';
-import { readGai } from '@/core/format/gai-reader';
+import { readHcai } from '@/core/format/hcai-reader';
 import { createSession } from '../graph-session';
 import { buildTfidfFromGraph, getCached, setCached } from '../tfidf-cache';
 import type { SessionGraph } from '../graph-session';
 
 export const LoadGraphInput = z.object({
-  path: z.string().describe('Absolute or ~ path to a .gai file'),
+  path: z.string().describe('Absolute or ~ path to a .hcai file'),
 });
 
 export type LoadGraphResult = {
@@ -27,9 +27,9 @@ export async function loadGraph(input: z.infer<typeof LoadGraphInput>): Promise<
   }
 
   const buffer = readFileSync(absPath);
-  const { graph, header } = readGai(buffer);
+  const { graph, header } = readHcai(buffer);
 
-  // Rebuild TF-IDF (not stored in .gai). Use mtime-keyed cache for fast reloads.
+  // Rebuild TF-IDF (not stored in .hcai). Use mtime-keyed cache for fast reloads.
   let tfidfIndex = getCached(absPath);
   if (!tfidfIndex) {
     tfidfIndex = buildTfidfFromGraph(graph);

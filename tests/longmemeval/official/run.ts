@@ -1,4 +1,4 @@
-// CLI runner for the official LongMemEval benchmark against Graphnosis.
+// CLI runner for the official LongMemEval benchmark against HippoCortex.
 //
 // Usage:
 //   npm run longmemeval:smoke             # 20-question smoke (default seed)
@@ -439,7 +439,7 @@ function summarize(results: QuestionResult[]) {
 function writeMarkdownReport(outPath: string, args: CliArgs, results: QuestionResult[]) {
   const s = summarize(results);
   const lines: string[] = [];
-  lines.push('# LongMemEval Official — Graphnosis Results');
+  lines.push('# LongMemEval Official — HippoCortex Results');
   lines.push('');
   lines.push(`**Dataset:** \`${args.dataset}\``);
   lines.push(`**Answer model:** \`${args.answerModel}\`  **Judge model:** \`${args.judge}\``);

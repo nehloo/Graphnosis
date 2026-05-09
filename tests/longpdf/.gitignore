@@ -1,0 +1,14 @@
+# Local-only files for the long-PDF benchmark.
+# Source documents are fetched per the instructions in corpus/README.md;
+# we do not redistribute them.
+
+corpus/*
+!corpus/README.md
+!corpus/.gitkeep
+
+# Per-run artifacts: raw answers, judge verdicts, summary tables.
+results/
+
+# Local question fills (the skeleton lives in git; the filled gold_answers
+# can be committed once you're confident, but until then keep them local).
+questions.local.jsonl

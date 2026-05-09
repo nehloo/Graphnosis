@@ -1,6 +1,6 @@
-# LongMemEval (Official) — Graphnosis Runner
+# LongMemEval (Official) — HippoCortex Runner
 
-Runs the real ICLR 2025 benchmark from [xiaowu0162/LongMemEval](https://github.com/xiaowu0162/LongMemEval) end-to-end against Graphnosis:
+Runs the real ICLR 2025 benchmark from [xiaowu0162/LongMemEval](https://github.com/xiaowu0162/LongMemEval) end-to-end against HippoCortex:
 
 1. Build an isolated knowledge graph from each question's ~50-session haystack
 2. Query the graph and generate an answer (`gpt-4o-mini` by default — the same model as `/api/graph/query`)

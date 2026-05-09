@@ -3,7 +3,7 @@ import { extname, resolve } from 'path';
 import { homedir } from 'os';
 import { z } from 'zod';
 import { addDocumentsToGraph } from '@/core/graph/incremental';
-import { writeGai } from '@/core/format/gai-writer';
+import { writeHcai } from '@/core/format/hcai-writer';
 import { parseMarkdown } from '@/core/ingestion/parsers/markdown-parser';
 import { parseHtml } from '@/core/ingestion/parsers/html-parser';
 import { parseCsv } from '@/core/ingestion/parsers/csv-parser';
@@ -15,7 +15,7 @@ import { setCached } from '../tfidf-cache';
 export const UpdateGraphInput = z.object({
   files: z.array(z.string()).min(1).describe('Files to add to the existing graph'),
   graphId: z.string().optional().describe('Session graph ID (omit to use the most-recently loaded graph)'),
-  outputPath: z.string().optional().describe('If provided, write the updated graph back to this .gai path'),
+  outputPath: z.string().optional().describe('If provided, write the updated graph back to this .hcai path'),
 });
 
 export type UpdateGraphResult = {
@@ -65,7 +65,7 @@ export async function updateGraph(input: z.infer<typeof UpdateGraphInput>): Prom
   let savedTo: string | undefined;
   if (input.outputPath) {
     const absOut = expandPath(input.outputPath);
-    const buf = writeGai(session);
+    const buf = writeHcai(session);
     writeFileSync(absOut, buf);
     setCached(absOut, session.tfidfIndex);
     savedTo = absOut;
