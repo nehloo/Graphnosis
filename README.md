@@ -1,4 +1,4 @@
-# Graphnosis — Dual-Graph Private AI Memory & Knowledge Framework
+# Graphnosis — AI's Missing Hippocampus
 
 [![Enterprise](https://img.shields.io/badge/Enterprise-Privacy%20%26%20Security-2ea043?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/enterprise/enterprise.md)
 [![.aikg Format](https://img.shields.io/badge/.aikg-Format%20Spec-5b3fd1?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/aikg-format/aikg-format.md)
