@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/tests/longpdf/
 
 # next.js
 /.next/
@@ -42,6 +43,9 @@ yarn-error.log*
 
 # Graphnosis plans
 /plans/
+
+# Graphnosis branding
+/docs/branding/
 
 # vercel
 .vercel

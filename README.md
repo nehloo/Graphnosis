@@ -1,16 +1,25 @@
-# Graphnosis — AI's Missing Hippocampus
+<div align="center">
+  <img src="public/graphnosis-logo-550x550.png" alt="Graphnosis logo" width="180"/>
+
+# Graphnosis
+
+## AI's Missing Hippocampus
+
+</div>
+
+<div align="center">
 
 [![Enterprise](https://img.shields.io/badge/Enterprise-Privacy%20%26%20Security-2ea043?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/enterprise/enterprise.md)
 [![.aikg Format](https://img.shields.io/badge/.aikg-Format%20Spec-5b3fd1?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/aikg-format/aikg-format.md)
-[![Benchmark](https://img.shields.io/badge/LongMemEval-76.40%25-e25822?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/benchmarks/benchmarks.md)
+[![Benchmark](https://img.shields.io/badge/LongMemEval-76.40%25-e25822?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/benchmarks/benchmarks.md)<br>
 [![Demo](https://img.shields.io/badge/demo-graphnosis.vercel.app-blue?style=flat&logo=vercel)](https://graphnosis.vercel.app)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![References](https://img.shields.io/badge/References-Attribution-6a737d?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/REFERENCES.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/LICENSE)
 
-**Instead of raw files that humans can read (md, txt, pdf, doc etc.), can humans feed AI with context binary files that LLMs understand better than humans can read them?**
+</div>
 
-Graphnosis transforms raw files into AI-optimized directed and undirected graph representations. Instead of feeding AI models flat text chunks (the standard RAG approach), Graphnosis builds a structured knowledge graph with typed relationships — then serializes relevant subgraphs into a format designed for machine comprehension, not human readability.
+Every AI stack has a cortex (your files) and a prefrontal cortex (your LLM calls). None of them have a hippocampus. Graphnosis fills that gap — encoding raw knowledge into a structured dual-graph, producing an `.aikg` engram that carries typed relationships, temporal context, and identity links that flat text chunks never had.
 
 > The name is a compound of **graph** and **gnosis** (Greek for knowledge) — literally "graph knowledge". The `.aikg` extension stands for **AI Knowledge Graph** — the AI-native binary format at the heart of the system.
 >
