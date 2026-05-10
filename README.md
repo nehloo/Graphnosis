@@ -3,7 +3,7 @@
 
 # Graphnosis
 
-## AI's Missing Hippocampus
+## The hippocampus your AI never had
 
 </div>
 
