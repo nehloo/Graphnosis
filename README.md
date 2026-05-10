@@ -3,7 +3,7 @@
 
 # Graphnosis
 
-## The hippocampus your AI never had
+## The dual-graph engram your AI never had
 
 </div>
 
@@ -19,7 +19,7 @@
 
 </div>
 
-Every AI stack has a cortex (your files) and a prefrontal cortex (your LLM calls). None of them have a hippocampus. Graphnosis fills that gap — encoding raw knowledge into a structured dual-graph, producing an `.aikg` engram that carries typed relationships, temporal context, and identity links that flat text chunks never had.
+Every AI stack has a cortex (your files) and a prefrontal cortex (your LLM calls). What's missing between them is memory with explicit relationships. Graphnosis encodes raw knowledge into a dual-graph — directed edges for typed logic (causes, supersedes, cites), undirected for similarity and co-occurrence, layered on the same node set and traversed together in a single BFS. The result is an `.aikg` engram: a binary memory trace that carries typed relationships, temporal context, and identity links that flat text chunks never had.
 
 > The name is a compound of **graph** and **gnosis** (Greek for knowledge) — literally "graph knowledge". The `.aikg` extension stands for **AI Knowledge Graph** — the AI-native binary format at the heart of the system.
 >
