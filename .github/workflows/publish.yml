@@ -9,15 +9,28 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
+      # `id-token: write` is required for npm OIDC trusted publishing.
+      # No NPM_TOKEN secret is used — npm authenticates via the GitHub Actions
+      # OIDC token, which the npm trusted publisher configuration for
+      # @nehloo/graphnosis maps to this repository and workflow filename.
       id-token: write
       contents: read
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+
+      # OIDC trusted publishing requires npm >= 11.5.1. Node 22 ships with
+      # npm 10.x, so we install the latest npm explicitly.
+      - name: Install latest npm
+        run: npm install -g npm@latest
+
       - run: npm ci
+
+      # No NODE_AUTH_TOKEN env — leaving it unset lets npm use OIDC.
+      # `provenance: true` in package.json triggers attestation on the runner.
       - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.npm_token }}
