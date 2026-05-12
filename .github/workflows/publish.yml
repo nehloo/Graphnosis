@@ -19,18 +19,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Node 24 ships with npm 11.x bundled, which satisfies OIDC trusted
+      # publishing's >= 11.5.1 requirement without any self-upgrade dance.
+      # (Earlier attempts bumped npm via `npm install -g npm@11`, but
+      # Node 22's bundled npm 10.x has a bug installing newer npm —
+      # missing `promise-retry`.)
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
-
-      # OIDC trusted publishing requires npm >= 11.5.1. Node 22 ships with
-      # npm 10.x, so we install a known-good npm 11.x explicitly. We pin
-      # the major because `npm@latest` has periodically shipped broken
-      # bundled deps (e.g. May 2026: missing `promise-retry` on the
-      # nightly self-update).
-      - name: Install npm 11.x
-        run: npm install -g npm@^11
 
       - run: npm ci
 
