@@ -1,12 +1,12 @@
 // Graphnosis Constants
 
 // .gai file format — the AI-native binary knowledge format produced by Graphnosis.
-// Magic bytes are "AIKG" (0x41 0x49 0x4B 0x47), kept stable for forward and backward
-// compatibility with files written by earlier versions (v0.1 — v0.2.3 used the
-// `.aikg` extension on disk; the binary format is unchanged, only the canonical
-// extension and surface naming switched to `.gai` in v0.2.4).
-export const AIKG_MAGIC = new Uint8Array([0x41, 0x49, 0x4B, 0x47]);
-export const AIKG_VERSION = 1;
+// Magic bytes are the four ASCII characters 0x41 0x49 0x4B 0x47 (which historically
+// spelled "AIKG", the SDK's previous codename for the format). The bytes are kept
+// stable for backward compatibility with files written by earlier versions — readers
+// recognize a Graphnosis file by these bytes regardless of the on-disk extension.
+export const GAI_MAGIC = new Uint8Array([0x41, 0x49, 0x4B, 0x47]);
+export const GAI_VERSION = 1;
 
 // Similarity thresholds
 export const SIMILARITY_THRESHOLD = 0.3; // Minimum cosine similarity for undirected edges

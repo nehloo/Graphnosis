@@ -2,7 +2,7 @@ import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 import { homedir } from 'os';
 import { z } from 'zod';
-import { readAikg } from '@/core/format/aikg-reader';
+import { readGai } from '@/core/format/gai-reader';
 import { createSession } from '../graph-session';
 import { buildTfidfFromGraph, getCached, setCached } from '../tfidf-cache';
 import type { SessionGraph } from '../graph-session';
@@ -27,7 +27,7 @@ export async function loadGraph(input: z.infer<typeof LoadGraphInput>): Promise<
   }
 
   const buffer = readFileSync(absPath);
-  const { graph, header } = readAikg(buffer);
+  const { graph, header } = readGai(buffer);
 
   // Rebuild TF-IDF (not stored in .gai). Use mtime-keyed cache for fast reloads.
   let tfidfIndex = getCached(absPath);

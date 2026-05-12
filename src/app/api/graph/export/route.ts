@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getGraph } from '@/core/graph/graph-store';
-import { writeAikg } from '@/core/format/aikg-writer';
-import { readAikg } from '@/core/format/aikg-reader';
+import { writeGai } from '@/core/format/gai-writer';
+import { readGai } from '@/core/format/gai-reader';
 
 // GET: Export the current graph as .gai and show what's inside
 // ?format=binary → download the raw .gai file
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   }
 
   // Write the graph to .gai binary
-  const gaiBuf = writeAikg(graphData);
+  const gaiBuf = writeGai(graphData);
 
   if (format === 'binary') {
     return new Response(new Uint8Array(gaiBuf), {
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   }
 
   // Read it back to verify round-trip integrity
-  const { graph: decoded, header } = readAikg(gaiBuf);
+  const { graph: decoded, header } = readGai(gaiBuf);
 
   // Build hex preview of first 256 bytes
   const hexLines: string[] = [];
@@ -84,7 +84,7 @@ export async function GET(request: Request) {
   });
 }
 
-function countEdges(graph: ReturnType<typeof readAikg>['graph'], nodeId: string): number {
+function countEdges(graph: ReturnType<typeof readGai>['graph'], nodeId: string): number {
   let count = 0;
   for (const e of graph.directedEdges.values()) {
     if (e.from === nodeId || e.to === nodeId) count++;

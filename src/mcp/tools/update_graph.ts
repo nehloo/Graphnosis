@@ -3,7 +3,7 @@ import { extname, resolve } from 'path';
 import { homedir } from 'os';
 import { z } from 'zod';
 import { addDocumentsToGraph } from '@/core/graph/incremental';
-import { writeAikg } from '@/core/format/aikg-writer';
+import { writeGai } from '@/core/format/gai-writer';
 import { parseMarkdown } from '@/core/ingestion/parsers/markdown-parser';
 import { parseHtml } from '@/core/ingestion/parsers/html-parser';
 import { parseCsv } from '@/core/ingestion/parsers/csv-parser';
@@ -65,7 +65,7 @@ export async function updateGraph(input: z.infer<typeof UpdateGraphInput>): Prom
   let savedTo: string | undefined;
   if (input.outputPath) {
     const absOut = expandPath(input.outputPath);
-    const buf = writeAikg(session);
+    const buf = writeGai(session);
     writeFileSync(absOut, buf);
     setCached(absOut, session.tfidfIndex);
     savedTo = absOut;

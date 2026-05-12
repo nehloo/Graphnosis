@@ -32,7 +32,7 @@ export function setCached(path: string, tfidfIndex: TfidfIndex): void {
   }
 }
 
-// Rebuild TF-IDF from the loaded graph's nodes. Called after readAikg since
+// Rebuild TF-IDF from the loaded graph's nodes. Called after readGai since
 // TF-IDF is not persisted in the .gai format.
 export function buildTfidfFromGraph(graph: KnowledgeGraph): TfidfIndex {
   const index = createTfidfIndex();

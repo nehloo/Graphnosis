@@ -1,10 +1,10 @@
 import { pack } from 'msgpackr';
 import { createHmac } from 'node:crypto';
 import type { KnowledgeGraph } from '@/core/types';
-import { AIKG_MAGIC, AIKG_VERSION } from '@/core/constants';
+import { GAI_MAGIC, GAI_VERSION } from '@/core/constants';
 import { toSerializable } from '@/core/graph/graph-store';
 
-export interface WriteAikgOptions {
+export interface WriteGaiOptions {
   /**
    * When set, the file is signed with HMAC-SHA256 over `headerBuf || bodyBuf`.
    * Readers must supply the same key. Use this for any `.gai` file crossing a
@@ -14,11 +14,11 @@ export interface WriteAikgOptions {
   hmacKey?: Buffer | string;
 }
 
-export function writeAikg(graph: KnowledgeGraph, opts: WriteAikgOptions = {}): Buffer {
+export function writeGai(graph: KnowledgeGraph, opts: WriteGaiOptions = {}): Buffer {
   const serializable = toSerializable(graph);
 
   const header: Record<string, unknown> = {
-    version: AIKG_VERSION,
+    version: GAI_VERSION,
     nodeCount: serializable.metadata.nodeCount,
     directedEdgeCount: serializable.metadata.directedEdgeCount,
     undirectedEdgeCount: serializable.metadata.undirectedEdgeCount,
@@ -50,7 +50,7 @@ export function writeAikg(graph: KnowledgeGraph, opts: WriteAikgOptions = {}): B
   checksumBuf.writeUInt32BE(checksum, 0);
 
   const parts: Buffer[] = [
-    Buffer.from(AIKG_MAGIC),
+    Buffer.from(GAI_MAGIC),
     headerLenBuf,
     headerBuf,
     bodyBuf,

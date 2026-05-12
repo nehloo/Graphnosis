@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-interface AikgInspection {
+interface GaiInspection {
   file: {
     sizeBytes: number;
     sizeKB: number;
@@ -47,7 +47,7 @@ interface AikgInspection {
 }
 
 export default function ViewGaiPage() {
-  const [data, setData] = useState<AikgInspection | null>(null);
+  const [data, setData] = useState<GaiInspection | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,7 +64,7 @@ export default function ViewGaiPage() {
       .finally(() => setLoading(false));
   }
 
-  function downloadAikg() {
+  function downloadGai() {
     window.open("/api/graph/export?format=binary", "_blank");
   }
 
@@ -87,7 +87,7 @@ export default function ViewGaiPage() {
           </button>
           {data && (
             <button
-              onClick={downloadAikg}
+              onClick={downloadGai}
               className="px-4 py-2 bg-surface-2 text-foreground text-sm rounded-md border border-border hover:bg-surface transition-colors"
             >
               Download .gai

@@ -13,7 +13,7 @@
 //   2. `.gai` files that cross a trust boundary must be written AND read
 //      with `hmacKey`. The default additive checksum catches corruption,
 //      NOT tampering.
-//   3. File paths passed to `saveAikg/loadAikg/saveSqlite/loadSqlite` are
+//   3. File paths passed to `saveGai/loadGai/saveSqlite/loadSqlite` are
 //      forwarded to `node:fs` and `better-sqlite3` as-is. Do NOT pass
 //      user-controlled strings; canonicalize before calling.
 //   4. EMBEDDING CARVE-OUT: the symbols `attachEmbeddings`, `embedNodes`,
@@ -55,8 +55,8 @@ import {
   type QueryOptions,
   type PromptContext,
 } from '@/core/query/query-engine';
-import { writeAikg, type WriteAikgOptions } from '@/core/format/aikg-writer';
-import { readAikg, type ReadAikgOptions } from '@/core/format/aikg-reader';
+import { writeGai, type WriteGaiOptions } from '@/core/format/gai-writer';
+import { readGai, type ReadGaiOptions } from '@/core/format/gai-reader';
 import { openSqliteStore } from '@/core/persistence/sqlite-store';
 import { createTfidfIndex, addDocument, computeIdf } from '@/core/similarity/tfidf';
 import {
@@ -511,8 +511,8 @@ export class Graphnosis {
    * NETWORK: calls the configured embedding adapter. The adapter is
    * resolved as `opts.adapter ?? this.embed` — pass one or the other.
    *
-   * NOT PERSISTED: embedding vectors are NOT written by `saveAikg()` /
-   * `saveSqlite()`. After `loadAikg()` / `loadSqlite()` you must call
+   * NOT PERSISTED: embedding vectors are NOT written by `saveGai()` /
+   * `saveSqlite()`. After `loadGai()` / `loadSqlite()` you must call
    * `buildEmbeddings()` again to re-embed.
    *
    * @param opts.adapter    Embedding adapter (overrides constructor `embed`).
@@ -649,7 +649,7 @@ export class Graphnosis {
   /**
    * Reconstruct the TF-IDF index from the content of all existing nodes.
    *
-   * Call this after `loadAikg()` or `loadSqlite()` / `loadSqliteByName()` before
+   * Call this after `loadGai()` or `loadSqlite()` / `loadSqliteByName()` before
    * issuing `query()` calls. It is called automatically by those load methods,
    * so you only need this if you have mutated the graph manually.
    *
@@ -689,7 +689,7 @@ export class Graphnosis {
    * WARNING: `filePath` is forwarded to `fs.writeFileSync` unchanged. Do
    * not pass user-controlled paths.
    */
-  saveAikg(filePath: string, opts: WriteAikgOptions = {}): void {
+  saveGai(filePath: string, opts: WriteGaiOptions = {}): void {
     writeFileSync(filePath, this.toBuffer(opts));
   }
 
@@ -708,8 +708,8 @@ export class Graphnosis {
    * boundary. Without it the trailer is an additive checksum only —
    * trivially forgeable.
    */
-  toBuffer(opts: WriteAikgOptions = {}): Buffer {
-    return writeAikg(this.graph, opts);
+  toBuffer(opts: WriteGaiOptions = {}): Buffer {
+    return writeGai(this.graph, opts);
   }
 
   /**
@@ -720,7 +720,7 @@ export class Graphnosis {
    * supplied here. Fail-closed: a missing key (or a key against an
    * unsigned file — a downgrade attempt) throws.
    */
-  loadAikg(filePath: string, opts: ReadAikgOptions = {}): KnowledgeGraph {
+  loadGai(filePath: string, opts: ReadGaiOptions = {}): KnowledgeGraph {
     return this.fromBuffer(readFileSync(filePath), opts);
   }
 
@@ -729,12 +729,12 @@ export class Graphnosis {
    * the current graph. The TF-IDF index is automatically rebuilt so
    * `query()` works immediately.
    *
-   * SECURITY: same fail-closed semantics as `loadAikg` — a buffer signed
+   * SECURITY: same fail-closed semantics as `loadGai` — a buffer signed
    * with `hmacKey` requires the same key here, and a missing-key /
    * mismatched-key load throws.
    */
-  fromBuffer(buf: Buffer, opts: ReadAikgOptions = {}): KnowledgeGraph {
-    const { graph } = readAikg(buf, opts);
+  fromBuffer(buf: Buffer, opts: ReadGaiOptions = {}): KnowledgeGraph {
+    const { graph } = readGai(buf, opts);
     this.built = graph as BuiltGraph;
     this.documents = [];
     this.rebuildIndex();
@@ -1087,8 +1087,8 @@ export {
 export { parseMarkdown } from '@/core/ingestion/parsers/markdown-parser';
 export { parseHtml } from '@/core/ingestion/parsers/html-parser';
 export { parseCsv, parseJson } from '@/core/ingestion/parsers/csv-parser';
-export { writeAikg, type WriteAikgOptions } from '@/core/format/aikg-writer';
-export { readAikg, type ReadAikgOptions, type AikgHeader } from '@/core/format/aikg-reader';
+export { writeGai, type WriteGaiOptions } from '@/core/format/gai-writer';
+export { readGai, type ReadGaiOptions, type GaiHeader } from '@/core/format/gai-reader';
 export { openSqliteStore, type SqliteStore } from '@/core/persistence/sqlite-store';
 export { toSerializable, fromSerializable } from '@/core/graph/graph-store';
 

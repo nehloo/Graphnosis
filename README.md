@@ -509,9 +509,9 @@ for (const c of r5.contradictions) {
 }
 
 // Load a saved graph and continue appending to it:
-g.loadAikg('knowledge.gai', { hmacKey });
+g.loadGai('knowledge.gai', { hmacKey });
 await g.appendFolder('/new-docs');
-g.saveAikg('knowledge.gai', { hmacKey });
+g.saveGai('knowledge.gai', { hmacKey });
 ```
 
 **Full-graph consistency check** — run after a batch of appends for a comprehensive audit:
@@ -650,10 +650,10 @@ await g.appendWithEmbeddings(parseMarkdown(newDoc, 'note.md'));
 See [src/sdk/adapters/README.md](src/sdk/adapters/README.md) for the full
 adapter contract, the `id` naming convention, and a Voyage example.
 
-> **Persistence caveat — embeddings are not saved.** `saveAikg()` /
+> **Persistence caveat — embeddings are not saved.** `saveGai()` /
 > `saveSqlite()` / `toBuffer()` / `toSqliteBuffer()` only persist the graph
 > and TF-IDF index. The `EmbeddingIndex` is in-memory only — after
-> `loadAikg()` / `fromBuffer()` / `loadSqlite*()` you must call
+> `loadGai()` / `fromBuffer()` / `loadSqlite*()` you must call
 > `await g.buildEmbeddings()` again before using the hybrid methods.
 > Persisting vectors to disk is on the roadmap; for now, treat the
 > embedding index as a per-process cache.
@@ -674,13 +674,13 @@ without `/tmp` gymnastics:
 
 ```ts
 // .gai (binary, signed with HMAC if you pass a key)
-const buf = g.toBuffer({ hmacKey: process.env.AIKG_HMAC_KEY });
+const buf = g.toBuffer({ hmacKey: process.env.GAI_HMAC_KEY });
 await blob.put('graphs/myorg/kg.gai', buf);
 
 // later, in a cold serverless invocation
 const fresh = await blob.get('graphs/myorg/kg.gai');
 const g2 = new Graphnosis();
-g2.fromBuffer(Buffer.from(fresh), { hmacKey: process.env.AIKG_HMAC_KEY });
+g2.fromBuffer(Buffer.from(fresh), { hmacKey: process.env.GAI_HMAC_KEY });
 
 // SQLite (writes a transient file under os.tmpdir() — must be writable)
 const sqlBuf = g.toSqliteBuffer();
@@ -688,7 +688,7 @@ await blob.put('graphs/myorg/kg.sqlite', sqlBuf);
 g2.fromSqliteBuffer(sqlBuf, 'myorg-graph-name');
 ```
 
-`saveAikg()` / `loadAikg()` / `saveSqlite()` / `loadSqlite*()` continue to
+`saveGai()` / `loadGai()` / `saveSqlite()` / `loadSqlite*()` continue to
 work — they're now thin wrappers over the buffer methods.
 
 ### Reason conventions for soft-delete (v0.2)
@@ -726,9 +726,9 @@ itself prefixes `system:` on cascade-delete, retention, and topic-forget.
 
 ```ts
 // Signed .gai — use whenever the file crosses a trust boundary
-const hmacKey = process.env.AIKG_HMAC_KEY!; // 32+ random bytes
-g.saveAikg('knowledge.gai', { hmacKey });
-g.loadAikg('knowledge.gai', { hmacKey });   // fails closed on any tampering
+const hmacKey = process.env.GAI_HMAC_KEY!; // 32+ random bytes
+g.saveGai('knowledge.gai', { hmacKey });
+g.loadGai('knowledge.gai', { hmacKey });   // fails closed on any tampering
 
 // SQLite (requires the optional better-sqlite3 dependency)
 g.saveSqlite('./data/graphnosis.db');
@@ -761,7 +761,7 @@ import {
   // g.reflect()         — full-graph contradiction + decay + discovery audit
   // g.edit / deleteNode / supersede / correct / importMarkdown
   // g.forgetBefore / forgetTopic
-  // g.saveAikg / loadAikg / saveSqlite / loadSqlite / loadSqliteByName
+  // g.saveGai / loadGai / saveSqlite / loadSqlite / loadSqliteByName
   // g.toBuffer / fromBuffer             — serverless-friendly .gai I/O
   // g.toSqliteBuffer / fromSqliteBuffer — serverless-friendly SQLite I/O
 
@@ -785,7 +785,7 @@ import {
   forgetByTimeWindow, forgetByTopic, cascadeSoftDelete,
 
   // Persistence
-  writeAikg, readAikg,     // .gai binary format (with optional HMAC-SHA256)
+  writeGai, readGai,     // .gai binary format (with optional HMAC-SHA256)
   openSqliteStore,       // path-scoped SQLite store
   toSerializable, fromSerializable,
 } from '@nehloo/graphnosis';

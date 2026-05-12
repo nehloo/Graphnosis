@@ -2,7 +2,7 @@ import { writeFileSync } from 'fs';
 import { resolve } from 'path';
 import { homedir } from 'os';
 import { z } from 'zod';
-import { writeAikg } from '@/core/format/aikg-writer';
+import { writeGai } from '@/core/format/gai-writer';
 import { getSession, getDefaultSession } from '../graph-session';
 import { setCached } from '../tfidf-cache';
 
@@ -25,7 +25,7 @@ export async function exportGraph(input: z.infer<typeof ExportInput>): Promise<E
   }
 
   const absPath = expandPath(input.outputPath);
-  const buf = writeAikg(session);
+  const buf = writeGai(session);
   writeFileSync(absPath, buf);
 
   // Update the TF-IDF cache entry so subsequent load_graph calls benefit from it

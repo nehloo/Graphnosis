@@ -123,7 +123,7 @@ export interface GraphMetadata {
   personCount?: number;
   /**
    * Analyzer id this graph was tokenized with. Always populated on
-   * v0.2+ saves. Persisted so `loadAikg` / `loadSqlite*` / `fromBuffer`
+   * v0.2+ saves. Persisted so `loadGai` / `loadSqlite*` / `fromBuffer`
    * fail closed with `AnalyzerMismatchError` when the runtime is
    * configured with a different analyzer.
    */
