@@ -25,9 +25,12 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       # OIDC trusted publishing requires npm >= 11.5.1. Node 22 ships with
-      # npm 10.x, so we install the latest npm explicitly.
-      - name: Install latest npm
-        run: npm install -g npm@latest
+      # npm 10.x, so we install a known-good npm 11.x explicitly. We pin
+      # the major because `npm@latest` has periodically shipped broken
+      # bundled deps (e.g. May 2026: missing `promise-retry` on the
+      # nightly self-update).
+      - name: Install npm 11.x
+        run: npm install -g npm@^11
 
       - run: npm ci
 
