@@ -1,25 +1,25 @@
-# The `.aikg` Format — AI-Native Knowledge Representation
+# The `.gai` Format — AI-Native Knowledge Representation
 
 > **Graphnosis** — a binary serialization format for dual-graph knowledge structures,
 > designed for machine comprehension rather than human readability.
 
-The `.aikg` file is the persistence format at the heart of Graphnosis. A single file contains a complete dual-graph: typed nodes, directed edges (causal/temporal/hierarchical/identity), undirected edges (similarity/co-occurrence), and all provenance/temporal metadata needed to reason over the knowledge without touching the original sources.
+The `.gai` file is the persistence format at the heart of Graphnosis. A single file contains a complete dual-graph: typed nodes, directed edges (causal/temporal/hierarchical/identity), undirected edges (similarity/co-occurrence), and all provenance/temporal metadata needed to reason over the knowledge without touching the original sources.
 
 ---
 
 ## Design Principles
 
-1. **AI-native, not human-native.** JSON is optimized for human inspection; `.aikg` is optimized for fast machine ingestion. Nothing in the layout is decorative — every byte is either load-bearing structure or integrity check.
+1. **AI-native, not human-native.** JSON is optimized for human inspection; `.gai` is optimized for fast machine ingestion. Nothing in the layout is decorative — every byte is either load-bearing structure or integrity check.
 2. **Self-describing.** The file declares its version, node/edge counts, and hierarchy levels in a fixed header. A reader can decide up-front whether it can process the file.
 3. **Single-file portability.** Graph identity, nodes, edges, source references, and metadata are in one file. No sidecar indexes, no embedded blobs, no external dependencies on a DB.
 4. **Integrity first.** Magic bytes guard against wrong-format inputs; a 32-bit checksum guards against truncation/corruption. A bad read fails loudly, never silently.
-5. **No embedding vectors.** TF-IDF and entity overlap provide similarity signals; vectors can be re-derived on demand. Keeping vectors out of the file makes it tiny and portable (typical `.aikg` files are kilobytes, not megabytes).
+5. **No embedding vectors.** TF-IDF and entity overlap provide similarity signals; vectors can be re-derived on demand. Keeping vectors out of the file makes it tiny and portable (typical `.gai` files are kilobytes, not megabytes).
 
 ---
 
 ## Binary Layout
 
-A `.aikg` file is a flat byte stream composed of five contiguous regions:
+A `.gai` file is a flat byte stream composed of five contiguous regions:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -52,7 +52,7 @@ A MessagePack map summarizing the graph:
 | `name` | `string` | Human-readable graph name |
 | `id` | `string` | Stable graph identifier |
 
-The header is small enough to parse cheaply — a tool can list/catalog `.aikg` files by reading only the first few hundred bytes.
+The header is small enough to parse cheaply — a tool can list/catalog `.gai` files by reading only the first few hundred bytes.
 
 ### Body (variable)
 A MessagePack map containing the full graph payload:
@@ -114,7 +114,7 @@ The type drives routing behavior in the query engine — e.g. `preference` nodes
 
 ### Temporal fields
 
-`createdAt`, `lastAccessedAt`, `accessCount`, and `validUntil` are what make `.aikg` a *living* format rather than a static snapshot:
+`createdAt`, `lastAccessedAt`, `accessCount`, and `validUntil` are what make `.gai` a *living* format rather than a static snapshot:
 
 - **Confidence decay.** After 7 days without access, a node's effective confidence decays ~1%/day (floor 0.1). Frequently-accessed nodes stay sharp; stale nodes fade without being deleted.
 - **Soft delete.** Corrections set `validUntil` to "now" and drop confidence to 0.1 instead of removing the node. Full audit trail; nothing is lost.
@@ -211,7 +211,7 @@ Metadata duplicates a few counts that already appear in the header — intention
 
 ## Worked Example
 
-A minimal `.aikg` might look like this in pseudo-JSON (before MessagePack encoding):
+A minimal `.gai` might look like this in pseudo-JSON (before MessagePack encoding):
 
 ```jsonc
 // HEADER (MessagePack-encoded)
@@ -307,7 +307,7 @@ Both are ~50 lines. A compatible implementation in another language needs only a
 | **JSON / NDJSON** | Human-readable overhead (~3–5× size), no integrity check, no clean separation of header/body, no type hints for binary buffers. |
 | **Parquet / Arrow** | Excellent for columnar analytics over homogeneous rows — but graph payloads are deeply nested and heterogeneous. Schema evolution is heavy. |
 | **GraphML / GEXF / GraphSON** | Human-readable XML/JSON; designed for interchange with visualization tools, not for AI ingestion. No provenance or temporal fields. |
-| **Protobuf / FlatBuffers** | Require a schema contract; good fit if every consumer compiles from the same `.proto`. `.aikg` uses MessagePack precisely because it needs zero schema coordination — the body is self-describing. |
+| **Protobuf / FlatBuffers** | Require a schema contract; good fit if every consumer compiles from the same `.proto`. `.gai` uses MessagePack precisely because it needs zero schema coordination — the body is self-describing. |
 | **Property graph DB export (Neo4j, etc.)** | Tied to a vendor's query/storage layer; not portable as a single-file artifact. |
 
 The goal is not to compete with any of these on their home turf — it is to be the right shape for a specific job: *a self-contained, verifiable, AI-ingestable snapshot of a living knowledge graph, swappable between processes, machines, and organizations*.
@@ -319,7 +319,7 @@ The goal is not to compete with any of these on their home turf — it is to be 
 The built-in checksum catches corruption, not tampering. For enterprise deployments where provenance matters:
 
 - Sign the file with an external keypair (e.g. Ed25519 over the full byte stream).
-- Store the signature in a sidecar (`my-graph.aikg.sig`) or prepend it to the file under a wrapper format.
+- Store the signature in a sidecar (`my-graph.gai.sig`) or prepend it to the file under a wrapper format.
 - Pin the public key in your deployment; verify on load.
 
-See [`enterprise/enterprise.md`](../enterprise/enterprise.md) for the full privacy and deployment architecture — in particular, note that the `.aikg` file never leaves the enterprise boundary even when Graphnosis talks to external LLMs.
+See [`enterprise/enterprise.md`](../enterprise/enterprise.md) for the full privacy and deployment architecture — in particular, note that the `.gai` file never leaves the enterprise boundary even when Graphnosis talks to external LLMs.

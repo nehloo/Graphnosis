@@ -10,7 +10,7 @@
 //      symbols listed in invariant 4 — every other code path on this
 //      facade (including the async PDF / file / folder ingestion methods)
 //      is fully offline.
-//   2. `.aikg` files that cross a trust boundary must be written AND read
+//   2. `.gai` files that cross a trust boundary must be written AND read
 //      with `hmacKey`. The default additive checksum catches corruption,
 //      NOT tampering.
 //   3. File paths passed to `saveAikg/loadAikg/saveSqlite/loadSqlite` are
@@ -681,7 +681,7 @@ export class Graphnosis {
   // --- Persistence ----------------------------------------------------------
 
   /**
-   * Serialize the graph to .aikg binary and write it to disk.
+   * Serialize the graph to .gai binary and write it to disk.
    *
    * SECURITY: pass `hmacKey` for any file that will cross a trust boundary
    * (shared storage, network transfer, multi-tenant DB). Without it the
@@ -694,14 +694,14 @@ export class Graphnosis {
   }
 
   /**
-   * Serialize the graph to a .aikg-format `Buffer` without touching the
+   * Serialize the graph to a .gai-format `Buffer` without touching the
    * filesystem. Designed for serverless / edge runtimes (Vercel, Lambda,
    * Cloudflare Workers, Fly Machines) where writing to `/tmp` and reading
    * back is wasteful or unavailable.
    *
    * ```ts
    * const buf = g.toBuffer({ hmacKey });
-   * await blobStore.put('knowledge.aikg', buf);
+   * await blobStore.put('knowledge.gai', buf);
    * ```
    *
    * SECURITY: pass `hmacKey` for any buffer that will cross a trust
@@ -713,7 +713,7 @@ export class Graphnosis {
   }
 
   /**
-   * Load a .aikg file and replace the current graph. The TF-IDF index is
+   * Load a .gai file and replace the current graph. The TF-IDF index is
    * automatically rebuilt from node content so `query()` works immediately.
    *
    * SECURITY: if the file was written with `hmacKey`, the same key must be
@@ -725,7 +725,7 @@ export class Graphnosis {
   }
 
   /**
-   * Load a .aikg-format `Buffer` (e.g. read from blob storage) and replace
+   * Load a .gai-format `Buffer` (e.g. read from blob storage) and replace
    * the current graph. The TF-IDF index is automatically rebuilt so
    * `query()` works immediately.
    *

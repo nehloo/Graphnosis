@@ -1,7 +1,10 @@
 // Graphnosis Constants
 
-// .aikg file format magic bytes: "AIKG" (0x41 0x49 0x4B 0x47)
-// .aikg = "AI Knowledge Graph" — the AI-native binary knowledge format
+// .gai file format — the AI-native binary knowledge format produced by Graphnosis.
+// Magic bytes are "AIKG" (0x41 0x49 0x4B 0x47), kept stable for forward and backward
+// compatibility with files written by earlier versions (v0.1 — v0.2.3 used the
+// `.aikg` extension on disk; the binary format is unchanged, only the canonical
+// extension and surface naming switched to `.gai` in v0.2.4).
 export const AIKG_MAGIC = new Uint8Array([0x41, 0x49, 0x4B, 0x47]);
 export const AIKG_VERSION = 1;
 

@@ -3,8 +3,8 @@ import { getGraph } from '@/core/graph/graph-store';
 import { writeAikg } from '@/core/format/aikg-writer';
 import { readAikg } from '@/core/format/aikg-reader';
 
-// GET: Export the current graph as .aikg and show what's inside
-// ?format=binary → download the raw .aikg file
+// GET: Export the current graph as .gai and show what's inside
+// ?format=binary → download the raw .gai file
 // ?format=inspect → show decoded structure + hex preview
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -15,14 +15,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'No graph loaded' }, { status: 404 });
   }
 
-  // Write the graph to .aikg binary
+  // Write the graph to .gai binary
   const gaiBuf = writeAikg(graphData);
 
   if (format === 'binary') {
     return new Response(new Uint8Array(gaiBuf), {
       headers: {
         'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${graphData.name.replace(/[^a-zA-Z0-9]/g, '-')}.aikg"`,
+        'Content-Disposition': `attachment; filename="${graphData.name.replace(/[^a-zA-Z0-9]/g, '-')}.gai"`,
       },
     });
   }

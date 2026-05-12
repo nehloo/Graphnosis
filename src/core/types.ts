@@ -131,7 +131,7 @@ export interface GraphMetadata {
   /**
    * Embedding adapter id, if `buildEmbeddings()` ran. NOT persisted in
    * v0.2 (the embedding vectors themselves aren't serialized either) but
-   * the field is reserved for future use when `.aikg` / SQLite gain vector
+   * the field is reserved for future use when `.gai` / SQLite gain vector
    * persistence.
    */
   embeddingAdapterId?: string;
@@ -147,7 +147,7 @@ export interface KnowledgeGraph {
   metadata: GraphMetadata;
 }
 
-// --- Serializable versions (for .aikg format and JSON transport) ---
+// --- Serializable versions (for .gai format and JSON transport) ---
 
 export interface SerializableGraph {
   id: string;
@@ -244,7 +244,7 @@ export interface IndexProvenance {
    * and the audit exporter detect "index is stale relative to the graph"
    * without re-scanning content.
    *
-   * The .aikg HMAC trailer is the integrity boundary; this field is for
+   * The .gai HMAC trailer is the integrity boundary; this field is for
    * cheap drift detection only. Two indexes with identical `checksum`
    * are very likely identical, but this is NOT cryptographically
    * guaranteed and MUST NOT be used as a tamper-evidence signal.
@@ -259,7 +259,7 @@ export interface TfidfIndex {
   idf: Map<string, number>; // term -> idf value
   documentCount: number;
   /**
-   * Provenance. Optional for backwards compatibility with v0.1 .aikg files;
+   * Provenance. Optional for backwards compatibility with v0.1 .gai files;
    * defaults to `{ adapterId: 'english', createdAt: 0 }` on load when
    * missing. v0.2+ always populates this.
    */

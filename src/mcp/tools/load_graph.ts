@@ -8,7 +8,7 @@ import { buildTfidfFromGraph, getCached, setCached } from '../tfidf-cache';
 import type { SessionGraph } from '../graph-session';
 
 export const LoadGraphInput = z.object({
-  path: z.string().describe('Absolute or ~ path to a .aikg file'),
+  path: z.string().describe('Absolute or ~ path to a .gai file'),
 });
 
 export type LoadGraphResult = {
@@ -29,7 +29,7 @@ export async function loadGraph(input: z.infer<typeof LoadGraphInput>): Promise<
   const buffer = readFileSync(absPath);
   const { graph, header } = readAikg(buffer);
 
-  // Rebuild TF-IDF (not stored in .aikg). Use mtime-keyed cache for fast reloads.
+  // Rebuild TF-IDF (not stored in .gai). Use mtime-keyed cache for fast reloads.
   let tfidfIndex = getCached(absPath);
   if (!tfidfIndex) {
     tfidfIndex = buildTfidfFromGraph(graph);

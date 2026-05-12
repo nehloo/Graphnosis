@@ -72,7 +72,7 @@ export default function ViewGaiPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">View .aikg</h1>
+          <h1 className="text-2xl font-bold tracking-tight">View .gai</h1>
           <p className="text-muted text-xs mt-1">
             Inspect the AI-native binary format — what the machine sees, decoded for humans
           </p>
@@ -83,14 +83,14 @@ export default function ViewGaiPage() {
             disabled={loading}
             className="px-4 py-2 bg-accent text-white text-sm rounded-md hover:bg-accent-light transition-colors disabled:opacity-40"
           >
-            {loading ? "Inspecting..." : "Inspect .aikg"}
+            {loading ? "Inspecting..." : "Inspect .gai"}
           </button>
           {data && (
             <button
               onClick={downloadAikg}
               className="px-4 py-2 bg-surface-2 text-foreground text-sm rounded-md border border-border hover:bg-surface transition-colors"
             >
-              Download .aikg
+              Download .gai
             </button>
           )}
         </div>
@@ -130,7 +130,7 @@ export default function ViewGaiPage() {
           <div className="bg-surface rounded-lg border border-border p-4">
             <h3 className="text-sm font-medium mb-3">
               Raw Binary (first 256 bytes)
-              <span className="text-muted font-normal ml-2">— this is what the .aikg file actually looks like</span>
+              <span className="text-muted font-normal ml-2">— this is what the .gai file actually looks like</span>
             </h3>
             <pre className="text-[11px] font-mono text-green-400 bg-black/50 rounded p-3 overflow-x-auto leading-relaxed">
               {data.hexPreview.map((line, i) => (
@@ -215,13 +215,13 @@ export default function ViewGaiPage() {
           {/* Explanation */}
           <div className="bg-surface rounded-lg border border-border p-4 text-xs text-muted space-y-2">
             <p>
-              <strong className="text-foreground">What you're seeing:</strong> The .aikg file is a binary-packed graph using MessagePack serialization. It contains the same information as the in-memory graph but in a compact, non-human-readable format optimized for fast loading and integrity verification.
+              <strong className="text-foreground">What you're seeing:</strong> The .gai file is a binary-packed graph using MessagePack serialization. It contains the same information as the in-memory graph but in a compact, non-human-readable format optimized for fast loading and integrity verification.
             </p>
             <p>
               The hex dump shows raw bytes — this is what a machine reads. The decoded sections below show the same data interpreted into nodes, edges, and metadata that humans can understand. The round-trip verification confirms that write → read produces an identical graph.
             </p>
             <p>
-              <strong className="text-foreground">Why binary?</strong> A 12K-node graph as JSON would be ~15MB. As .aikg (MessagePack), it's typically 40-60% smaller, loads faster, and includes a checksum for integrity verification. The format is designed for AI consumption, not human editing — that's what the Giki and Audit pages are for.
+              <strong className="text-foreground">Why binary?</strong> A 12K-node graph as JSON would be ~15MB. As .gai (MessagePack), it's typically 40-60% smaller, loads faster, and includes a checksum for integrity verification. The format is designed for AI consumption, not human editing — that's what the Giki and Audit pages are for.
             </p>
           </div>
         </>

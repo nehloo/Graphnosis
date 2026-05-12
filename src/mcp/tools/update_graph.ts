@@ -15,7 +15,7 @@ import { setCached } from '../tfidf-cache';
 export const UpdateGraphInput = z.object({
   files: z.array(z.string()).min(1).describe('Files to add to the existing graph'),
   graphId: z.string().optional().describe('Session graph ID (omit to use the most-recently loaded graph)'),
-  outputPath: z.string().optional().describe('If provided, write the updated graph back to this .aikg path'),
+  outputPath: z.string().optional().describe('If provided, write the updated graph back to this .gai path'),
 });
 
 export type UpdateGraphResult = {

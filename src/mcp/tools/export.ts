@@ -7,7 +7,7 @@ import { getSession, getDefaultSession } from '../graph-session';
 import { setCached } from '../tfidf-cache';
 
 export const ExportInput = z.object({
-  outputPath: z.string().describe('Absolute or ~ path where the .aikg file should be written'),
+  outputPath: z.string().describe('Absolute or ~ path where the .gai file should be written'),
   graphId: z.string().optional().describe('Session graph ID (omit to use the most-recently loaded graph)'),
 });
 

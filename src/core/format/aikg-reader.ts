@@ -32,7 +32,7 @@ export function readAikg(
 ): { graph: KnowledgeGraph; header: AikgHeader } {
   for (let i = 0; i < AIKG_MAGIC.length; i++) {
     if (buffer[i] !== AIKG_MAGIC[i]) {
-      throw new Error('Invalid .aikg file: magic bytes mismatch');
+      throw new Error('Invalid .gai file: magic bytes mismatch');
     }
   }
 
@@ -50,15 +50,15 @@ export function readAikg(
   for (const byte of bodyBuf) computedChecksum = (computedChecksum + byte) & 0xffffffff;
 
   if (storedChecksum !== computedChecksum) {
-    throw new Error('Invalid .aikg file: checksum mismatch');
+    throw new Error('Invalid .gai file: checksum mismatch');
   }
 
   // Fail-closed HMAC handling.
   if (isSigned && !opts.hmacKey) {
-    throw new Error('Invalid .aikg file: file is HMAC-signed but no hmacKey was supplied');
+    throw new Error('Invalid .gai file: file is HMAC-signed but no hmacKey was supplied');
   }
   if (!isSigned && opts.hmacKey) {
-    throw new Error('Invalid .aikg file: hmacKey supplied but file is not HMAC-signed (possible downgrade)');
+    throw new Error('Invalid .gai file: hmacKey supplied but file is not HMAC-signed (possible downgrade)');
   }
   if (isSigned && opts.hmacKey) {
     const storedHmac = buffer.subarray(buffer.length - 32);
@@ -67,7 +67,7 @@ export function readAikg(
     hmac.update(bodyBuf);
     const computedHmac = hmac.digest();
     if (storedHmac.length !== computedHmac.length || !timingSafeEqual(storedHmac, computedHmac)) {
-      throw new Error('Invalid .aikg file: HMAC verification failed');
+      throw new Error('Invalid .gai file: HMAC verification failed');
     }
   }
 

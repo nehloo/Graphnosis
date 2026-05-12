@@ -7,7 +7,7 @@ import { toSerializable } from '@/core/graph/graph-store';
 export interface WriteAikgOptions {
   /**
    * When set, the file is signed with HMAC-SHA256 over `headerBuf || bodyBuf`.
-   * Readers must supply the same key. Use this for any `.aikg` file crossing a
+   * Readers must supply the same key. Use this for any `.gai` file crossing a
    * trust boundary — the default additive checksum only catches corruption,
    * not a motivated attacker.
    */

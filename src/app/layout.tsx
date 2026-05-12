@@ -26,7 +26,7 @@ const navItems = [
   { href: "/correct", label: "Correct" },
   { href: "/giki", label: "Giki" },
   { href: "/audit", label: "Audit" },
-  { href: "/view-aikg", label: "View .aikg" },
+  { href: "/view-aikg", label: "View .gai" },
   { href: "/longmemeval", label: "LongMemEval" },
 ];
 
@@ -68,7 +68,7 @@ export default function RootLayout({
         <footer className="border-t border-border bg-surface mt-8">
           <div className="max-w-7xl mx-auto px-4 py-6 space-y-2">
             <p className="text-xs text-muted leading-relaxed max-w-3xl">
-              <strong className="text-foreground">Graphnosis</strong> explores a novel approach to AI knowledge representation: dual-graph structures (directed + undirected edges over the same node set) serialized in <strong className="text-foreground">.aikg</strong> — the AI Knowledge Graph binary format, optimized for machine comprehension, not human readability. The architecture mirrors the brain: the similarity graph is the cortex (long-term storage), the graph builder is the hippocampus (indexing), and the query engine is the prefrontal cortex (retrieval). Graph construction costs $0 (pure JS, no embedding APIs).
+              <strong className="text-foreground">Graphnosis</strong> explores a novel approach to AI knowledge representation: dual-graph structures (directed + undirected edges over the same node set) serialized in <strong className="text-foreground">.gai</strong> — the AI Knowledge Graph binary format, optimized for machine comprehension, not human readability. The architecture mirrors the brain: the similarity graph is the cortex (long-term storage), the graph builder is the hippocampus (indexing), and the query engine is the prefrontal cortex (retrieval). Graph construction costs $0 (pure JS, no embedding APIs).
             </p>
             <div className="flex items-center gap-3 text-xs text-muted">
               <a
