@@ -1,5 +1,52 @@
 # Graphnosis — Project Context
 
+## Ship cadence: batch fixes, release deliberately
+
+**Do not commit, tag, or publish after every individual fix.** A small
+bugfix is not a release. Especially not on this repo — every tag push
+triggers an OIDC-authenticated npm publish, and we've already burned
+version numbers (v0.2.4, v0.2.5) on transient CI failures because tags
+landed before intent was clear.
+
+### Signals that mean "ship now"
+
+Look for one of these exact intents from Nelu before committing or pushing:
+- "ship", "release", "publish", "let's commit"
+- "push to GitHub", "push it"
+- "tag v0.x", "release v0.x", "publish to npm"
+
+Anything less specific ("looks good", "great", "fixed it") is **not** a
+ship signal. Keep working, keep things buildable, but leave the commit
+pending.
+
+### When Nelu does say ship
+
+Don't fire off `git commit && git tag && git push` mechanically. Do this:
+
+1. **Show `git status` and `git diff --stat`** so we agree on scope.
+2. **Group changes by concern.** One commit per concern when reasonable.
+3. **Compile a real changelog**. Each commit message should describe what
+   was wrong, what changed, user-facing behavior changes, and migration
+   notes for breaking changes.
+4. **Decide the version deliberately**. Patch = bug fixes only.
+   Minor = backward-compatible features. Major = breaking. Under 0.x.y
+   the rules are looser but document the break clearly anyway.
+5. **Tags trigger the publish workflow.** Only tag when Nelu has explicitly
+   approved the version number and the release-note draft.
+6. **GitHub Release** must accompany every npm release.
+
+### What needs explicit confirmation
+
+- `git commit`, `git push`, `git tag`, `npm publish`, `gh release create`,
+  or anything that triggers the publish workflow (`git push origin v*`).
+- Any destructive git ops (`reset --hard`, `push --force`, branch delete).
+
+### What you can do without asking
+
+Read code, run builds, run tests, edit files, run `npm run build:lib` /
+`npm run lint:lib`, investigate errors, fix them, leave the fixes
+uncommitted until Nelu signals ship.
+
 ## What This Is
 A research prototype exploring AI-native knowledge representation through dual-graph structures.
 Core thesis: structured graphs with typed edges outperform flat text chunks for AI comprehension.
