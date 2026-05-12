@@ -1,4 +1,9 @@
+import { createRequire } from 'node:module';
 import type { ParsedDocument, ParsedSection } from '@/core/types';
+
+// `exif-parser` is CJS-only; load it via createRequire from this ESM module
+// so consumers don't hit `ReferenceError: require is not defined` at call time.
+const require = createRequire(import.meta.url);
 
 // Image parser: extracts EXIF metadata ($0) with optional vision API support
 // Handles JPEG, TIFF, PNG (EXIF only in JPEG/TIFF)

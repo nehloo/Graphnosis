@@ -1,4 +1,10 @@
+import { createRequire } from 'node:module';
 import type { ParsedDocument, ParsedSection } from '@/core/types';
+
+// `pdf-parse` is CJS-only, so we have to load it via createRequire from this
+// ESM module. A bare `require()` here throws `ReferenceError: require is not
+// defined` when the package is consumed from an ESM project.
+const require = createRequire(import.meta.url);
 
 // Dynamic import pdf-parse at runtime (it uses Node.js fs)
 export async function parsePdf(buffer: Buffer, sourceFile: string): Promise<ParsedDocument> {
