@@ -886,3 +886,7 @@ This is an active research project exploring AI-native knowledge representation.
 - Benchmark comparisons against standard RAG pipelines (GraphRAG, LightRAG)
 - Multi-graph merge (combine multiple .gai files)
 - Giki page quality improvements (LLM-assisted narrative generation)
+
+---
+
+Made by Nehloo Interactive LLC.
