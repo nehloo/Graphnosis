@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.4.0 (2026-05-16)
+
+**Copyright transferred to Nehloo Interactive LLC. License unchanged (Apache-2.0).**
+
+### Changed
+
+- **PDF parser: `pdf-parse@2` → `unpdf`.**  
+  `pdf-parse@2` uses `pdfjs-dist@5` under the hood and routes all Node
+  invocations through a `LoopbackPort` path that fails on `structuredClone`
+  with complex PDF internal objects — unfixable from outside the library.
+  Replaced with `unpdf`, which wraps the same pdfjs engine but is configured
+  for serverless/Node runtimes and avoids the broken code path entirely.  
+  API surface of `parsePdf()` is unchanged; text quality, page count, and
+  metadata (Title, Author) are equivalent.  
+  `pdf-parse` is no longer a dependency.
+
+### Internal
+
+- `author` field in `package.json` updated to **Nehloo Interactive LLC**
+  (was the prior individual author name).
+
 ## v0.2.0
 
 The "make Graphnosis actually work for non-OpenAI / non-English /

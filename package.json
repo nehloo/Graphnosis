@@ -1,6 +1,6 @@
 {
   "name": "@nehloo/graphnosis",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "AI-native dual-graph knowledge representation — build, query, and persist typed knowledge graphs in-process.",
   "author": "Nehloo Interactive LLC",
   "license": "Apache-2.0",
@@ -74,10 +74,10 @@
     "music-metadata": "^11.12.3",
     "nanoid": "^5.1.7",
     "papaparse": "^5.5.3",
-    "pdf-parse": "^2.4.5",
     "remark": "^15.0.1",
     "remark-parse": "^11.0.0",
     "unified": "^11.0.5",
+    "unpdf": "^1.6.2",
     "wtf_wikipedia": "^10.4.1",
     "xxhash-wasm": "^1.1.0",
     "zod": "^4.3.6"
@@ -92,7 +92,6 @@
   "devDependencies": {
     "@ai-sdk/openai": "^3.0.52",
     "@ai-sdk/react": "^3.0.160",
-    "ai": "^6.0.158",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.13",
@@ -101,6 +100,7 @@
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "ai": "^6.0.158",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
     "express": "^5.2.1",

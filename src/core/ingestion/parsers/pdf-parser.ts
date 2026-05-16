@@ -1,36 +1,42 @@
-import { PDFParse } from 'pdf-parse';
+import { extractText, getDocumentProxy, getMeta } from 'unpdf';
 import type { ParsedDocument, ParsedSection } from '@/core/types';
 
-// pdf-parse v2 is a class-based API (rewrite from the v1 callable form).
-// Supports both ESM and CJS; we import it natively. The parser must be
-// .destroy()'d to release the underlying worker.
+// unpdf wraps pdfjs-dist for serverless/Node runtimes — same upstream
+// engine as pdf-parse@2.x but configured to avoid the LoopbackPort
+// structuredClone failure path that breaks pdf-parse@2 in Node. Replaces
+// pdf-parse as of SDK 0.4.0; chosen over alternatives (pdfreader,
+// pdf2json, mupdf-js) because it preserves pdfjs-quality text
+// extraction with the smallest API/output drift.
 export async function parsePdf(buffer: Buffer, sourceFile: string): Promise<ParsedDocument> {
-  const parser = new PDFParse({ data: new Uint8Array(buffer) });
+  const pdf = await getDocumentProxy(new Uint8Array(buffer));
+  const { text, totalPages } = await extractText(pdf, { mergePages: true });
+  const fullText = Array.isArray(text) ? text.join('\n') : text;
+  const sections = splitPdfIntoSections(fullText);
 
+  // unpdf's getMeta surfaces the same Info dict pdfjs exposes — Title,
+  // Author, Subject, Creator, Producer, dates. Wrapped in a try because
+  // some PDFs have malformed/missing metadata blocks.
+  let title = sourceFile.replace(/\.pdf$/i, '');
+  let author = '';
   try {
-    const [textResult, infoResult] = await Promise.all([
-      parser.getText(),
-      parser.getInfo(),
-    ]);
-    const text = textResult.text || '';
-    const sections = splitPdfIntoSections(text);
-
-    // pdf-parse v2 surfaces page count on `total` and the PDF "Info" dict on
-    // `info` (typical fields: Title, Author, Subject, Creator, Producer, dates).
-    const infoDict = (infoResult.info ?? {}) as Record<string, string | undefined>;
-    return {
-      title: infoDict.Title || sourceFile.replace(/\.pdf$/i, ''),
-      sections,
-      sourceFile,
-      metadata: {
-        pageCount: infoResult.total || 0,
-        author: infoDict.Author || '',
-        source: 'pdf',
-      },
-    };
-  } finally {
-    await parser.destroy();
+    const meta = await getMeta(pdf);
+    const info = (meta.info ?? {}) as Record<string, string | undefined>;
+    if (info.Title && info.Title.trim()) title = info.Title;
+    if (info.Author && info.Author.trim()) author = info.Author;
+  } catch {
+    // Non-fatal — fall back to filename for title, empty for author.
   }
+
+  return {
+    title,
+    sections,
+    sourceFile,
+    metadata: {
+      pageCount: totalPages || 0,
+      author,
+      source: 'pdf',
+    },
+  };
 }
 
 function splitPdfIntoSections(text: string): ParsedSection[] {
