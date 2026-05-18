@@ -1,5 +1,110 @@
 # Changelog
 
+## v0.5.0 (2026-05-18)
+
+The "ingest tuning + big-PDF safety" release. Two new user-facing preset
+families for chunking + embedding throughput, plus durability fixes for
+large-graph checksums and big PDFs.
+
+### Added
+
+- **`ChunkSizePreset` — `'fine' | 'balanced' | 'coarse'`.**
+  Controls how aggressively the SDK splits documents into memory nodes.
+  Threaded through every `append*` method as an optional third argument
+  (`opts.chunkSize`):
+
+  ```ts
+  await g.appendPdf(buffer, 'manual.pdf', { chunkSize: 'coarse' });
+  g.appendMarkdown(content, 'note.md', { chunkSize: 'fine' });
+  g.appendWithOptions({ chunkSize: 'coarse' }, doc1, doc2);
+  ```
+
+  Numeric mapping:
+  | Preset | maxLength | maxSentences |
+  |---|---|---|
+  | `fine` | 300 chars | ≤ 2 |
+  | `balanced` *(default)* | 500 chars | ≤ 3 |
+  | `coarse` | 2500 chars | ≤ 6 |
+
+  `balanced` matches the historical `MAX_CHUNK_LENGTH` / `MAX_CHUNK_SENTENCES`
+  constants — existing callers see no behaviour change unless they pass
+  the new option.
+
+- **`EmbedBatchPreset` — `'small' | 'medium' | 'large' | 'auto'`.**
+  `buildEmbeddings()`'s `batchSize` option now accepts a preset label
+  in addition to a number. Numeric calls keep working unchanged.
+
+  ```ts
+  await g.buildEmbeddings({ batchSize: 'large' });   // 1024 items/call
+  await g.buildEmbeddings({ batchSize: 'auto' });    // pick from totalmem()
+  await g.buildEmbeddings({ batchSize: 128 });       // explicit number
+  ```
+
+  Numeric mapping:
+  | Preset | items/call |
+  |---|---|
+  | `small` | 64 |
+  | `medium` *(default)* | 256 |
+  | `large` | 1024 |
+  | `auto` | totalmem ≥ 32 GB → 1024 · ≥ 16 GB → 256 · else 64 |
+
+  `auto` uses `os.totalmem()` rather than `os.freemem()` — the former is
+  stable, the latter underreports on macOS where inactive/cached pages
+  are counted as used.
+
+- **`IngestOptions` interface + `appendWithOptions(opts, ...docs)`.**
+  Companion of `append(...docs)` that takes an options bag without
+  requiring named-overload-style calls. Used internally by all sugar
+  methods; exposed publicly for callers that prefer it.
+
+- **`opts.maxPages` on `appendPdf` / `parsePdf`.** Hard cap on pages
+  extracted from a PDF. See the "Changed" section below for details.
+  Default `Infinity` — additive, non-breaking.
+
+### Changed
+
+- **PDF parser is now page-batched, with a configurable page cap.**
+  Previously a single `extractText(pdf, { mergePages: true })` call ran every
+  page in one shot — fine for short docs, but a 1000+ page reference manual
+  could OOM or time out the host process. The new path extracts in
+  10-page batches with an explicit `setImmediate` yield between them,
+  so the calling process's event loop stays responsive throughout.
+
+  New `opts.maxPages` on `appendPdf` (and `parsePdf` directly) — **default
+  is `Infinity`, so existing callers see no behavioural change**, only
+  the new event-loop friendliness. Pass `maxPages` to bound extraction:
+
+  ```ts
+  await g.appendPdf(buffer, 'manual.pdf', { maxPages: 100 });
+  ```
+
+  Documents longer than `maxPages` get a note appended to the parsed text:
+  > `[Note: This PDF has 4233 pages. Only the first 100 pages were ingested.]`
+
+  Parsed-document metadata gained three fields:
+  - `pageCount`: total page count in the source PDF
+  - `pagesIngested`: how many were actually extracted (≤ `maxPages`)
+  - `truncated`: 1 if the cap fired, 0 otherwise
+
+### Fixed
+
+- **`.gai` writer: checksum overflow on large graphs.**
+  The additive checksum used `(checksum + byte) & 0xffffffff` to clamp to
+  uint32. JavaScript's `&` returns a signed int32 which wraps to negative
+  at 2³¹ — `writeUInt32BE` then threw `RangeError` on graphs big enough
+  to push the running sum past that boundary. Replaced with `>>> 0`
+  (unsigned shift), which is the canonical idiom for "clamp to uint32".
+  No on-disk format change; old `.gai` files still verify correctly.
+
+### Internal
+
+- `chunkDocument(doc, opts?)`, `chunkSection(..., limits)`,
+  `splitIntoChunks(text, limits)` — option threading down to the
+  per-paragraph splitter. Public re-exports limited to the preset types.
+- `addDocumentsToGraph(graph, docs, opts?)` — opts bag with `chunkSize`.
+- `resolveEmbedBatchSize(input)` — preset → number resolver in the SDK
+  facade. Internal helper; not exported.
+
 ## v0.4.0 (2026-05-16)
 
 **Copyright transferred to Nehloo Interactive LLC. License unchanged (Apache-2.0).**

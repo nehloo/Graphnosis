@@ -489,6 +489,17 @@ const r3 = await g.appendPdf(readFileSync('report.pdf'), 'report.pdf');
 // Auto-detect format from file extension
 const r4 = await g.appendFile('/uploads/research.pdf');
 
+// Tune chunking with a preset (since 0.5.0). Defaults to 'balanced' if omitted.
+//   'fine'     ≈ 300-char nodes — best recall, slower + more vectors
+//   'balanced' ≈ 500-char nodes — historical default
+//   'coarse'   ≈ 2500-char nodes — fewer/bigger nodes, faster ingest
+await g.appendPdf(buf, 'manual.pdf', { chunkSize: 'coarse' });
+g.appendMarkdown(content, 'note.md', { chunkSize: 'fine' });
+
+// Cap large PDFs (since 0.5.0). Default is no cap. Useful for
+// serverless or multi-tenant ingesters that need bounded per-call time.
+await g.appendPdf(buf, 'manual.pdf', { maxPages: 100 });
+
 // Walk an entire folder (recursive by default)
 const r5 = await g.appendFolder('/docs', { recursive: true });
 console.log(`Added ${r5.newNodes} nodes, skipped ${r5.skipped?.length} files`);
@@ -621,9 +632,14 @@ const g = new Graphnosis({
 });
 // … addMarkdown / build … //
 
-// One-time: embed every content node (uses the configured adapter)
+// One-time: embed every content node (uses the configured adapter).
+// `batchSize` accepts an explicit number OR a preset (since 0.5.0):
+//   'small'  → 64 items/call   (low memory, frequent progress)
+//   'medium' → 256 items/call  (default)
+//   'large'  → 1024 items/call (≥ 32 GB RAM)
+//   'auto'   → totalmem-based selection
 await g.buildEmbeddings({
-  batchSize: 256,
+  batchSize: 'auto',
   onProgress: ({ done, total }) => console.log(`embed ${done}/${total}`),
   signal: abortController.signal, // optional cancellation
 });
