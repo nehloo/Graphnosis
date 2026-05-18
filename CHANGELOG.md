@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.5.1 (2026-05-18)
+
+Single-fix patch for `parseMarkdown` (and therefore `appendMarkdown` and
+every other call path that routes through it).
+
+### Fixed
+
+- **`parseMarkdown` on headerless prose now produces a usable document
+  instead of silently dropping the content.**
+
+  The parser builds `ParsedDocument.sections` from `#`/`##`/etc. headings
+  and attaches content lines to the most-recently-opened section. When
+  the input has NO headings at all (a common shape for AI-emitted
+  `remember`-style notes), every content line went to a stack-empty
+  branch that discarded them — leaving `sections: []`. The chunker
+  then had no content sections to walk and emitted zero content nodes,
+  surfacing to callers as "ingest produced 0 nodes".
+
+  Fix: when `sections` is empty AND the body (after stripping
+  frontmatter) has non-whitespace content, wrap the whole body in a
+  single synthetic section with the doc's title as the section
+  heading. The chunker now sees a section it can split into content
+  chunks the normal way. Empty / whitespace-only / frontmatter-only
+  inputs still produce zero chunks (correct behaviour — there's
+  nothing to remember).
+
+  No API change. Callers that always passed well-formed markdown with
+  a `#` heading see no observable difference.
+
 ## v0.5.0 (2026-05-18)
 
 The "ingest tuning + big-PDF safety" release. Two new user-facing preset
