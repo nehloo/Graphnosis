@@ -1,4 +1,4 @@
-name: Publish to npm
+name: Publish to npm + GitHub Release
 
 on:
   push:
@@ -14,7 +14,11 @@ jobs:
       # OIDC token, which the npm trusted publisher configuration for
       # @nehloo/graphnosis maps to this repository and workflow filename.
       id-token: write
-      contents: read
+      # `contents: write` is required for `gh release create`. Was `read`
+      # when this workflow only did `npm publish` — bumped to `write` so
+      # tagging also produces a matching GitHub Release in the same step,
+      # using the CHANGELOG section for body text.
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +35,48 @@ jobs:
 
       - run: npm ci
 
+      # ── Sanity check: CHANGELOG must have a matching version section ──
+      #
+      # We extract the section between `## v<TAG>` and the next `## v…`
+      # header and FAIL the workflow if it's empty. Without this the
+      # GitHub Release in the next step would silently publish with no
+      # body text, which has bitten us once already (v0.5.0 shipped to
+      # npm but no release notes — backfilled manually).
+      #
+      # The same extracted block is reused as the release body, so we
+      # write it to a file rather than re-parsing in the release step.
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "Looking for CHANGELOG section: ## $TAG"
+          awk -v ver="$TAG" '
+            /^## / { if (found) exit; if ($2 == ver) { found = 1; next } }
+            found
+          ' CHANGELOG.md > release_notes.md
+          # Strip leading/trailing blank lines so the GitHub Release body
+          # doesn't open with extra whitespace.
+          awk 'NF { p = 1 } p' release_notes.md > release_notes.trim
+          mv release_notes.trim release_notes.md
+          if [ ! -s release_notes.md ]; then
+            echo "::error::No CHANGELOG.md section found for $TAG. Add a '## $TAG' header before tagging."
+            exit 1
+          fi
+          echo "── release_notes.md preview ─────────────────"
+          head -20 release_notes.md
+          echo "── (truncated if longer) ────────────────────"
+
       # No NODE_AUTH_TOKEN env — leaving it unset lets npm use OIDC.
       # `provenance: true` in package.json triggers attestation on the runner.
       - run: npm publish
+
+      # GitHub Release with the extracted CHANGELOG body. Uses the gh CLI
+      # which is preinstalled on ubuntu-latest runners — no third-party
+      # action dependency.
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes-file release_notes.md
