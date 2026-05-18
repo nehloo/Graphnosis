@@ -39,9 +39,11 @@ export function writeGai(graph: KnowledgeGraph, opts: WriteGaiOptions = {}): Buf
   const bodyBuf = pack(body);
 
   // Additive checksum (catches corruption, NOT tampering).
+  // Use >>> 0 (not & 0xffffffff) — JS bitwise & returns a signed int32,
+  // which goes negative above 2^31 and breaks writeUInt32BE on large graphs.
   let checksum = 0;
-  for (const byte of headerBuf) checksum = (checksum + byte) & 0xffffffff;
-  for (const byte of bodyBuf) checksum = (checksum + byte) & 0xffffffff;
+  for (const byte of headerBuf) checksum = (checksum + byte) >>> 0;
+  for (const byte of bodyBuf) checksum = (checksum + byte) >>> 0;
 
   const headerLenBuf = Buffer.alloc(4);
   headerLenBuf.writeUInt32BE(headerBuf.length, 0);
