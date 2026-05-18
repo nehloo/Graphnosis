@@ -6,6 +6,31 @@ export function parseMarkdown(content: string, sourceFile: string): ParsedDocume
   const sections = buildSectionTree(lines);
   const metadata = extractFrontmatter(content);
 
+  // Headerless-content fallback: if the input is non-empty prose but has
+  // no `#` heading anywhere, `buildSectionTree` returns an empty array
+  // because it only attaches content lines to an open section. That made
+  // the chunker emit zero content nodes and the caller's `appendMarkdown`
+  // looked like a no-op — biting MCP `remember` callers that pass plain
+  // prose without a synthetic header (a common AI-client shape).
+  //
+  // When sections is empty AND the body (post-frontmatter) has non-whitespace
+  // content, wrap the whole thing in a single synthetic section so the
+  // chunker has something to work with. The section's title falls back to
+  // the resolved document title ('Untitled' when no `#` exists) — the
+  // chunker uses it to label a section node, which downstream consumers
+  // can spot and treat as a placeholder.
+  if (sections.length === 0) {
+    const bodyWithoutFrontmatter = content.replace(/^---\n[\s\S]*?\n---\n?/, '');
+    if (bodyWithoutFrontmatter.trim().length > 0) {
+      sections.push({
+        title,
+        content: bodyWithoutFrontmatter.trim(),
+        depth: 1,
+        children: [],
+      });
+    }
+  }
+
   return {
     title,
     sections,
