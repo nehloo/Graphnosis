@@ -1,5 +1,25 @@
-import { extractText, getDocumentProxy, getMeta } from 'unpdf';
+import { getDocumentProxy, getMeta } from 'unpdf';
 import type { ParsedDocument, ParsedSection } from '@/core/types';
+
+// Pages extracted per batch. Each batch is a Promise.all that blocks the
+// event loop until all pages in it are rendered — keep this small so the
+// sidecar stays responsive between batches.
+const PAGE_BATCH_SIZE = 10;
+
+export interface ParsePdfOptions {
+  /**
+   * Hard cap on pages extracted. Documents longer than this get truncated
+   * with a `[Note: …]` line appended to the parsed text, and the
+   * resulting `ParsedDocument.metadata.truncated` is set to 1.
+   *
+   * Default: `Infinity` (no cap). pdfjs-dist with the batched extraction
+   * below handles very large PDFs without OOM in normal Node memory
+   * envelopes; the cap exists for callers that want hard latency / memory
+   * bounds (e.g. serverless functions, multi-tenant ingesters where one
+   * user's 4233-page manual shouldn't bottleneck everyone else).
+   */
+  maxPages?: number;
+}
 
 // unpdf wraps pdfjs-dist for serverless/Node runtimes — same upstream
 // engine as pdf-parse@2.x but configured to avoid the LoopbackPort
@@ -7,10 +27,43 @@ import type { ParsedDocument, ParsedSection } from '@/core/types';
 // pdf-parse as of SDK 0.4.0; chosen over alternatives (pdfreader,
 // pdf2json, mupdf-js) because it preserves pdfjs-quality text
 // extraction with the smallest API/output drift.
-export async function parsePdf(buffer: Buffer, sourceFile: string): Promise<ParsedDocument> {
+export async function parsePdf(
+  buffer: Buffer,
+  sourceFile: string,
+  opts: ParsePdfOptions = {},
+): Promise<ParsedDocument> {
+  const maxPages = opts.maxPages ?? Infinity;
   const pdf = await getDocumentProxy(new Uint8Array(buffer));
-  const { text, totalPages } = await extractText(pdf, { mergePages: true });
-  const fullText = Array.isArray(text) ? text.join('\n') : text;
+  const totalPages = pdf.numPages;
+  const pagesToExtract = Math.min(totalPages, maxPages);
+  const truncated = totalPages > maxPages;
+
+  // Extract text page-by-page in small batches to bound peak memory.
+  // Doing all pages via Promise.all on a 1000-page PDF causes OOM/timeout.
+  // yield between batches so the sidecar event loop stays responsive.
+  const yieldToLoop = () => new Promise<void>((r) => setImmediate(r));
+  const pageTexts: string[] = [];
+  for (let start = 1; start <= pagesToExtract; start += PAGE_BATCH_SIZE) {
+    const end = Math.min(start + PAGE_BATCH_SIZE - 1, pagesToExtract);
+    const batch = await Promise.all(
+      Array.from({ length: end - start + 1 }, async (_, i) => {
+        const page = await pdf.getPage(start + i);
+        const content = await page.getTextContent();
+        return (content.items as Array<{ str?: string }>)
+          .filter((item) => item.str != null)
+          .map((item) => item.str)
+          .join(' ');
+      })
+    );
+    pageTexts.push(...batch);
+    await yieldToLoop();
+  }
+
+  let fullText = pageTexts.join('\n');
+  if (truncated) {
+    fullText += `\n\n[Note: This PDF has ${totalPages} pages. Only the first ${pagesToExtract} pages were ingested.]`;
+  }
+
   const sections = splitPdfIntoSections(fullText);
 
   // unpdf's getMeta surfaces the same Info dict pdfjs exposes — Title,
@@ -32,7 +85,9 @@ export async function parsePdf(buffer: Buffer, sourceFile: string): Promise<Pars
     sections,
     sourceFile,
     metadata: {
-      pageCount: totalPages || 0,
+      pageCount: totalPages,
+      pagesIngested: pagesToExtract,
+      truncated: truncated ? 1 : 0,
       author,
       source: 'pdf',
     },
