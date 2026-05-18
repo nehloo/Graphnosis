@@ -2,7 +2,44 @@ import type { ExtractedChunk, ParsedDocument, ParsedSection, NodeType } from '@/
 import { MIN_CHUNK_LENGTH, MAX_CHUNK_LENGTH, MAX_CHUNK_SENTENCES } from '@/core/constants';
 import { extractEntities } from './entity-extractor';
 
-export function chunkDocument(doc: ParsedDocument): ExtractedChunk[] {
+/**
+ * User-facing labels for how aggressively documents are split into nodes.
+ * Maps to numeric tunables internally — callers get a stable vocabulary
+ * even if the underlying defaults shift between SDK versions.
+ *
+ * - `fine`     ≈ 300-char nodes, ≤ 2 sentences. More semantic vectors,
+ *               finer-grained recall, higher embedding cost per ingest.
+ * - `balanced` ≈ 1000-char nodes, ≤ 3 sentences. Default. Matches the
+ *               long-standing constants in `@/core/constants`.
+ * - `coarse`   ≈ 2500-char nodes, ≤ 6 sentences. Fewer nodes, lower
+ *               memory + faster ingest, less precise recall.
+ */
+export type ChunkSizePreset = 'fine' | 'balanced' | 'coarse';
+
+interface ChunkLimits {
+  maxLength: number;
+  maxSentences: number;
+}
+
+/** Resolve a preset (or undefined) to concrete numeric limits. */
+function resolveChunkLimits(preset?: ChunkSizePreset): ChunkLimits {
+  switch (preset) {
+    case 'fine':   return { maxLength: 300,  maxSentences: 2 };
+    case 'coarse': return { maxLength: 2500, maxSentences: 6 };
+    case 'balanced':
+    case undefined:
+      // Keep `balanced` aligned with the historical constants so existing
+      // tests / behaviour don't drift when a caller upgrades.
+      return { maxLength: MAX_CHUNK_LENGTH, maxSentences: MAX_CHUNK_SENTENCES };
+  }
+}
+
+export interface ChunkDocumentOptions {
+  chunkSize?: ChunkSizePreset;
+}
+
+export function chunkDocument(doc: ParsedDocument, opts: ChunkDocumentOptions = {}): ExtractedChunk[] {
+  const limits = resolveChunkLimits(opts.chunkSize);
   const chunks: ExtractedChunk[] = [];
   let order = 0;
 
@@ -23,7 +60,7 @@ export function chunkDocument(doc: ParsedDocument): ExtractedChunk[] {
   // every child chunk - previously it was lost, which meant temporal
   // questions had zero date grounding at query time.
   for (const section of doc.sections) {
-    chunkSection(section, chunks, doc.sourceFile, docChunkId, order, doc.metadata);
+    chunkSection(section, chunks, doc.sourceFile, docChunkId, order, doc.metadata, limits);
     order = chunks.length;
   }
 
@@ -36,7 +73,8 @@ function chunkSection(
   sourceFile: string,
   parentId: string,
   startOrder: number,
-  inheritedMetadata: Record<string, string | number> = {}
+  inheritedMetadata: Record<string, string | number> = {},
+  limits: ChunkLimits = { maxLength: MAX_CHUNK_LENGTH, maxSentences: MAX_CHUNK_SENTENCES }
 ): void {
   let order = startOrder;
 
@@ -55,7 +93,7 @@ function chunkSection(
 
   // Split section content into chunks
   if (section.content.length > 0) {
-    const textChunks = splitIntoChunks(section.content);
+    const textChunks = splitIntoChunks(section.content, limits);
     for (const text of textChunks) {
       if (text.length < MIN_CHUNK_LENGTH) continue;
 
@@ -78,17 +116,17 @@ function chunkSection(
 
   // Recurse into children
   for (const child of section.children) {
-    chunkSection(child, chunks, sourceFile, sectionId, order, inheritedMetadata);
+    chunkSection(child, chunks, sourceFile, sectionId, order, inheritedMetadata, limits);
     order = chunks.length;
   }
 }
 
-function splitIntoChunks(text: string): string[] {
+function splitIntoChunks(text: string, limits: ChunkLimits): string[] {
   const paragraphs = text.split(/\n\n+/).filter(p => p.trim().length > 0);
   const chunks: string[] = [];
 
   for (const paragraph of paragraphs) {
-    if (paragraph.length <= MAX_CHUNK_LENGTH) {
+    if (paragraph.length <= limits.maxLength) {
       chunks.push(paragraph.trim());
       continue;
     }
@@ -99,7 +137,7 @@ function splitIntoChunks(text: string): string[] {
 
     for (const sentence of sentences) {
       current.push(sentence);
-      if (current.length >= MAX_CHUNK_SENTENCES || current.join(' ').length > MAX_CHUNK_LENGTH) {
+      if (current.length >= limits.maxSentences || current.join(' ').length > limits.maxLength) {
         chunks.push(current.join(' ').trim());
         current = [];
       }

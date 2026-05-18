@@ -5,7 +5,7 @@ import type {
   TfidfIndex,
   NodeId,
 } from '@/core/types';
-import { chunkDocument } from '@/core/extraction/chunker';
+import { chunkDocument, type ChunkSizePreset } from '@/core/extraction/chunker';
 import { createTfidfIndex, addDocument, computeIdf } from '@/core/similarity/tfidf';
 import { buildDirectedEdges, chunkKey } from './directed-edges';
 import { buildUndirectedEdges } from './undirected-edges';
@@ -18,17 +18,25 @@ export interface IncrementalResult {
   newNodeIds: NodeId[];
 }
 
+export interface AddDocumentsOptions {
+  /** How aggressively to split documents into node-sized chunks. Default
+   *  'balanced' (matches historical SDK behaviour). See `ChunkSizePreset`
+   *  in `@/core/extraction/chunker` for the per-preset numeric targets. */
+  chunkSize?: ChunkSizePreset;
+}
+
 // Add new documents to an existing graph without full rebuild
 export function addDocumentsToGraph(
   graph: KnowledgeGraph & { tfidfIndex?: TfidfIndex },
-  newDocuments: ParsedDocument[]
+  newDocuments: ParsedDocument[],
+  opts: AddDocumentsOptions = {}
 ): IncrementalResult {
   const startNodeCount = graph.nodes.size;
   const startDirectedCount = graph.directedEdges.size;
   const startUndirectedCount = graph.undirectedEdges.size;
 
   // Step 1: Chunk new documents
-  const allNewChunks = newDocuments.flatMap(doc => chunkDocument(doc));
+  const allNewChunks = newDocuments.flatMap(doc => chunkDocument(doc, { chunkSize: opts.chunkSize }));
 
   // Step 2: Create nodes from new chunks (check for duplicates by content hash)
   const existingHashes = new Set<string>();

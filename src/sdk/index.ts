@@ -34,7 +34,7 @@
 
 import { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync, rmSync } from 'node:fs';
 import { extname, join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { tmpdir, totalmem } from 'node:os';
 import type {
   KnowledgeGraph,
   ParsedDocument,
@@ -65,6 +65,62 @@ import {
 } from '@/core/similarity/analyzer';
 import { AnalyzerMismatchError } from '@/core/errors';
 import { addDocumentsToGraph } from '@/core/graph/incremental';
+import type { ChunkSizePreset } from '@/core/extraction/chunker';
+
+// Re-export the chunk preset type so consumers don't need to reach into
+// `@/core/extraction/chunker` just to type-annotate an option.
+export type { ChunkSizePreset } from '@/core/extraction/chunker';
+
+/**
+ * Embedding batch size preset. See `buildEmbeddings()` for semantics.
+ * Exposed here (rather than in `@/core/graph/graph-builder`) because the
+ * SDK is the only place callers should see this — `attachEmbeddings`
+ * takes a resolved numeric `batchSize`.
+ */
+export type EmbedBatchPreset = 'small' | 'medium' | 'large' | 'auto';
+
+/** Resolve an embed-batch preset (or pass-through number) to a numeric
+ *  items-per-call value. Used internally by `buildEmbeddings()`. */
+function resolveEmbedBatchSize(input: number | EmbedBatchPreset | undefined): number | undefined {
+  if (typeof input === 'number') return Math.max(1, Math.floor(input));
+  switch (input) {
+    case 'small':  return 64;
+    case 'medium': return 256;
+    case 'large':  return 1024;
+    case 'auto': {
+      // We use totalmem() instead of freemem() because macOS underreports
+      // "free" — it counts inactive + cached pages as used even though
+      // they're reclaimable. A 64 GB Mac with caches warm reports < 1 GB
+      // free, which would (incorrectly) push us to 'small'. totalmem()
+      // is stable and matches the intent: a bigger machine should run
+      // bigger batches. Tier thresholds:
+      //   ≥ 32 GB total → 'large'   (1024 items/call)
+      //   ≥ 16 GB total → 'medium'  ( 256 items/call)
+      //   <  16 GB total → 'small'  (  64 items/call)
+      const totalGB = totalmem() / (1024 ** 3);
+      if (totalGB >= 32) return 1024;
+      if (totalGB >= 16) return 256;
+      return 64;
+    }
+    case undefined:
+      return undefined; // let attachEmbeddings use its own default
+  }
+}
+
+/**
+ * Optional ingest tuning passed to the `append*` methods. Currently:
+ *   - `chunkSize` controls per-method splitting (all kinds)
+ *   - `maxPages`  caps PDF extraction (PDF only — ignored for other inputs)
+ */
+export interface IngestOptions {
+  /** How aggressively to split documents into nodes. See `ChunkSizePreset`
+   *  for what each label maps to. Default 'balanced'. */
+  chunkSize?: ChunkSizePreset;
+  /** PDF-only. Hard cap on pages extracted. Default `Infinity` (no cap).
+   *  Useful for serverless / multi-tenant ingesters that need bounded
+   *  per-call latency on user-supplied PDFs. Ignored for non-PDF inputs. */
+  maxPages?: number;
+}
 import { reflect, type ReflectionResult } from '@/core/optimization/reflection';
 import {
   applyCorrection,
@@ -295,7 +351,17 @@ export class Graphnosis {
    * Call `build()` first if the graph has not been built yet.
    */
   append(...docs: ParsedDocument[]): AppendResult {
-    const incremental = addDocumentsToGraph(this.graph, docs);
+    return this.appendWithOptions({}, ...docs);
+  }
+
+  /**
+   * Same as `append()` but accepts an options bag so callers can pass a
+   * chunk-size preset without juggling overloads. Kept separate from the
+   * vararg `append()` for ergonomics — `append(doc1, doc2, doc3)` is the
+   * common case; only callers that want to tune chunking need this.
+   */
+  appendWithOptions(opts: IngestOptions, ...docs: ParsedDocument[]): AppendResult {
+    const incremental = addDocumentsToGraph(this.graph, docs, { chunkSize: opts.chunkSize });
     const contradictions = detectNewContradictions(
       this.graph,
       new Set(incremental.newNodeIds)
@@ -353,26 +419,27 @@ export class Graphnosis {
     await embedNodes(index, this.embed, items, { intent: 'document' });
   }
 
-  /** Parse markdown and append. Returns AppendResult with contradictions. */
-  appendMarkdown(content: string, source = 'inline.md'): AppendResult {
-    return this.append(parseMarkdown(content, source));
+  /** Parse markdown and append. Returns AppendResult with contradictions.
+   *  Pass `opts.chunkSize` to tune how aggressively the doc is split. */
+  appendMarkdown(content: string, source = 'inline.md', opts: IngestOptions = {}): AppendResult {
+    return this.appendWithOptions(opts, parseMarkdown(content, source));
   }
 
   /** Parse plain text (wrapped as single-section markdown) and append. */
-  appendText(text: string, source = 'inline.txt'): AppendResult {
-    return this.append(parseMarkdown(`# ${source}\n\n${text}`, source));
+  appendText(text: string, source = 'inline.txt', opts: IngestOptions = {}): AppendResult {
+    return this.appendWithOptions(opts, parseMarkdown(`# ${source}\n\n${text}`, source));
   }
 
-  appendHtml(html: string, source = 'inline.html'): AppendResult {
-    return this.append(parseHtml(html, source));
+  appendHtml(html: string, source = 'inline.html', opts: IngestOptions = {}): AppendResult {
+    return this.appendWithOptions(opts, parseHtml(html, source));
   }
 
-  appendCsv(csv: string, source = 'inline.csv'): AppendResult {
-    return this.append(parseCsv(csv, source));
+  appendCsv(csv: string, source = 'inline.csv', opts: IngestOptions = {}): AppendResult {
+    return this.appendWithOptions(opts, parseCsv(csv, source));
   }
 
-  appendJson(json: string, source = 'inline.json'): AppendResult {
-    return this.append(parseJson(json, source));
+  appendJson(json: string, source = 'inline.json', opts: IngestOptions = {}): AppendResult {
+    return this.appendWithOptions(opts, parseJson(json, source));
   }
 
   /**
@@ -381,11 +448,14 @@ export class Graphnosis {
    * ```ts
    * import { readFileSync } from 'node:fs';
    * const result = await g.appendPdf(readFileSync('report.pdf'), 'report.pdf');
+   * // Tune chunk size for a large reference doc:
+   * await g.appendPdf(buf, 'manual.pdf', { chunkSize: 'coarse' });
    * ```
    */
-  async appendPdf(buffer: Buffer, source = 'document.pdf'): Promise<AppendResult> {
-    const doc = await parsePdf(buffer, source);
-    return this.append(doc);
+  async appendPdf(buffer: Buffer, source = 'document.pdf', opts: IngestOptions = {}): Promise<AppendResult> {
+    const parsePdfOpts = opts.maxPages !== undefined ? { maxPages: opts.maxPages } : undefined;
+    const doc = await parsePdf(buffer, source, parsePdfOpts);
+    return this.appendWithOptions(opts, doc);
   }
 
   /**
@@ -398,9 +468,11 @@ export class Graphnosis {
    * if (result.contradictions.length > 0) {
    *   // show conflicts to user for approval
    * }
+   * // With chunk-size preset:
+   * await g.appendFile('/uploads/big.pdf', { chunkSize: 'coarse' });
    * ```
    */
-  async appendFile(filePath: string): Promise<AppendResult> {
+  async appendFile(filePath: string, opts: IngestOptions = {}): Promise<AppendResult> {
     const ext = extname(filePath).toLowerCase();
     if (!SUPPORTED_EXTENSIONS.has(ext)) {
       throw new Error(
@@ -409,15 +481,15 @@ export class Graphnosis {
       );
     }
     if (ext === '.pdf') {
-      return this.appendPdf(readFileSync(filePath), filePath);
+      return this.appendPdf(readFileSync(filePath), filePath, opts);
     }
     const content = readFileSync(filePath, 'utf8');
     switch (ext) {
-      case '.md': case '.txt': return this.appendMarkdown(content, filePath);
-      case '.html': case '.htm': return this.appendHtml(content, filePath);
-      case '.csv': return this.appendCsv(content, filePath);
-      case '.json': return this.appendJson(content, filePath);
-      default: return this.appendText(content, filePath);
+      case '.md': case '.txt': return this.appendMarkdown(content, filePath, opts);
+      case '.html': case '.htm': return this.appendHtml(content, filePath, opts);
+      case '.csv': return this.appendCsv(content, filePath, opts);
+      case '.json': return this.appendJson(content, filePath, opts);
+      default: return this.appendText(content, filePath, opts);
     }
   }
 
@@ -522,7 +594,21 @@ export class Graphnosis {
    */
   async buildEmbeddings(opts: {
     adapter?: EmbeddingAdapter;
-    batchSize?: number;
+    /**
+     * Items per embedding adapter call. Accepts either an explicit number
+     * (e.g. 256) or a preset:
+     *   - `'small'`  → 64 items/call.   Low memory, frequent progress
+     *                                    updates, slowest end-to-end.
+     *   - `'medium'` → 256 items/call.  Default (matches pre-preset SDK).
+     *   - `'large'`  → 1024 items/call. Highest throughput on big-RAM
+     *                                    machines; longer pauses between
+     *                                    progress events.
+     *   - `'auto'`   → picked at runtime from `os.freemem()` — `'large'`
+     *                  if > 8 GB free, `'medium'` if > 4 GB, otherwise
+     *                  `'small'`. Useful for SDK callers that don't want
+     *                  to make this decision themselves.
+     */
+    batchSize?: number | EmbedBatchPreset;
     onProgress?: (info: { done: number; total: number }) => void;
     signal?: AbortSignal;
   } = {}): Promise<void> {
@@ -538,7 +624,7 @@ export class Graphnosis {
     // appendWithEmbeddings calls re-use the same vector space.
     this.embed = adapter;
     await attachEmbeddings(this.graph, adapter, {
-      batchSize: opts.batchSize,
+      batchSize: resolveEmbedBatchSize(opts.batchSize),
       onProgress: opts.onProgress,
       signal: opts.signal,
     });
