@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.5.2 (2026-05-20)
+
+Identity extraction wired into the graph build pipeline and social edges upgraded to directed.
+
+### Changed
+
+- **`extractIdentities()` is now called automatically during `buildGraph()`.**
+  It was implemented in v0.5.0 but never invoked — person nodes and social
+  edges were never actually added to built graphs until now.
+
+- **Person-node threshold lowered to 1+ mentions** (was 2+). Entities
+  mentioned even once now get a person node, improving coverage for
+  documents that introduce people briefly.
+
+- **Co-mention edges upgraded from undirected `related-to` to symmetric
+  directed `knows`.** Two directed edges are emitted (A→B and B→A) so both
+  directions render correctly in Atlas. Each edge carries an `evidence`
+  field with the co-mention count.
+
+- **Edge type `cites` renamed to `discussed-in`** for the edge connecting
+  a content node to the person node it mentions.
+
 ## v0.5.1 (2026-05-18)
 
 Single-fix patch for `parseMarkdown` (and therefore `appendMarkdown` and
