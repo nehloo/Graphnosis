@@ -43,11 +43,11 @@ export function extractIdentities(graph: KnowledgeGraph): {
     }
   }
 
-  // Create person nodes for entities mentioned 2+ times
+  // Create person nodes for entities mentioned at least once
   const persons: PersonProfile[] = [];
 
   for (const [name, mentions] of entityMentions) {
-    if (mentions.count < 2) continue;
+    if (mentions.count < 1) continue;
 
     const personNodeId = nanoid();
 
@@ -81,7 +81,7 @@ export function extractIdentities(graph: KnowledgeGraph): {
         id: nanoid(),
         from: mentioningNodeId,
         to: personNodeId,
-        type: 'cites',
+        type: 'discussed-in',
         weight: 0.6,
         evidence: `Mentions ${name}`,
         createdAt: Date.now(),
@@ -125,14 +125,20 @@ export function extractIdentities(graph: KnowledgeGraph): {
       // Check if they're co-mentioned in any node
       const overlap = aMentions.nodeIds.filter(id => bMentions.nodeIds.includes(id));
       if (overlap.length > 0) {
-        const edge: UndirectedEdge = {
-          id: nanoid(),
-          nodes: [personA.nodeId, personB.nodeId],
-          type: 'related-to',
-          weight: Math.min(0.3 + overlap.length * 0.1, 0.9),
-          createdAt: Date.now(),
-        };
-        graph.undirectedEdges.set(edge.id, edge);
+        const weight = Math.min(0.3 + overlap.length * 0.1, 0.9);
+        // Emit symmetric directed knows edges so both directions render in Atlas
+        for (const [from, to] of [[personA.nodeId, personB.nodeId], [personB.nodeId, personA.nodeId]]) {
+          const edge: DirectedEdge = {
+            id: nanoid(),
+            from,
+            to,
+            type: 'knows',
+            weight,
+            evidence: `Co-mentioned ${overlap.length} time(s)`,
+            createdAt: Date.now(),
+          };
+          graph.directedEdges.set(edge.id, edge);
+        }
       }
     }
   }

@@ -14,6 +14,7 @@ import type { EmbeddingAdapter } from '@/core/similarity/embedding-adapter';
 import { buildDirectedEdges, chunkKey } from './directed-edges';
 import { buildUndirectedEdges } from './undirected-edges';
 import { pruneGraph } from '@/core/optimization/pruner';
+import { extractIdentities } from '@/core/extraction/identity-extractor';
 
 export type BuiltGraph = KnowledgeGraph & {
   tfidfIndex: ReturnType<typeof createTfidfIndex>;
@@ -111,7 +112,10 @@ export function buildGraph(
     },
   };
 
-  // Step 7: Auto-prune orphan nodes and low-weight edges
+  // Step 7: Extract person identity nodes and social edges
+  extractIdentities(graph);
+
+  // Step 9: Auto-prune orphan nodes and low-weight edges
   // Skip pruning for small graphs (test documents, small datasets)
   const shouldPrune = graph.nodes.size > 50;
   const { prunedEdges, prunedNodes } = shouldPrune
