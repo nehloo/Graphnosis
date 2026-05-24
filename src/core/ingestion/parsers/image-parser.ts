@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import type { ParsedDocument, ParsedSection } from '@/core/types';
+import { redactId } from '@/sdk/log-redact';
 
 // `exif-parser` is CJS-only; load it via createRequire from this ESM module
 // so consumers don't hit `ReferenceError: require is not defined` at call time.
@@ -155,7 +156,7 @@ export async function parseImage(
       sections.push(...visionSections);
       metadata.visionAnalyzed = 1;
     } catch (err) {
-      console.error(`Vision analysis failed for ${sourceFile}:`, err);
+      console.error(`Vision analysis failed for file[${redactId(sourceFile)}]:`, err);
     }
   }
 

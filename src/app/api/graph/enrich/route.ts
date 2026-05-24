@@ -9,6 +9,7 @@ import {
   parseEnrichmentResponse,
   applyEnrichment,
 } from '@/core/enrichment/node-enricher';
+import { redactId } from '@/sdk/log-redact';
 
 // POST: Run LLM enrichment on graph nodes
 // Body: { maxNodes?: number } — defaults to 50
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
       // Small delay between calls
       await new Promise(r => setTimeout(r, 200));
     } catch (err) {
-      console.error(`Enrichment failed for node ${nodeId}:`, err);
+      console.error(`Enrichment failed for node[${redactId(nodeId)}]:`, err);
       failed++;
     }
   }
