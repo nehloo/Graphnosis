@@ -1170,6 +1170,7 @@ export {
   type QueryOptions,
   type PromptContext,
 } from '@/core/query/query-engine';
+export { serializeSubgraph } from '@/core/query/subgraph-serializer';
 export { parseMarkdown } from '@/core/ingestion/parsers/markdown-parser';
 export { parseHtml } from '@/core/ingestion/parsers/html-parser';
 export { parseCsv, parseJson } from '@/core/ingestion/parsers/csv-parser';
