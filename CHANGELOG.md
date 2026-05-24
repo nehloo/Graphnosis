@@ -1,5 +1,38 @@
 # Changelog
 
+## v0.5.3 (2026-05-24)
+
+Public-API addition for richer downstream consumption + a privacy fix
+for SDK-side logging.
+
+### Added
+
+- **`serializeSubgraph` is now exported from the SDK index.** The function
+  was already implemented (`@/core/query/subgraph-serializer`) but wasn't
+  re-exported from the public surface, forcing consumers either to import
+  from an internal path (breaks on publish) or to fall back to flat
+  bullet-point prompt rendering. The Graphnosis App uses this to render
+  the `=== KNOWLEDGE SUBGRAPH ===` rich format per engram.
+
+### Fixed
+
+- **Source file paths and node ids no longer leak into console logs.**
+  Two sites scrubbed via a new `src/sdk/log-redact.ts` helper
+  (`redactId` → FNV-1a 32-bit, 8-char hex):
+
+  - `image-parser.ts` vision-analysis failure was logging the full
+    source file path (`sourceFile`).
+  - `app/api/graph/enrich/route.ts` enrichment failure was logging the
+    raw `nodeId`.
+
+  Both now log `file[<hash>]` / `node[<hash>]`. Hashes are stable
+  across calls (same id → same hash, so log lines remain greppable for
+  one trail) but non-recoverable (cryptographically weak by design —
+  the point is privacy hygiene, not authentication).
+
+  Example folder (wikipedia/nextjs-docs/arxiv fetchers) intentionally
+  not scrubbed — those are demo apps, not library code.
+
 ## v0.5.2 (2026-05-20)
 
 Identity extraction wired into the graph build pipeline and social edges upgraded to directed.
