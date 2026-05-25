@@ -38,10 +38,15 @@ export function addDocumentsToGraph(
   // Step 1: Chunk new documents
   const allNewChunks = newDocuments.flatMap(doc => chunkDocument(doc, { chunkSize: opts.chunkSize }));
 
-  // Step 2: Create nodes from new chunks (check for duplicates by content hash)
+  // Step 2: Create nodes from new chunks (check for duplicates by content hash).
+  // Only include ACTIVE nodes in the dedup set — soft-deleted nodes (confidence 0.1,
+  // set by applyDelete in the correction engine) must not block re-ingestion of the
+  // same content. Forgetting a source soft-deletes its nodes so that audit history is
+  // preserved, but the dedup check here would otherwise permanently prevent the content
+  // from ever being re-added via reingest.
   const existingHashes = new Set<string>();
   for (const node of graph.nodes.values()) {
-    existingHashes.add(node.contentHash);
+    if (node.confidence > 0.1) existingHashes.add(node.contentHash);
   }
 
   const newChunkKeyToNodeId = new Map<string, string>();
@@ -82,7 +87,9 @@ export function addDocumentsToGraph(
   for (const chunk of allNewChunks) {
     const key = chunkKey(chunk);
     const nodeId = newChunkKeyToNodeId.get(key);
-    if (nodeId && chunk.type !== 'document' && chunk.type !== 'section') {
+    // Include section nodes (headings) — same policy as graph-builder.ts.
+    // Their short, high-signal titles are exactly what users search for.
+    if (nodeId && chunk.type !== 'document') {
       addDocument(tfidfIndex, nodeId, chunk.content);
     }
   }
