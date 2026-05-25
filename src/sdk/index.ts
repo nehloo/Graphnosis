@@ -32,7 +32,7 @@
 //
 // See `enterprise/enterprise.md` for the full IT/security posture.
 
-import { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync, rmSync, openSync, writeSync, fsyncSync, closeSync, renameSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { tmpdir, totalmem } from 'node:os';
 import type {
@@ -288,6 +288,23 @@ export interface HybridQueryOptions extends QueryOptions {
  * node content as indirect-prompt-injection payload surface. See
  * `enterprise/enterprise.md` for mitigations.
  */
+/**
+ * Write `data` to `filePath` atomically: write to a temp file, fsync, then
+ * rename into place. Prevents a partial file on disk if the process is killed
+ * mid-write (power loss, SIGKILL). Same approach as the app-layer sidecar.
+ */
+function writeGaiAtomic(filePath: string, data: Buffer): void {
+  const tmp = `${filePath}.tmp-${process.pid}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  const fd = openSync(tmp, 'w', 0o600);
+  try {
+    writeSync(fd, data);
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
+  renameSync(tmp, filePath);
+}
+
 export class Graphnosis {
   private documents: ParsedDocument[] = [];
   private name: string;
@@ -772,11 +789,11 @@ export class Graphnosis {
    * SECURITY: pass `hmacKey` for any file that will cross a trust boundary
    * (shared storage, network transfer, multi-tenant DB). Without it the
    * trailer is an additive checksum only — trivially forgeable.
-   * WARNING: `filePath` is forwarded to `fs.writeFileSync` unchanged. Do
+   * WARNING: `filePath` is forwarded to the filesystem unchanged. Do
    * not pass user-controlled paths.
    */
   saveGai(filePath: string, opts: WriteGaiOptions = {}): void {
-    writeFileSync(filePath, this.toBuffer(opts));
+    writeGaiAtomic(filePath, this.toBuffer(opts));
   }
 
   /**

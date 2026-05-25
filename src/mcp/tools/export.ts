@@ -1,4 +1,4 @@
-import { writeFileSync } from 'fs';
+import { openSync, writeSync, fsyncSync, closeSync, renameSync } from 'fs';
 import { resolve } from 'path';
 import { homedir } from 'os';
 import { z } from 'zod';
@@ -26,7 +26,7 @@ export async function exportGraph(input: z.infer<typeof ExportInput>): Promise<E
 
   const absPath = expandPath(input.outputPath);
   const buf = writeGai(session);
-  writeFileSync(absPath, buf);
+  writeGaiAtomic(absPath, buf);
 
   // Update the TF-IDF cache entry so subsequent load_graph calls benefit from it
   setCached(absPath, session.tfidfIndex);
@@ -41,4 +41,16 @@ export async function exportGraph(input: z.infer<typeof ExportInput>): Promise<E
 function expandPath(p: string): string {
   if (p.startsWith('~/')) return resolve(homedir(), p.slice(2));
   return resolve(p);
+}
+
+function writeGaiAtomic(filePath: string, data: Buffer): void {
+  const tmp = `${filePath}.tmp-${process.pid}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  const fd = openSync(tmp, 'w', 0o600);
+  try {
+    writeSync(fd, data);
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
+  renameSync(tmp, filePath);
 }

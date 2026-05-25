@@ -1,5 +1,39 @@
 # Changelog
 
+## v0.5.4 (2026-05-25)
+
+Crash-safe `.gai` writes, section titles in search, and plural/singular
+query morphology — no breaking changes.
+
+### Fixed
+
+- **`.gai` files are now written atomically.** `saveGai()`, `exportGraph`,
+  and `updateGraph` all previously called `writeFileSync` directly on the
+  live file path. A SIGKILL or power-loss mid-write left a partial msgpack
+  blob on disk, which failed the checksum on next load and triggered
+  quarantine + op-log recovery. All three now write to a uniquely named
+  `.tmp-<pid>-<ts>-<hex>` file, call `fsync(2)` to flush to disk, then
+  rename atomically into place. A killed process between the `fsync` and
+  the `rename` is no longer destructive — the original `.gai` is untouched.
+
+- **Section-heading nodes are now included in the TF-IDF index.**
+  `buildGraph` was excluding both `document` and `section` chunk types from
+  the lexical index. Section titles (headings like "Authentication", "API
+  Reference") are high-signal, short strings that are exactly what users
+  type when searching — they should always be indexed. Only `document`
+  nodes (the top-level title, which duplicates section content) remain
+  excluded.
+
+### Improved
+
+- **Query-time plural/singular morphological fallback in TF-IDF.** When a
+  query term has no exact match in the IDF table, the engine now tries three
+  common inflection variants in order: `-es` (matches → match), `-s`
+  (sensors → sensor), and `+s` (sensor → sensors). This is query-side only
+  — the index is never mutated — so it costs nothing for exact matches and
+  requires no re-ingest of existing content. Searches for "notes" now match
+  content indexed as "note" and vice versa.
+
 ## v0.5.3 (2026-05-24)
 
 Public-API addition for richer downstream consumption + a privacy fix

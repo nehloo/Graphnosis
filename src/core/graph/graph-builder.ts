@@ -63,7 +63,11 @@ export function buildGraph(
   for (const chunk of allChunks) {
     const key = chunkKey(chunk);
     const nodeId = chunkKeyToNodeId.get(key);
-    if (nodeId && chunk.type !== 'document' && chunk.type !== 'section') {
+    if (nodeId && chunk.type !== 'document') {
+      // `section` nodes (headings) are now included — their short, high-signal
+      // titles are exactly what users type when searching. `document` nodes
+      // (top-level title only) are still excluded as they duplicate section
+      // content and add noise without signal.
       addDocument(tfidfIndex, nodeId, chunk.content);
     }
   }

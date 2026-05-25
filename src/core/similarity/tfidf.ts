@@ -121,8 +121,27 @@ export function queryVector(index: TfidfIndex, text: string): Map<string, number
   const tfidf = new Map<string, number>();
 
   for (const [term, freq] of tf) {
-    const idfVal = index.idf.get(term) || 0;
-    tfidf.set(term, (freq / maxFreq) * idfVal);
+    // Primary lookup: exact token match.
+    // Fallback: try common plural/singular morphological variants when the
+    // exact form isn't in the index. This is query-time only — the index is
+    // never mutated — so it costs nothing for exact matches and requires no
+    // re-ingest of existing content.
+    let idfVal = index.idf.get(term);
+    if (!idfVal) {
+      if (term.endsWith('es') && term.length > 4) {
+        // "matches" → "match", "crashes" → "crash"
+        idfVal = index.idf.get(term.slice(0, -2));
+      }
+      if (!idfVal && term.endsWith('s') && term.length > 3) {
+        // "sensors" → "sensor", "notes" → "note"
+        idfVal = index.idf.get(term.slice(0, -1));
+      }
+      if (!idfVal && !term.endsWith('s')) {
+        // "sensor" → "sensors"
+        idfVal = index.idf.get(term + 's');
+      }
+    }
+    tfidf.set(term, (freq / maxFreq) * (idfVal ?? 0));
   }
 
   return tfidf;

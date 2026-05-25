@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, openSync, writeSync, fsyncSync, closeSync, renameSync } from 'fs';
 import { extname, resolve } from 'path';
 import { homedir } from 'os';
 import { z } from 'zod';
@@ -66,7 +66,7 @@ export async function updateGraph(input: z.infer<typeof UpdateGraphInput>): Prom
   if (input.outputPath) {
     const absOut = expandPath(input.outputPath);
     const buf = writeGai(session);
-    writeFileSync(absOut, buf);
+    writeGaiAtomic(absOut, buf);
     setCached(absOut, session.tfidfIndex);
     savedTo = absOut;
   }
@@ -109,4 +109,16 @@ async function parseFile(absPath: string, ext: string): Promise<ParsedDocument |
 function expandPath(p: string): string {
   if (p.startsWith('~/')) return resolve(homedir(), p.slice(2));
   return resolve(p);
+}
+
+function writeGaiAtomic(filePath: string, data: Buffer): void {
+  const tmp = `${filePath}.tmp-${process.pid}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  const fd = openSync(tmp, 'w', 0o600);
+  try {
+    writeSync(fd, data);
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
+  renameSync(tmp, filePath);
 }
