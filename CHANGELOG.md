@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.5.5 (2026-05-25)
+
+Incremental-build parity with full-rebuild for TF-IDF and reingest-after-forget — no breaking changes.
+
+### Fixed
+
+- **Reingest after forget now works correctly.** The incremental graph builder
+  was including soft-deleted nodes (confidence ≤ 0.1) in its dedup hash set,
+  which permanently prevented re-ingestion of the same content after a forget.
+  Since the correction engine preserves soft-deleted nodes for audit history
+  rather than removing them, the dedup check must skip them. Fixed by
+  filtering to `confidence > 0.1` when building the existing-hash set.
+
+- **Section-heading nodes are now indexed in TF-IDF for incremental builds.**
+  `graph-builder.ts` (full rebuild path) already included section nodes since
+  v0.5.4, but `incremental.ts` still excluded them. The two code paths are
+  now in sync — headings like "## Sensors" are findable whether a document
+  was added via a full rebuild or an incremental update.
+
 ## v0.5.4 (2026-05-25)
 
 Crash-safe `.gai` writes, section titles in search, and plural/singular
