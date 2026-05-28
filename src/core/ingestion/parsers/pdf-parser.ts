@@ -1,6 +1,48 @@
 import { getDocumentProxy, getMeta } from 'unpdf';
 import type { ParsedDocument, ParsedSection } from '@/core/types';
 
+interface PdfTextItem {
+  str: string;
+  transform: number[]; // [scaleX, shearY, shearX, scaleY, x, y]
+  width: number;
+  hasEOL: boolean;
+}
+
+/**
+ * Join pdfjs TextItems into a string using position-aware spacing.
+ *
+ * Blindly joining with ' ' splits words in PDFs where each glyph is a
+ * separate item (common in Eastern European and other diacritic-heavy PDFs).
+ * Instead, we compute the gap between consecutive items and only insert a
+ * space when it exceeds a fraction of the current font size.  After joining
+ * we run NFC normalization so combining diacritic sequences ('a' + '̆')
+ * collapse into precomposed forms ('ă').
+ */
+function joinPdfItems(items: PdfTextItem[]): string {
+  let text = '';
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (!item.str) continue;
+    text += item.str;
+    if (i < items.length - 1) {
+      const next = items[i + 1];
+      if (!next?.str) continue;
+      if (item.hasEOL) {
+        text += '\n';
+      } else {
+        // transform[4] is the x origin of the item; width is in the same units.
+        const gap = next.transform[4] - (item.transform[4] + item.width);
+        // font size ≈ absolute value of the y-scale component (transform[3])
+        const fontSize = Math.abs(item.transform[3]) || 10;
+        if (gap > fontSize * 0.2) text += ' ';
+        // gap ≤ threshold → adjacent glyphs, concatenate without space
+      }
+    }
+  }
+  // Collapse decomposed diacritic sequences into precomposed Unicode forms.
+  return text.normalize('NFC');
+}
+
 // Pages extracted per batch. Each batch is a Promise.all that blocks the
 // event loop until all pages in it are rendered — keep this small so the
 // sidecar stays responsive between batches.
@@ -49,10 +91,7 @@ export async function parsePdf(
       Array.from({ length: end - start + 1 }, async (_, i) => {
         const page = await pdf.getPage(start + i);
         const content = await page.getTextContent();
-        return (content.items as Array<{ str?: string }>)
-          .filter((item) => item.str != null)
-          .map((item) => item.str)
-          .join(' ');
+        return joinPdfItems(content.items as PdfTextItem[]);
       })
     );
     pageTexts.push(...batch);

@@ -1,5 +1,71 @@
 # Changelog
 
+## v0.5.6 (2026-05-28)
+
+Fix `rebuildIndex()` parity with the canonical build path so post-load
+recall scores are byte-identical to pre-save scores. Improve PDF text
+extraction quality on diacritic-heavy documents. Document the
+concurrency contract on `queryHybrid()`. No breaking changes.
+
+### Fixed
+
+- **PDF text extraction preserves diacritics correctly.** The previous
+  `pdf-parser.ts` joined pdfjs TextItems with a blind `' '` separator
+  and skipped Unicode normalization. PDFs that emit each glyph as a
+  separate TextItem — common in Eastern European, Vietnamese, and
+  other diacritic-heavy documents — were extracted as space-split
+  garbage ("R o m â n i a" instead of "România"), and decomposed
+  diacritic sequences (`a` + combining `̆`) never collapsed into
+  precomposed forms (`ă`).
+
+  Now `joinPdfItems()` uses position-aware spacing — comparing the
+  x-gap between consecutive items against the font size, only
+  inserting a space when the gap exceeds 20% of the font size — and
+  the joined string is `.normalize('NFC')`'d so combining sequences
+  collapse correctly. Ingest of European/Asian/diacritic-heavy PDFs
+  now produces searchable content where it previously produced noise.
+
+- **`rebuildIndex()` now matches the canonical TF-IDF policy.** The
+  index reconstructed by `fromBuffer()` / `loadGai()` was excluding
+  `section`-type nodes from the lexical index, while both the initial
+  build (`graph-builder.ts`) and the incremental builder
+  (`incremental.ts`) have included them since v0.5.4 / v0.5.5
+  respectively. The mismatch silently shifted every IDF score after a
+  reload by a small constant factor (`log((N+1) / (df+1)) + 1` with
+  different `N` between paths). The user-visible symptom: recall scores
+  wobbled by ~0.01 across an open-close-reopen cycle even when nothing
+  else changed.
+
+  Fixed by changing `rebuildIndex()` to exclude only `document`-type
+  nodes (top-level title duplicates), matching the two other build
+  paths. Recall now returns byte-identical prompts pre-close vs
+  post-reopen.
+
+  Verified by the [Graphnosis App's consistency
+  suite](https://github.com/nehloo/interactive/graphnosis-app):
+  `persistence.test.ts` was previously asserting "prompt identical
+  modulo TF-IDF score wobble" and is now strict byte-equality. Passes
+  5/5 consecutive runs.
+
+### Changed (docs only)
+
+- **`queryHybrid()` JSDoc** now documents the concurrency contract:
+
+  > CONCURRENCY: this method calls `this.embed(question)` synchronously
+  > from the caller's perspective — no internal queueing. If your
+  > embedding adapter is NOT safe for concurrent invocation (notably
+  > fastembed / ONNX Runtime, which terminates the process with
+  > "libc++abi: mutex lock failed" on concurrent calls), the caller is
+  > responsible for serializing `queryHybrid()` invocations. Wrap each
+  > call in a promise chain or async-mutex.
+
+  Behaviour is unchanged; callers that have always run a single
+  query at a time are unaffected. Callers that genuinely parallelize
+  recall across multiple instances sharing an ONNX worker pool already
+  need their own serializer (the Graphnosis App's
+  `apps/desktop-sidecar/src/embedding-queue.ts` is a working
+  reference pattern).
+
 ## v0.5.5 (2026-05-25)
 
 Incremental-build parity with full-rebuild for TF-IDF and reingest-after-forget — no breaking changes.

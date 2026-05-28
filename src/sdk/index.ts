@@ -661,6 +661,16 @@ export class Graphnosis {
    *
    * NETWORK: makes one adapter call per invocation to embed the question.
    * Requires `await g.buildEmbeddings()` to have run.
+   *
+   * CONCURRENCY: this method calls `this.embed(question)` synchronously
+   * from the caller's perspective — no internal queueing. If your
+   * embedding adapter is NOT safe for concurrent invocation (notably
+   * fastembed / ONNX Runtime, which terminates the process with
+   * "libc++abi: mutex lock failed" on concurrent calls), the caller is
+   * responsible for serializing `queryHybrid()` invocations. Wrap each
+   * call in a promise chain or async-mutex. See
+   * `apps/desktop-sidecar/src/embedding-queue.ts` in the Graphnosis App
+   * repo for a reference pattern.
    */
   async queryHybrid(
     question: string,
@@ -774,7 +784,15 @@ export class Graphnosis {
     if (!g.metadata.analyzerAdapterId) g.metadata.analyzerAdapterId = this.analyzer.id;
     const index = createTfidfIndex(this.analyzer);
     for (const [id, node] of g.nodes) {
-      if (node.type === 'document' || node.type === 'section') continue;
+      // Match the canonical build policy (graph-builder.ts:66 +
+      // incremental.ts:92): exclude `document` nodes (top-level title only,
+      // duplicates section content), but INCLUDE `section` nodes — their
+      // short, high-signal headings are exactly what users search for.
+      //
+      // Previously rebuildIndex also excluded sections, which silently
+      // produced a different idf table after loadGai → recall scores
+      // wobbled by ~0.01 across reload. Fixed v0.5.6.
+      if (node.type === 'document') continue;
       addDocument(index, id, node.content);
     }
     computeIdf(index);
