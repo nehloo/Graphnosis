@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.5.7 (2026-06-05)
+
+Fix a checksum sign bug that mis-flagged large engrams (above ~17 MB) as
+corrupt on load. No breaking changes — affected engrams were never actually
+damaged and load correctly with this release.
+
+### Fixed
+
+- **`.gai` checksum verification no longer false-positives on large engrams.**
+  `gai-reader.ts` accumulated the additive checksum with a signed 32-bit
+  operation (`& 0xffffffff`) while the writer accumulates unsigned (`>>> 0`).
+  The two diverge once the cumulative byte sum exceeds the signed int32 range
+  (~17 MB of content), so large engrams failed the integrity check on load and
+  were reported as corrupt even though their bytes were intact. The reader now
+  uses the same unsigned `>>> 0` accumulation as the writer, so checksums match
+  at any engram size.
+
 ## v0.5.6 (2026-05-28)
 
 Fix `rebuildIndex()` parity with the canonical build path so post-load
