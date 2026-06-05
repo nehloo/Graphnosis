@@ -46,8 +46,15 @@ export function readGai(
 
   const storedChecksum = buffer.readUInt32BE(buffer.length - trailerLen);
   let computedChecksum = 0;
-  for (const byte of headerBuf) computedChecksum = (computedChecksum + byte) & 0xffffffff;
-  for (const byte of bodyBuf) computedChecksum = (computedChecksum + byte) & 0xffffffff;
+  // MUST use `>>> 0` (unsigned), NOT `& 0xffffffff`. The writer uses `>>> 0`
+  // (see gai-writer.ts) — JS bitwise `&` returns a SIGNED int32, which goes
+  // negative once the running sum's bit 31 is set (cumulative byte-sum > 2^31,
+  // i.e. ~17 MB of body). `storedChecksum` is unsigned (readUInt32BE), so a
+  // signed `computedChecksum` never matches above that threshold and every
+  // large engram falsely fails the checksum on read. The bytes were always
+  // valid; only this comparison was wrong.
+  for (const byte of headerBuf) computedChecksum = (computedChecksum + byte) >>> 0;
+  for (const byte of bodyBuf) computedChecksum = (computedChecksum + byte) >>> 0;
 
   if (storedChecksum !== computedChecksum) {
     throw new Error('Invalid .gai file: checksum mismatch');
