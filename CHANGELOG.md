@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.6.0 (2026-06-06)
+
+Performance and a new memory-management API for hosts running large cortexes.
+
+### Added
+
+- **`dispose()` on the `Graphnosis` instance.** Clears the in-memory node/edge
+  Maps and the TF-IDF / embedding indexes so a host can evict an idle graph and
+  return memory to the OS. Clearing the structures lets GC reclaim the footprint
+  even if a reference to the instance lingers — a plain drop-the-reference
+  eviction freed almost nothing. After `dispose()` the instance is dead; reload
+  the graph from disk to use it again.
+
+### Changed
+
+- **Contradiction detection is entity-indexed instead of an O(N²) scan.**
+  `detectNewContradictions` previously scanned every node for every new entity
+  and re-lowercased entities on each comparison — O(entities_new × N ×
+  entities/node) transient strings, which grew the heap into multi-GB reserved
+  pages on large ingests. It now builds a lowercased entity→nodeId index in one
+  pass and does direct lookups. Identical results, far less CPU and allocation.
+
+### Internal
+
+- Added a `prepare` script so the package builds when consumed as a git
+  dependency.
+
 ## v0.5.7 (2026-06-05)
 
 Fix a checksum sign bug that mis-flagged large engrams (above ~17 MB) as
