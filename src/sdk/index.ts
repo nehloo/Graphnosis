@@ -160,20 +160,41 @@ function detectNewContradictions(
 ): Contradiction[] {
   if (newNodeIds.size === 0 || !graph.tfidfIndex) return [];
 
-  // Build entity → nodeId index scoped to new + existing nodes that share entities with new
+  // Entity (LOWERCASED key) -> new nodeIds. Lowercasing the key once here means
+  // the hot loop below never re-lowercases per comparison.
   const entityToNew = new Map<string, string[]>();
   for (const nodeId of newNodeIds) {
     const node = graph.nodes.get(nodeId);
     if (!node || node.type === 'document' || node.type === 'section') continue;
     for (const entity of node.entities) {
       if (entity.length < 4) continue;
-      const list = entityToNew.get(entity) ?? [];
+      const k = entity.toLowerCase();
+      const list = entityToNew.get(k) ?? [];
       list.push(nodeId);
-      entityToNew.set(entity, list);
+      entityToNew.set(k, list);
+    }
+  }
+  if (entityToNew.size === 0) return [];
+
+  // Build a lowercased entity -> existing nodeIds index in ONE pass over the
+  // graph, restricted to entities the new batch actually touches. Replaces the
+  // old O(entities_new × N) scan that re-lowercased every entity of every node on
+  // every comparison — billions of transient strings on a large ingest, which
+  // grew the heap into multi-GB reserved pages (the ingest memory spike). Now:
+  // one pass to index + direct lookups.
+  const entityToExisting = new Map<string, string[]>();
+  for (const [id, node] of graph.nodes) {
+    if (newNodeIds.has(id)) continue;
+    if (node.type === 'document' || node.type === 'section') continue;
+    for (const entity of node.entities) {
+      const k = entity.toLowerCase();
+      if (!entityToNew.has(k)) continue; // only entities the new batch touches
+      const list = entityToExisting.get(k) ?? [];
+      list.push(id);
+      entityToExisting.set(k, list);
     }
   }
 
-  // For each entity touched by new nodes, find existing nodes that also mention it
   const CONFLICT_PATTERNS = [
     /\b(reclassified|reclassify|disputed|disproven|debunked|refuted|retracted|superseded|corrected|not\s+actually|contrary\s+to|in\s+fact|however|but\s+actually|wrong|incorrect|false)\b/i,
   ];
@@ -182,20 +203,21 @@ function detectNewContradictions(
   const seen = new Set<string>();
 
   for (const [entity, newIds] of entityToNew) {
-    for (const [existingId, existingNode] of graph.nodes) {
-      if (newIds.includes(existingId)) continue;
-      if (existingNode.type === 'document' || existingNode.type === 'section') continue;
-      if (!existingNode.entities.some(e => e.toLowerCase() === entity.toLowerCase())) continue;
+    const existingIds = entityToExisting.get(entity);
+    if (!existingIds) continue;
+    for (const existingId of existingIds) {
+      const existingNode = graph.nodes.get(existingId)!;
+      // Lowercase this existing node's entities once for the shared-entity check
+      // (only for matched nodes — not the whole graph).
+      const existingLower = new Set(existingNode.entities.map(e => e.toLowerCase()));
 
       for (const newId of newIds) {
-        const pairKey = [newId, existingId].sort().join('|');
+        const pairKey = newId < existingId ? `${newId}|${existingId}` : `${existingId}|${newId}`;
         if (seen.has(pairKey)) continue;
         seen.add(pairKey);
 
         const newNode = graph.nodes.get(newId)!;
-        const sharedEntities = newNode.entities.filter(e =>
-          existingNode.entities.some(be => be.toLowerCase() === e.toLowerCase())
-        );
+        const sharedEntities = newNode.entities.filter(e => existingLower.has(e.toLowerCase()));
         if (sharedEntities.length < 2) continue;
         if (newNode.content.length < 60 || existingNode.content.length < 60) continue;
 
@@ -1086,6 +1108,26 @@ export class Graphnosis {
    */
   forgetTopic(topic: string, reason = 'user:topic-deletion'): { forgotten: number } {
     return forgetByTopic(this.graph, topic, reason);
+  }
+
+  /**
+   * Release this graph's in-memory structures so a host can EVICT an idle engram
+   * and actually return the memory to the OS. Clearing the Maps + dropping the
+   * indexes lets GC reclaim the bulk of the footprint even if a stray reference
+   * to this instance lingers (which is why a plain drop-the-reference eviction
+   * previously freed almost nothing). After dispose() the instance is dead — the
+   * host must drop it and reload the engram from disk on next access.
+   */
+  dispose(): void {
+    const g = this.graph as KnowledgeGraph & {
+      tfidfIndex?: unknown;
+      embeddingIndex?: unknown;
+    };
+    g.nodes.clear();
+    g.directedEdges.clear();
+    g.undirectedEdges.clear();
+    g.tfidfIndex = undefined;
+    g.embeddingIndex = undefined;
   }
 }
 
