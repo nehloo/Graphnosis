@@ -36,13 +36,27 @@ export function readGai(
     }
   }
 
-  const headerLen = buffer.readUInt32BE(GAI_MAGIC.length);
-  const headerBuf = buffer.subarray(GAI_MAGIC.length + 4, GAI_MAGIC.length + 4 + headerLen);
-  const header = unpack(headerBuf) as GaiHeader;
+  // Authenticate BEFORE parsing (finding #17). The signed-ness of a file lives
+  // inside the msgpack header, but unpacking attacker-controlled header bytes
+  // before verifying them feeds the deserializer unauthenticated input. We break
+  // the cycle by deriving the trailer layout from whether the CALLER supplied a
+  // key — not from the header content — so the HMAC can be checked over the raw
+  // header+body byte range first, and `unpack` only ever runs on bytes that have
+  // passed the checksum (and, in signed mode, the HMAC).
+  const signedMode = opts.hmacKey != null;
+  const trailerLen = signedMode ? 4 + 32 : 4; // checksum + optional HMAC
 
-  const isSigned = header.integrity === 'hmac-sha256';
-  const trailerLen = isSigned ? 4 + 32 : 4; // checksum + optional HMAC
-  const bodyBuf = buffer.subarray(GAI_MAGIC.length + 4 + headerLen, buffer.length - trailerLen);
+  if (buffer.length < GAI_MAGIC.length + 4 + trailerLen) {
+    throw new Error('Invalid .gai file: truncated');
+  }
+  const headerLen = buffer.readUInt32BE(GAI_MAGIC.length);
+  const headerStart = GAI_MAGIC.length + 4;
+  const headerEnd = headerStart + headerLen;
+  if (headerLen === 0 || headerEnd > buffer.length - trailerLen) {
+    throw new Error('Invalid .gai file: header length out of range');
+  }
+  const headerBuf = buffer.subarray(headerStart, headerEnd);
+  const bodyBuf = buffer.subarray(headerEnd, buffer.length - trailerLen);
 
   const storedChecksum = buffer.readUInt32BE(buffer.length - trailerLen);
   let computedChecksum = 0;
@@ -60,22 +74,34 @@ export function readGai(
     throw new Error('Invalid .gai file: checksum mismatch');
   }
 
-  // Fail-closed HMAC handling.
-  if (isSigned && !opts.hmacKey) {
-    throw new Error('Invalid .gai file: file is HMAC-signed but no hmacKey was supplied');
-  }
-  if (!isSigned && opts.hmacKey) {
-    throw new Error('Invalid .gai file: hmacKey supplied but file is not HMAC-signed (possible downgrade)');
-  }
-  if (isSigned && opts.hmacKey) {
+  // In signed mode, verify the HMAC over the raw header+body bytes BEFORE any
+  // unpack runs. Same coverage the writer uses (`headerBuf || bodyBuf`), so this
+  // is a pure reordering — no format change.
+  if (signedMode) {
     const storedHmac = buffer.subarray(buffer.length - 32);
-    const hmac = createHmac('sha256', opts.hmacKey);
+    const hmac = createHmac('sha256', opts.hmacKey!);
     hmac.update(headerBuf);
     hmac.update(bodyBuf);
     const computedHmac = hmac.digest();
     if (storedHmac.length !== computedHmac.length || !timingSafeEqual(storedHmac, computedHmac)) {
       throw new Error('Invalid .gai file: HMAC verification failed');
     }
+  }
+
+  // Header bytes are now authenticated (signed mode) or checksum-verified
+  // (unsigned mode); safe to unpack.
+  const header = unpack(headerBuf) as GaiHeader;
+  const isSigned = header.integrity === 'hmac-sha256';
+
+  // Fail-closed downgrade handling: the header's declared signed-ness must match
+  // how we read it. (A signed file read without a key fails the checksum above,
+  // since its 32-byte HMAC trailer is misattributed as body — but keep these
+  // explicit guards for the cases that reach here.)
+  if (isSigned && !signedMode) {
+    throw new Error('Invalid .gai file: file is HMAC-signed but no hmacKey was supplied');
+  }
+  if (!isSigned && signedMode) {
+    throw new Error('Invalid .gai file: hmacKey supplied but file is not HMAC-signed (possible downgrade)');
   }
 
   const body = unpack(bodyBuf) as {

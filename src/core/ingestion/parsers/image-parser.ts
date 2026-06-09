@@ -1,10 +1,12 @@
-import { createRequire } from 'node:module';
+import exifr from 'exifr';
 import type { ParsedDocument, ParsedSection } from '@/core/types';
 import { redactId } from '@/sdk/log-redact';
 
-// `exif-parser` is CJS-only; load it via createRequire from this ESM module
-// so consumers don't hit `ReferenceError: require is not defined` at call time.
-const require = createRequire(import.meta.url);
+// EXIF metadata is parsed with `exifr` (maintained, hardened) rather than the
+// abandoned `exif-parser@0.1.x`. Every ingested image is attacker-controlled
+// content, so the parser must be robust against malformed IFD structures; exifr
+// is actively maintained and fuzz-tested for exactly that. Input size is bounded
+// upstream by the sidecar's ingest byte cap.
 
 // Image parser: extracts EXIF metadata ($0) with optional vision API support
 // Handles JPEG, TIFF, PNG (EXIF only in JPEG/TIFF)
@@ -24,26 +26,27 @@ export async function parseImage(
 
   // Extract EXIF data
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const ExifParser = require('exif-parser');
-    const parser = ExifParser.create(buffer);
-    parser.enableBinaryFields(false);
-    const exifData = parser.parse();
+    // exifr returns a flat object of tags (or undefined if the image has none).
+    // It auto-computes decimal `latitude`/`longitude` and returns `Date` objects
+    // for date tags. Names like Make/Model/FNumber/ISO match the EXIF spec.
+    const tags = (await exifr.parse(buffer)) ?? {};
 
-    // Basic image info
-    if (exifData.imageSize) {
-      metadata.width = exifData.imageSize.width || 0;
-      metadata.height = exifData.imageSize.height || 0;
+    // Basic image info. EXIF pixel dimensions live in PixelXDimension /
+    // PixelYDimension (exifr surfaces them as ExifImageWidth/ExifImageHeight).
+    const width = tags.ExifImageWidth ?? tags.ImageWidth;
+    const height = tags.ExifImageHeight ?? tags.ImageHeight;
+    if (width && height) {
+      metadata.width = width;
+      metadata.height = height;
       sections.push({
         title: 'Image Dimensions',
-        content: `Image is ${metadata.width}x${metadata.height} pixels.`,
+        content: `Image is ${width}x${height} pixels.`,
         depth: 1,
         children: [],
       });
     }
 
     // Camera info
-    const tags = exifData.tags || {};
     const cameraInfo: string[] = [];
 
     if (tags.Make) { cameraInfo.push(`Camera make: ${tags.Make}`); metadata.cameraMake = tags.Make; }
@@ -67,9 +70,10 @@ export async function parseImage(
       });
     }
 
-    // Date info
+    // Date info — exifr returns a Date; older numeric epochs are still handled.
     if (tags.DateTimeOriginal) {
-      const date = new Date(tags.DateTimeOriginal * 1000).toISOString();
+      const raw = tags.DateTimeOriginal;
+      const date = (raw instanceof Date ? raw : new Date(Number(raw) * 1000)).toISOString();
       metadata.dateTaken = date;
       sections.push({
         title: 'Date Taken',
@@ -79,15 +83,15 @@ export async function parseImage(
       });
     }
 
-    // GPS location
-    if (tags.GPSLatitude && tags.GPSLongitude) {
-      metadata.latitude = tags.GPSLatitude;
-      metadata.longitude = tags.GPSLongitude;
-      const lat = tags.GPSLatitude.toFixed(6);
-      const lon = tags.GPSLongitude.toFixed(6);
+    // GPS location — exifr computes decimal latitude/longitude for us.
+    if (typeof tags.latitude === 'number' && typeof tags.longitude === 'number') {
+      metadata.latitude = tags.latitude;
+      metadata.longitude = tags.longitude;
+      const lat = tags.latitude.toFixed(6);
+      const lon = tags.longitude.toFixed(6);
       sections.push({
         title: 'Location',
-        content: `Image was taken at GPS coordinates: latitude ${lat}, longitude ${lon}.${tags.GPSAltitude ? ` Altitude: ${tags.GPSAltitude.toFixed(1)}m.` : ''}`,
+        content: `Image was taken at GPS coordinates: latitude ${lat}, longitude ${lon}.${typeof tags.GPSAltitude === 'number' ? ` Altitude: ${tags.GPSAltitude.toFixed(1)}m.` : ''}`,
         depth: 1,
         children: [],
       });

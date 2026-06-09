@@ -277,14 +277,26 @@ function classifyChunk(text: string): NodeType {
 function extractLinks(text: string): string[] {
   const links: string[] = [];
 
-  // Markdown links: [text](url)
-  const mdLinks = text.matchAll(/\[([^\]]+)\]\(([^)]+)\)/g);
+  // Guard against pathological inputs. Extracting links from a huge blob is not
+  // meaningful (chunks are normally a few KB); cap the scan region so an
+  // adversarial document can never make this dominate ingest time.
+  const MAX_SCAN = 256 * 1024;
+  const scan = text.length > MAX_SCAN ? text.slice(0, MAX_SCAN) : text;
+
+  // Markdown links: [text](url).
+  // Quantifiers are BOUNDED on purpose. An unbounded `[^\]]+` / `[^)]+` makes
+  // the matcher O(n²) on long runs of unbalanced brackets (e.g. "[[[[…"): at
+  // every `[` the engine rescans to end-of-string for a closing `]`. A few
+  // hundred KB of such input froze the event loop for minutes. Bounding the
+  // groups keeps it linear; excluding whitespace from the URL (real URLs have
+  // none) shrinks the backtracking surface further.
+  const mdLinks = scan.matchAll(/\[([^\]]{1,500})\]\(([^)\s]{1,2048})\)/g);
   for (const match of mdLinks) {
     links.push(match[2]);
   }
 
-  // Wiki-style links: [[article]]
-  const wikiLinks = text.matchAll(/\[\[([^\]]+)\]\]/g);
+  // Wiki-style links: [[article]] — same bounding rationale.
+  const wikiLinks = scan.matchAll(/\[\[([^\]]{1,500})\]\]/g);
   for (const match of wikiLinks) {
     links.push(match[1]);
   }

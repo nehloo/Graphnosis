@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.6.1 (2026-06-09)
+
+Security and robustness fixes for untrusted-input parsing and `.gai` integrity.
+No API changes.
+
+### Security
+
+- **`.gai` reader authenticates before parsing.** The header was
+  msgpack-unpacked before the HMAC was verified, feeding the deserializer
+  unauthenticated bytes. The reader now derives the trailer layout from whether
+  the caller supplied a key (not from the unverified header), checks the
+  checksum and — in signed mode — the HMAC over the raw header+body bytes
+  *first*, and only then unpacks. Same HMAC coverage as the writer, so it's a
+  pure reordering with no format change; downgrade protection is preserved.
+- **Replaced the unmaintained `exif-parser@0.1.x`** (last published ~2018, parses
+  attacker-controlled EXIF/TIFF IFD structures) with the actively-maintained,
+  fuzz-tested `exifr`. Same extracted fields (dimensions, camera, date, GPS,
+  attribution).
+
+### Fixed
+
+- **Quadratic ReDoS in markdown-link extraction (`chunker.extractLinks`).** The
+  `[text](url)` / `[[wiki]]` patterns used unbounded character classes, making
+  the matcher O(n²) on long runs of unbalanced brackets — a few hundred KB of
+  crafted content could pin a CPU for minutes. Quantifiers are now bounded, URLs
+  exclude whitespace, and the scan is capped at 256 KB. Linear thereafter.
+- **Unbounded PDF extraction.** `parsePdf`'s `maxPages` defaulted to `Infinity`
+  and no caller set it, so a crafted PDF advertising a huge page count could
+  loop unbounded. The default is now `DEFAULT_MAX_PAGES` (2000); pass
+  `maxPages: Infinity` to opt out.
+
 ## v0.6.0 (2026-06-06)
 
 Performance and a new memory-management API for hosts running large cortexes.

@@ -54,14 +54,18 @@ export interface ParsePdfOptions {
    * with a `[Note: …]` line appended to the parsed text, and the
    * resulting `ParsedDocument.metadata.truncated` is set to 1.
    *
-   * Default: `Infinity` (no cap). pdfjs-dist with the batched extraction
-   * below handles very large PDFs without OOM in normal Node memory
-   * envelopes; the cap exists for callers that want hard latency / memory
-   * bounds (e.g. serverless functions, multi-tenant ingesters where one
-   * user's 4233-page manual shouldn't bottleneck everyone else).
+   * Default: `DEFAULT_MAX_PAGES`. A finite default bounds the worst case so a
+   * single crafted/huge PDF can't pin a CPU and stall the sidecar event loop
+   * for minutes. Callers that genuinely need every page of a very large
+   * document can pass `maxPages: Infinity` explicitly to opt out of the cap.
    */
   maxPages?: number;
 }
+
+// Default page cap. Bounds latency/memory for an attacker-supplied PDF while
+// still covering the overwhelming majority of legitimate documents. Opt out
+// with `maxPages: Infinity`.
+export const DEFAULT_MAX_PAGES = 2000;
 
 // unpdf wraps pdfjs-dist for serverless/Node runtimes — same upstream
 // engine as pdf-parse@2.x but configured to avoid the LoopbackPort
@@ -74,7 +78,7 @@ export async function parsePdf(
   sourceFile: string,
   opts: ParsePdfOptions = {},
 ): Promise<ParsedDocument> {
-  const maxPages = opts.maxPages ?? Infinity;
+  const maxPages = opts.maxPages ?? DEFAULT_MAX_PAGES;
   const pdf = await getDocumentProxy(new Uint8Array(buffer));
   const totalPages = pdf.numPages;
   const pagesToExtract = Math.min(totalPages, maxPages);
