@@ -1,6 +1,15 @@
 # Graphnosis — Benchmark History
 
-This document tells the full story of how Graphnosis went from a conceptual question about AI and graphs to a system that scores **76.40%** on the official LongMemEval benchmark — above Zep (71.20%) — using end-to-end QA with a GPT-4 judge and pure TypeScript only:
+This document tells the full story of how Graphnosis went from a conceptual question about AI and graphs to a system whose deterministic, TypeScript-only memory stack — paired with GPT-4o as the answer model and cloud embeddings for hybrid retrieval — scores **76.40%** on the official LongMemEval benchmark, above Zep (71.20%), under end-to-end QA with an official GPT-4 judge.
+
+> **What 76.40% is, and isn't (read this first).** Graphnosis is a *memory layer*, not an end-to-end QA system — its score is always "Graphnosis retrieval + whichever LLM answers." The headline **76.40%** is Graphnosis paired with **cloud GPT-4o (answer) + cloud embeddings (text-embedding-3-small, for hybrid retrieval)**; the GPT-4o judge is the scorer in every configuration. The same memory stack, ablated one component at a time (measured 2026-06-23):
+> | Config | Score |
+> |---|---|
+> | hybrid (TF-IDF + cloud embeddings) + GPT-4o + enrichment | **76.40%** |
+> | TF-IDF only (zero embedding API) + GPT-4o, no enrichment | **62.20%** |
+> | fully on-device: TF-IDF + Llama 3.2 3B (Ollama), **zero cloud calls** | **41.60%** |
+>
+> Per-lever: cloud embeddings **+11.8pt**, enrichment **+2.4pt**, GPT-4o vs. 3B local answer model **+20.6pt**. The graph/retrieval/dedup stack is TypeScript-only and zero-API in all three; what varies is the embedding and answer-LLM choice, which are pluggable. "Pure TypeScript" describes Graphnosis's own code — the answer LLM is external (cloud or local), as it is for every memory system on this benchmark.
 
 ### What it took for Graphnosis to score **76.40%** on LongMemEval end-to-end QA with an official GPT-4 judge:
 - Pure TypeScript, no vector DB, no fine-tuning
@@ -42,8 +51,8 @@ The hypothesis suggested a specific design:
 - **Dual-graph** over the same node set — directed edges for causal, temporal, and hierarchical relationships; undirected edges for similarity and co-occurrence. Most graph RAG systems use one graph type. Using both gives AI models richer traversal paths.
 - **Zero-API graph construction** — TF-IDF similarity (pure JS), no embedding API calls required to build the graph. $0 to ingest.
 - **AI-native binary format (.gai)** — built on MessagePack with a 4-byte magic header, node/edge count metadata, and a checksum. Not designed to be opened in a text editor. Designed for fast machine consumption.
-- **Temporal awareness** — every node tracks `createdAt`, `lastAccessedAt`, `accessCount`, `validUntil`, and `confidence` (which decays ~1%/day after 7 days without access). Knowledge that isn't reinforced fades.
-- **Human correction layer** — add facts, supersede outdated info, bulk-import markdown. Human-corrected nodes get maximum confidence (1.0) and never decay.
+- **Temporal awareness** — every node tracks `createdAt`, `lastAccessedAt`, `accessCount`, `validUntil`, and `confidence`. The codebase carries a temporal-decay function, but it is **dormant by design**: it fires only on nodes carrying an explicit `ephemeral` marker, and no content the user saves is ever marked ephemeral. The governing principle is **strengthen, never weaken** — saved knowledge does not fade from disuse. Confidence only ever drops on an explicit, audited correctness event (contradiction detected, supersession, or user edit); recall *raises* it. *Permanence is absolute; prominence is earned.*
+- **Human correction layer** — add facts, supersede outdated info, bulk-import markdown. Human-corrected nodes get maximum confidence (1.0).
 
 ---
 
@@ -86,7 +95,7 @@ This was a useful sanity check, but not a true measure of end-to-end answer qual
 
 The [LongMemEval benchmark](https://github.com/xiaowu0162/LongMemEval) (ICLR 2025, xiaowu0162) is the standard for evaluating conversational memory systems. It consists of:
 
-- **500 conversation-QA pairs** across 5 question types: single-session-user, single-session-assistant, multi-session, knowledge-update, temporal-reasoning, single-session-preference
+- **500 conversation-QA pairs** across 6 question types: single-session-user, single-session-assistant, multi-session, knowledge-update, temporal-reasoning, single-session-preference
 - **End-to-end QA scoring** — the system ingests conversations, then answers questions about them. A GPT-4 judge scores each answer using the verbatim official prompts.
 - **Not retrieval recall** — the score reflects whether the final answer is correct, not whether the right passage was retrieved.
 
@@ -353,7 +362,23 @@ Results vs Run 22:
 | **multi-session** | **57.85%** (70/121) | **63.64%** (77/121) | **+5.79** |
 | single-session-preference | 43.33% (13/30) | 43.33% (13/30) | held |
 
+*Methodology: "held" rows carry Run 22 counts forward — the routing fix did not alter these answers, so they were not re-judged; only multi-session was re-measured (and matches the artifact). Run 23's full independent re-judge, with ±1–2/category GPT-4o judge variance, is in the reconciliation table below.*
+
 **Overall: 76.40% (382/500)**
+
+> **Canonical per-category numbers (reconciliation, 2026-06-23).** The before/after table above reflects the judging pass used during the Run 22→23 routing analysis. The **authoritative per-category breakdown — recomputed directly from `results 23/results.jsonl`** — differs by ±1–2 questions in four categories because the GPT-4o judge re-scores with small variance between passes even at temperature 0. Both reconcile to the same 382/500 = 76.40%. Cite these (non-abstention split) for any external/publication use:
+>
+> | Category | Non-abstention | Abstention `_abs` | Combined |
+> |---|---|---|---|
+> | single-session-user | 59/64 (92.19%) | 6/6 | 65/70 |
+> | single-session-assistant | 50/56 (89.29%) | 0/0 | 50/56 |
+> | knowledge-update | 65/72 (90.28%) | 5/6 | 70/78 |
+> | temporal-reasoning | 92/127 (72.44%) | 6/6 | 98/133 |
+> | multi-session | 77/121 (63.64%) | 9/12 | 86/133 |
+> | single-session-preference | 13/30 (43.33%) | 0/0 | 13/30 |
+> | **Total** | **356/470** | **26/30** | **382/500 (76.40%)** |
+>
+> Abstention items are `_abs`-suffixed questions distributed across four categories (KU 6, MS 12, SSU 6, TR 6 = 30), **not** a standalone class. The six rows above are the non-abstention split (470 questions); the 30 abstention items score separately (26/30).
 
 All of the +8 question gain came from multi-session. The strong-aggregation routing fix prevented ~7 count questions from falling into the temporal/KU path where the aggregation prompt block was never injected.
 

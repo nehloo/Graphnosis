@@ -62,6 +62,13 @@ interface CliArgs {
   // Disabled by default so incremental re-runs of the same out-dir still
   // work (rename breaks the `loadDone` resume path).
   labelRun: boolean;
+  // Offline answer path. When set, the answer model is constructed against
+  // an OpenAI-compatible local endpoint (Ollama) instead of the OpenAI
+  // cloud — fully offline answer generation. The judge stays on OpenAI
+  // (it is the scoring instrument, not part of the system under test).
+  // `--ollama` is a convenience alias for the default Ollama base URL.
+  answerBaseURL?: string;
+  answerApiKey: string;
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -109,6 +116,11 @@ function parseArgs(argv: string[]): CliArgs {
     enablePreferenceExtraction: args['enable-preference-extraction'] === 'true',
     trace: args.trace === 'true',
     labelRun: args['label-run'] === 'true',
+    // --ollama is shorthand for the default Ollama OpenAI-compatible endpoint.
+    // --answer-base-url <url> overrides it for any other local provider.
+    answerBaseURL: args['answer-base-url']
+      ?? (args.ollama === 'true' ? 'http://localhost:11434/v1' : undefined),
+    answerApiKey: args['answer-api-key'] ?? 'ollama',
   };
 }
 
@@ -262,7 +274,9 @@ async function runOne(
   embeddingModel: string,
   enableRouter: boolean,
   enableSessionSummaries: boolean,
-  enablePreferenceExtraction: boolean
+  enablePreferenceExtraction: boolean,
+  answerBaseURL: string | undefined,
+  answerApiKey: string
 ): Promise<{ result: QuestionResult; systemPrompt?: string; trace?: TraceRow }> {
   const base = {
     question_id: q.question_id,
@@ -314,6 +328,8 @@ async function runOne(
         useRouter: enableRouter,
         enablePreferenceExtraction,
         documents: enablePreferenceExtraction ? docs : undefined,
+        answerBaseURL,
+        answerApiKey,
       }
     );
     const t2 = performance.now();
@@ -524,7 +540,7 @@ async function main() {
   await runPool(
     todo,
     args.concurrency,
-    async (q) => runOne(q, args.answerModel, args.judge, args.maxNodes, args.retrieval, args.embeddingModel, args.enableRouter, args.enableSessionSummaries, args.enablePreferenceExtraction),
+    async (q) => runOne(q, args.answerModel, args.judge, args.maxNodes, args.retrieval, args.embeddingModel, args.enableRouter, args.enableSessionSummaries, args.enablePreferenceExtraction, args.answerBaseURL, args.answerApiKey),
     ({ result: r, systemPrompt, trace }) => {
       completed++;
       appendFileSync(jsonlPath, JSON.stringify(r) + '\n', 'utf-8');

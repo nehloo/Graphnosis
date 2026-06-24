@@ -1,5 +1,5 @@
 import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import { openai, createOpenAI } from '@ai-sdk/openai';
 import type { KnowledgeGraph, ParsedDocument, SubgraphContext, TfidfIndex, NodeId } from '@/core/types';
 import { queryGraph, buildGraphPrompt } from './query-engine';
 import type { RouterDecision } from './router';
@@ -53,6 +53,13 @@ export interface AnswerOptions {
   documents?: ParsedDocument[];
   preferenceModel?: string; // defaults to gpt-4o-mini
   preferenceConcurrency?: number; // lane pool size (default 6)
+  // Local-LLM answer path (offline eval). When `answerBaseURL` is set, the
+  // answer model is constructed against an OpenAI-compatible endpoint
+  // (e.g. Ollama at http://localhost:11434/v1) instead of the OpenAI cloud.
+  // The default path (unset) is byte-identical to prior behavior, so the
+  // chat API route is unaffected.
+  answerBaseURL?: string;
+  answerApiKey?: string; // defaults to 'ollama' when answerBaseURL is set
 }
 
 export interface AnswerResult {
@@ -145,8 +152,15 @@ export async function answerQuestion(
     { role: 'user' as const, content: question },
   ];
 
+  // Default path uses the OpenAI cloud provider. When answerBaseURL is set,
+  // route to an OpenAI-compatible local endpoint (Ollama) for a fully
+  // offline answer model — no cloud call at inference time.
+  const answerProvider = opts.answerBaseURL
+    ? createOpenAI({ baseURL: opts.answerBaseURL, apiKey: opts.answerApiKey ?? 'ollama' })
+    : openai;
+
   const result = await generateText({
-    model: openai(opts.model ?? 'gpt-4o-mini'),
+    model: answerProvider(opts.model ?? 'gpt-4o-mini'),
     system: systemPrompt,
     messages,
   });

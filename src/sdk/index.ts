@@ -154,6 +154,20 @@ const SUPPORTED_EXTENSIONS = new Set([
 ]);
 
 /** Detect contradictions only among the newly added node IDs vs the full graph. */
+// Structural "weak" entities — bare years, ISO/slash dates, money, percentages,
+// and short tokens carry almost no contradiction signal on their own (every note
+// that mentions "2026" or "$0" would otherwise pair up). Skipped both when
+// indexing entities and when counting shared anchors. Deliberately STRUCTURAL
+// only: corpus-specific stopword lists are the consuming app's concern, not a
+// general-purpose library's.
+const WEAK_CONTRADICTION_ENTITY_RE =
+  /^(?:\$?\d+(?:\.\d+)?%?|\d{4}(?:-\d{2}){0,2}|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)$/;
+
+function isWeakContradictionEntity(entity: string): boolean {
+  const e = entity.trim();
+  return e.length < 4 || WEAK_CONTRADICTION_ENTITY_RE.test(e);
+}
+
 function detectNewContradictions(
   graph: KnowledgeGraph & { tfidfIndex?: import('@/core/types').TfidfIndex },
   newNodeIds: Set<string>
@@ -167,7 +181,7 @@ function detectNewContradictions(
     const node = graph.nodes.get(nodeId);
     if (!node || node.type === 'document' || node.type === 'section') continue;
     for (const entity of node.entities) {
-      if (entity.length < 4) continue;
+      if (isWeakContradictionEntity(entity)) continue;
       const k = entity.toLowerCase();
       const list = entityToNew.get(k) ?? [];
       list.push(nodeId);
@@ -195,8 +209,12 @@ function detectNewContradictions(
     }
   }
 
+  // Strong correction/reversal markers only. Weak discourse markers
+  // ("however", "in fact", "but actually") were removed: they fire on ordinary
+  // prose and are the dominant ingest false-positive source. A genuine
+  // correction almost always carries one of the stronger markers below.
   const CONFLICT_PATTERNS = [
-    /\b(reclassified|reclassify|disputed|disproven|debunked|refuted|retracted|superseded|corrected|not\s+actually|contrary\s+to|in\s+fact|however|but\s+actually|wrong|incorrect|false)\b/i,
+    /\b(reclassified|reclassify|disputed|disproven|debunked|refuted|retracted|superseded|corrected|not\s+actually|contrary\s+to|no\s+longer|wrong|incorrect|false|inaccurate)\b/i,
   ];
 
   const contradictions: Contradiction[] = [];
@@ -217,7 +235,11 @@ function detectNewContradictions(
         seen.add(pairKey);
 
         const newNode = graph.nodes.get(newId)!;
-        const sharedEntities = newNode.entities.filter(e => existingLower.has(e.toLowerCase()));
+        // Count only meaningful shared anchors — weak structural entities
+        // (years, dates, money, short tokens) don't establish a real overlap.
+        const sharedEntities = newNode.entities.filter(
+          e => existingLower.has(e.toLowerCase()) && !isWeakContradictionEntity(e),
+        );
         if (sharedEntities.length < 2) continue;
         if (newNode.content.length < 60 || existingNode.content.length < 60) continue;
 

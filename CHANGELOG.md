@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.7.0 (2026-06-23)
+
+Local answer endpoint and hardened ingest-time contradiction detection.
+
+### Added
+
+- **Pluggable answer LLM.** `answer()` accepts `answerBaseURL` / `answerApiKey`,
+  so the answer step can target a local OpenAI-compatible endpoint (e.g. Ollama)
+  instead of the cloud. Enables fully on-device question answering and powers
+  the offline LongMemEval harness.
+- **LongMemEval offline flags.** The official harness gains `--ollama` /
+  `--answer-base-url` for local end-to-end runs.
+
+### Changed
+
+- **Ingest contradiction detection is stricter (fewer false positives).**
+  Structural entities — bare years, ISO/slash dates, money amounts, and short
+  tokens — no longer count toward the shared-anchor requirement, and the weak
+  discourse markers `however` / `in fact` / `but actually` were removed from the
+  conflict patterns. Genuine corrections (with strong markers) are unaffected.
+
+### Docs
+
+- Benchmarks: methodology labelling, a "what 76.40% is and isn't" disclosure,
+  and the Run 23 reconciliation table.
+- Added `GRAPHNOSIS.md` (AI-assistant memory instructions).
+
 ## v0.6.1 (2026-06-09)
 
 Security and robustness fixes for untrusted-input parsing and `.gai` integrity.
