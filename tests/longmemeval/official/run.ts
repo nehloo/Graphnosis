@@ -309,7 +309,9 @@ async function runOne(
         },
       });
     }
-    if (retrieval !== 'tfidf') {
+    // Only the graph embedding modes need a dense index; the baseline ablation
+    // modes (naive-topk, full-context) and tfidf do not.
+    if (retrieval === 'embeddings' || retrieval === 'hybrid') {
       graph = await attachEmbeddings(graph, openaiEmbedAdapter({ model: embeddingModel }));
     }
     const t1 = performance.now();

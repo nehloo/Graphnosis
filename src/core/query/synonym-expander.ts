@@ -7,7 +7,32 @@ export interface SynonymMap {
   terms: Map<string, string[]>; // term → related terms
 }
 
+// queryGraph() rebuilds the synonym map on every recall, but the map is a pure
+// function of the graph's undirected edges + node entities — not of the query.
+// Memoize it per graph object, keyed by a cheap mutation signature so the cache
+// invalidates the moment the graph changes. Every undirected-edge mutator in the
+// codebase bumps metadata.updatedAt (structural ones also bump version), so
+// (undirectedEdges.size, version, updatedAt) is a sound staleness guard — a miss
+// only ever costs a rebuild, never a stale result. The WeakMap keys on object
+// identity, so distinct graphs never collide regardless of signature, and entries
+// are collected when their graph is dropped.
+const synonymCache = new WeakMap<KnowledgeGraph, { sig: string; map: SynonymMap }>();
+
+function graphSig(graph: KnowledgeGraph): string {
+  const m = graph.metadata;
+  return `${graph.undirectedEdges.size}:${m.version}:${m.updatedAt}`;
+}
+
 export function buildSynonymMap(graph: KnowledgeGraph): SynonymMap {
+  const sig = graphSig(graph);
+  const cached = synonymCache.get(graph);
+  if (cached && cached.sig === sig) return cached.map;
+  const map = computeSynonymMap(graph);
+  synonymCache.set(graph, { sig, map });
+  return map;
+}
+
+function computeSynonymMap(graph: KnowledgeGraph): SynonymMap {
   const cooccurrence = new Map<string, Map<string, number>>();
 
   // For each undirected similar-to or shares-entity edge,
@@ -57,9 +82,17 @@ export function expandQuery(query: string, synonymMap: SynonymMap): string[] {
   // Unicode-aware tokenization: extract runs of letters/numbers/marks
   // This handles CJK, Arabic, Devanagari, etc. where \s+ splitting loses characters
   const words = query.toLowerCase().match(/[\p{L}\p{N}\p{M}]+/gu) ?? [];
+  const qLower = query.toLowerCase();
   const expansions = new Set<string>();
   expansions.add(query); // Original query always included
 
+  // The term-containment pass below depends only on `query`, not on `word`, so
+  // it produces the same expansions on every word iteration. Run it exactly once,
+  // at the first word's position, to preserve insertion order (the final
+  // slice(0,5) is order-sensitive) while collapsing the redundant O(terms × words)
+  // scan to O(terms). It still scans ALL terms — single-word terms can match as
+  // substrings (e.g. "cat" in "category"), which the per-word lookup misses.
+  let containmentDone = false;
   for (const word of words) {
     const synonyms = synonymMap.terms.get(word);
     if (synonyms) {
@@ -72,16 +105,19 @@ export function expandQuery(query: string, synonymMap: SynonymMap): string[] {
       }
     }
 
-    // Also check multi-word entities
-    for (const [term, synonyms] of synonymMap.terms) {
-      if (query.toLowerCase().includes(term)) {
-        for (const syn of synonyms.slice(0, 2)) {
-          const expanded = query.replace(new RegExp(term, 'gi'), syn);
-          if (expanded !== query) {
-            expansions.add(expanded);
+    // Also check multi-word / substring entity terms (once — see note above).
+    if (!containmentDone) {
+      for (const [term, termSyns] of synonymMap.terms) {
+        if (qLower.includes(term)) {
+          for (const syn of termSyns.slice(0, 2)) {
+            const expanded = query.replace(new RegExp(term, 'gi'), syn);
+            if (expanded !== query) {
+              expansions.add(expanded);
+            }
           }
         }
       }
+      containmentDone = true;
     }
   }
 

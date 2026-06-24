@@ -2,6 +2,7 @@ import { generateText } from 'ai';
 import { openai, createOpenAI } from '@ai-sdk/openai';
 import type { KnowledgeGraph, ParsedDocument, SubgraphContext, TfidfIndex, NodeId } from '@/core/types';
 import { queryGraph, buildGraphPrompt } from './query-engine';
+import { findSeeds } from './seed-finder';
 import type { RouterDecision } from './router';
 import { embedQuery, type EmbeddingIndex } from '@/core/similarity/embeddings';
 import type { EmbeddingAdapter } from '@/core/similarity/embedding-adapter';
@@ -17,7 +18,7 @@ import type { LMEQuestionType } from '@/core/types';
 // Shared by the /api/graph/query route and the LongMemEval official runner
 // so both paths use the exact same retrieval + prompt + model.
 
-export type RetrievalMode = 'tfidf' | 'embeddings' | 'hybrid';
+export type RetrievalMode = 'tfidf' | 'embeddings' | 'hybrid' | 'naive-topk' | 'full-context';
 
 export interface AnswerOptions {
   model?: string; // OpenAI model id; defaults to gpt-4o-mini (same as chat route)
@@ -89,6 +90,56 @@ export async function answerQuestion(
   opts: AnswerOptions = {}
 ): Promise<AnswerResult> {
   const retrieval: RetrievalMode = opts.retrieval ?? 'tfidf';
+
+  // Baseline ablation modes (no graph), for isolating the contribution of
+  // graph-structured retrieval with the answer model held fixed (§12.4):
+  //   'naive-topk'   - top-k chunks by raw TF-IDF similarity; no traversal,
+  //                    no typed edges, no temporal scoring.
+  //   'full-context' - all chunks, no retrieval at all.
+  // Both return before the embedding/graph path below.
+  if (retrieval === 'naive-topk' || retrieval === 'full-context') {
+    const cap = opts.maxNodes ?? 50;
+    const maxChars = retrieval === 'full-context' ? 120_000 : 40_000;
+    const ordered =
+      retrieval === 'full-context'
+        ? [...graph.nodes.values()].map((n) => n.content)
+        : findSeeds(question, tfidfIndex)
+            .slice(0, cap)
+            .map((s) => graph.nodes.get(s.nodeId)?.content ?? '')
+            .filter(Boolean);
+    const picked: string[] = [];
+    let acc = 0;
+    for (const c of ordered) {
+      if (acc + c.length > maxChars) break;
+      picked.push(c);
+      acc += c.length;
+    }
+    const serialized =
+      `=== RETRIEVED EVIDENCE (${picked.length} chunks, ${retrieval}, no graph) ===\n` +
+      picked.map((c, i) => `[${i + 1}] ${c}`).join('\n');
+    const systemPrompt = buildGraphPrompt(serialized, question, {
+      questionDate: opts.questionDate,
+      questionType: opts.questionType,
+    });
+    const provider = opts.answerBaseURL
+      ? createOpenAI({ baseURL: opts.answerBaseURL, apiKey: opts.answerApiKey ?? 'ollama' })
+      : openai;
+    const result = await generateText({
+      model: provider(opts.model ?? 'gpt-4o-mini'),
+      system: systemPrompt,
+      messages: [...(opts.priorMessages ?? []), { role: 'user' as const, content: question }],
+    });
+    return {
+      answer: result.text,
+      subgraph: { nodes: [], directedEdges: [], undirectedEdges: [], serialized },
+      seeds: [],
+      nodeCount: picked.length,
+      systemPrompt,
+      retrieval,
+      router: undefined,
+      preferences: undefined,
+    };
+  }
 
   // Embed the query once if we're going to use it. Skipped in tfidf-only mode
   // so we don't pay for an unused API call.

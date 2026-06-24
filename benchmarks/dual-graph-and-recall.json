@@ -1,0 +1,60 @@
+{
+  "config": {
+    "questions": 12,
+    "reps": 15,
+    "queries": 12,
+    "seeds": 500,
+    "hops": 3,
+    "rngSeed": 42,
+    "dataset": "data/longmemeval/longmemeval_s.json"
+  },
+  "hardware": {
+    "cpu": "Apple M3 Max",
+    "cores": 14,
+    "ramGB": 38.7,
+    "node": "v20.20.2"
+  },
+  "graph": {
+    "nodes": 44973,
+    "directedEdges": 201258,
+    "undirectedEdges": 134334,
+    "buildMs": 25829.1
+  },
+  "c2_oneHop": {
+    "directedPairs": 188500,
+    "undirectedPairs": 126750,
+    "overlap": 24335,
+    "onlyDirected": 164165,
+    "onlyUndirected": 102415,
+    "unionPairs": 290915,
+    "pctOnlyDirected": 56.4,
+    "pctOnlyUndirected": 35.2,
+    "pctOverlap": 8.4
+  },
+  "c2_reachability": {
+    "connectedSeeds": 453,
+    "medianReachDirected": 3,
+    "medianReachUndirected": 90.5,
+    "medianReachUnion": 107,
+    "medianPctOnlyDirected": 1.3,
+    "medianPctOnlyUndirected": 84.8,
+    "medianPctMixedOnly": 3.5,
+    "medianPctBothClasses": 0.5
+  },
+  "recallLatencyMs": {
+    "n": 180,
+    "median": 1409.4,
+    "p95": 2278.6,
+    "mean": 1530.1,
+    "synonymMapBuildMedian": 0,
+    "queryDependentMedian": 1409.4
+  },
+  "size": {
+    "gaiBytes": 63593997,
+    "jsonBytes": 72277131,
+    "gaiKB": 62103.5,
+    "jsonKB": 70583.1,
+    "jsonToGaiRatio": 1.14,
+    "gaiPctOfJson": 88
+  }
+}
