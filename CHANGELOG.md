@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.7.1 (2026-06-24)
+
+Retrieval-ablation baselines and a per-graph synonym cache.
+
+### Added
+
+- **Retrieval ablation modes.** `answer()` gains `naive-topk` and `full-context`
+  retrieval modes (no graph traversal) so the answer model can be held fixed
+  while only the retrieval structure varies — used to isolate the memory layer's
+  contribution on LongMemEval.
+- **Dual-graph / recall micro-benchmark.** `tests/bench/dual-graph-and-recall.ts`
+  measures dual-graph coverage, warm-recall latency, and `.gai`-vs-JSON size.
+
+### Changed
+
+- **Per-recall synonym map is now cached per graph.** `buildSynonymMap` memoizes
+  on a `(undirectedEdges.size, version, updatedAt)` signature, and `expandQuery`
+  runs its term-containment scan once per query instead of once per word. Recall
+  output is byte-identical; warm recall drops ~0.13 s at 15k nodes and ~0.5 s at
+  45k.
+
 ## v0.7.0 (2026-06-23)
 
 Local answer endpoint and hardened ingest-time contradiction detection.
