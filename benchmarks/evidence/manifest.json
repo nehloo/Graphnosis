@@ -1,0 +1,44 @@
+{
+  "sdk": "@nehloo/graphnosis v0.7.2",
+  "judge": "gpt-4o (official LongMemEval prompts)",
+  "dataset": "LongMemEval_S (xiaowu0162/LongMemEval, 500 q)",
+  "note": "Sanitized: dataset question/gold text removed; question_id keys to the public dataset. Our predictions + judge verdicts retained.",
+  "runs": [
+    {
+      "file": "cloud-paired-78.0.jsonl",
+      "score": "390/500 (78.00%)",
+      "command": "pnpm longmemeval:real:premium",
+      "description": "78.00% — §12.2/12.3 cloud-paired: hybrid (cloud embeddings) + GPT-4o + gpt-4o-mini summaries/prefs"
+    },
+    {
+      "file": "zero-embed-enrich-64.6.jsonl",
+      "score": "323/500 (64.60%)",
+      "command": "tsx tests/longmemeval/official/run.ts --answer-model gpt-4o",
+      "description": "64.60% — §12.2 zero-embedding-API: TF-IDF + GPT-4o + gpt-4o-mini enrichment"
+    },
+    {
+      "file": "zero-embed-noenrich-62.2.jsonl",
+      "score": "311/500 (62.20%)",
+      "command": "tsx tests/longmemeval/official/run.ts --answer-model gpt-4o --no-enrich",
+      "description": "62.20% — §12.2/12.4 TF-IDF graph + GPT-4o, no enrichment"
+    },
+    {
+      "file": "on-device-41.6.jsonl",
+      "score": "208/500 (41.60%)",
+      "command": "tsx tests/longmemeval/official/run.ts --ollama",
+      "description": "41.60% — §12.2 fully on-device: TF-IDF + Llama 3.2 3B (Ollama), zero cloud"
+    },
+    {
+      "file": "ablation-naive-topk-44.8.jsonl",
+      "score": "224/500 (44.80%)",
+      "command": "tsx tests/longmemeval/official/run.ts --answer-model gpt-4o --retrieval naive-topk",
+      "description": "44.80% — §12.4 ablation: naïve top-k, GPT-4o, no graph"
+    },
+    {
+      "file": "ablation-full-context-22.6.jsonl",
+      "score": "113/500 (22.60%)",
+      "command": "tsx tests/longmemeval/official/run.ts --answer-model gpt-4o --retrieval full-context",
+      "description": "22.60% — §12.4 ablation: full-context, GPT-4o, no retrieval"
+    }
+  ]
+}
