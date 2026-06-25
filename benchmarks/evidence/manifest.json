@@ -20,7 +20,7 @@
       "sha256": "7f67352c01c3a233a5cf0af7820c17631bc19fcd5b808acfd236cdea7548a00b",
       "command": "pnpm tsx tests/longmemeval/official/run.ts --answer-model gpt-4o --retrieval tfidf --enable-router --enable-session-summaries --enable-preference-extraction --label-run",
       "description": "64.60% — §12.2 zero-embedding-API (table0-tfidf-full): the 78.00% config with cloud embeddings removed (hybrid → tfidf). Isolates the embedding contribution at +11.8 points.",
-      "command_provenance": "inferred — 78.00% config minus embeddings; matches the run's logged 'router+summaries+prefs' folder hint"
+      "command_provenance": "confirmed — author-attested; the run's machine-generated folder-name label records router+summaries+prefs"
     },
     {
       "file": "zero-embed-noenrich-62.2.jsonl",
@@ -28,7 +28,7 @@
       "sha256": "8c976a460d8db19babb18a9ec2633773fa133096b965328f5c0d81a711eb23ee",
       "command": "pnpm tsx tests/longmemeval/official/run.ts --answer-model gpt-4o --retrieval tfidf --enable-router --label-run",
       "description": "62.20% — §12.2/12.4 TF-IDF graph + GPT-4o, enrichment off (ablation-gpt4o-noenrich): the 64.60% config minus session summaries & preference extraction (the +2.4-point enrichment delta). This is the graph arm of the §12.4 retrieval ablation.",
-      "command_provenance": "inferred — 64.60% config minus summaries/prefs; matches the author's session note 'TF-IDF + gpt-4o + router, enrichment off'"
+      "command_provenance": "confirmed — author-attested; TF-IDF + gpt-4o + router, enrichment off"
     },
     {
       "file": "on-device-41.6.jsonl",
@@ -36,7 +36,7 @@
       "sha256": "539146c197680b7cf0342edf5a79ec37c27daf3cd09bf818511d9414c771378f",
       "command": "pnpm tsx tests/longmemeval/official/run.ts --answer-model llama3.2:3b --retrieval tfidf --enable-router --ollama --label-run",
       "description": "41.60% — §12.2 fully on-device (offline-full): the 62.20% config with the answer model swapped GPT-4o → Llama 3.2 3B via Ollama (the +20.6-point answer-model delta). Zero cloud. 8 questions errored (Ollama generation failures), counted as incorrect.",
-      "command_provenance": "inferred — 62.20% config with answer model swapped to llama3.2:3b on Ollama; matches the 'llama3.2:3b-tfidf router' folder hint"
+      "command_provenance": "confirmed — author-attested; 62.20% config with the answer model swapped to llama3.2:3b on Ollama"
     },
     {
       "file": "ablation-naive-topk-44.8.jsonl",
