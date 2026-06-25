@@ -28,6 +28,12 @@ reported count against the public dataset.
 grep -c '"correct":true' cloud-paired-78.0.jsonl   # → 390
 ```
 
+File integrity is pinned separately: `shasum -a 256 -c checksums.txt` verifies all six
+`.jsonl` against the SHA-256 digests, which are also recorded per run in `manifest.json`
+alongside the exact reproducing command. Note the flag semantics documented there —
+`run.ts` enables boolean flags by bare presence (`--enable-router`), and the
+`--enable-router=true` form does **not** work.
+
 The 78.00% headline reconciles per-category to **363/470** non-abstention +
 **27/30** abstention = **390/500**; the abstention items (`_abs`) are distributed
 across four categories, not a standalone class (see `../benchmarks.md`, Run 30).

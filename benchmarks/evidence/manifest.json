@@ -1,44 +1,58 @@
 {
   "sdk": "@nehloo/graphnosis v0.7.2",
-  "judge": "gpt-4o (official LongMemEval prompts)",
+  "judge": "gpt-4o (official LongMemEval prompts, run verbatim)",
   "dataset": "LongMemEval_S (xiaowu0162/LongMemEval, 500 q)",
   "note": "Sanitized: dataset question/gold text removed; question_id keys to the public dataset. Our predictions + judge verdicts retained.",
+  "flag_semantics": "run.ts parses a flag with no following value as the string 'true' (e.g. bare '--enable-router' enables it). Do NOT write '--enable-router=true' — the parser does not split on '=', so that form leaves the flag unset (false). Defaults that matter: --answer-model defaults to gpt-4o-mini, --retrieval to tfidf, --judge to gpt-4o, --max-nodes to 30; --enable-router / --enable-session-summaries / --enable-preference-extraction all default false. '--ollama' points the answer model at http://localhost:11434/v1. '--label-run' only renames the output folder and does not affect the score.",
+  "verify": "From benchmarks/evidence/: `shasum -a 256 -c checksums.txt` confirms file integrity; `grep -c '\"correct\":true' <file>` reproduces each numerator against the 500 public question_ids.",
   "runs": [
     {
       "file": "cloud-paired-78.0.jsonl",
       "score": "390/500 (78.00%)",
-      "command": "pnpm longmemeval:real:premium",
-      "description": "78.00% — §12.2/12.3 cloud-paired: hybrid (cloud embeddings) + GPT-4o + gpt-4o-mini summaries/prefs"
+      "sha256": "a5c05d65058c686be974c74ce86482af2ceebae41ad1625e27c0ea02363011df",
+      "command": "pnpm tsx tests/longmemeval/official/run.ts --answer-model gpt-4o --retrieval hybrid --enable-router --enable-session-summaries --enable-preference-extraction --label-run",
+      "description": "78.00% — §12.2/12.3 cloud-paired headline (results 30): hybrid retrieval (cloud embeddings) + GPT-4o answers + gpt-4o-mini session summaries & preference extraction.",
+      "command_provenance": "exact — confirmed by author"
     },
     {
       "file": "zero-embed-enrich-64.6.jsonl",
       "score": "323/500 (64.60%)",
-      "command": "tsx tests/longmemeval/official/run.ts --answer-model gpt-4o",
-      "description": "64.60% — §12.2 zero-embedding-API: TF-IDF + GPT-4o + gpt-4o-mini enrichment"
+      "sha256": "7f67352c01c3a233a5cf0af7820c17631bc19fcd5b808acfd236cdea7548a00b",
+      "command": "pnpm tsx tests/longmemeval/official/run.ts --answer-model gpt-4o --retrieval tfidf --enable-router --enable-session-summaries --enable-preference-extraction --label-run",
+      "description": "64.60% — §12.2 zero-embedding-API (table0-tfidf-full): the 78.00% config with cloud embeddings removed (hybrid → tfidf). Isolates the embedding contribution at +11.8 points.",
+      "command_provenance": "inferred — 78.00% config minus embeddings; matches the run's logged 'router+summaries+prefs' folder hint"
     },
     {
       "file": "zero-embed-noenrich-62.2.jsonl",
       "score": "311/500 (62.20%)",
-      "command": "tsx tests/longmemeval/official/run.ts --answer-model gpt-4o --no-enrich",
-      "description": "62.20% — §12.2/12.4 TF-IDF graph + GPT-4o, no enrichment"
+      "sha256": "8c976a460d8db19babb18a9ec2633773fa133096b965328f5c0d81a711eb23ee",
+      "command": "pnpm tsx tests/longmemeval/official/run.ts --answer-model gpt-4o --retrieval tfidf --enable-router --label-run",
+      "description": "62.20% — §12.2/12.4 TF-IDF graph + GPT-4o, enrichment off (ablation-gpt4o-noenrich): the 64.60% config minus session summaries & preference extraction (the +2.4-point enrichment delta). This is the graph arm of the §12.4 retrieval ablation.",
+      "command_provenance": "inferred — 64.60% config minus summaries/prefs; matches the author's session note 'TF-IDF + gpt-4o + router, enrichment off'"
     },
     {
       "file": "on-device-41.6.jsonl",
       "score": "208/500 (41.60%)",
-      "command": "tsx tests/longmemeval/official/run.ts --ollama",
-      "description": "41.60% — §12.2 fully on-device: TF-IDF + Llama 3.2 3B (Ollama), zero cloud"
+      "sha256": "539146c197680b7cf0342edf5a79ec37c27daf3cd09bf818511d9414c771378f",
+      "command": "pnpm tsx tests/longmemeval/official/run.ts --answer-model llama3.2:3b --retrieval tfidf --enable-router --ollama --label-run",
+      "description": "41.60% — §12.2 fully on-device (offline-full): the 62.20% config with the answer model swapped GPT-4o → Llama 3.2 3B via Ollama (the +20.6-point answer-model delta). Zero cloud. 8 questions errored (Ollama generation failures), counted as incorrect.",
+      "command_provenance": "inferred — 62.20% config with answer model swapped to llama3.2:3b on Ollama; matches the 'llama3.2:3b-tfidf router' folder hint"
     },
     {
       "file": "ablation-naive-topk-44.8.jsonl",
       "score": "224/500 (44.80%)",
-      "command": "tsx tests/longmemeval/official/run.ts --answer-model gpt-4o --retrieval naive-topk",
-      "description": "44.80% — §12.4 ablation: naïve top-k, GPT-4o, no graph"
+      "sha256": "073036c1b03db02fbf5451ba651815df29a9ea350952228730ccc0152762a56f",
+      "command": "pnpm tsx tests/longmemeval/official/run.ts --answer-model gpt-4o --retrieval naive-topk --label-run",
+      "description": "44.80% — §12.4 ablation (results 28): naïve top-k retrieval, GPT-4o, no graph traversal. The graph structure is worth +17.4 points over this.",
+      "command_provenance": "confirmed — author-supplied"
     },
     {
       "file": "ablation-full-context-22.6.jsonl",
       "score": "113/500 (22.60%)",
-      "command": "tsx tests/longmemeval/official/run.ts --answer-model gpt-4o --retrieval full-context",
-      "description": "22.60% — §12.4 ablation: full-context, GPT-4o, no retrieval"
+      "sha256": "3041ec520b28866a980ae6914b0ebd36aeca75db0ed076cdcf31a7faa942bc5b",
+      "command": "pnpm tsx tests/longmemeval/official/run.ts --answer-model gpt-4o --retrieval full-context --label-run",
+      "description": "22.60% — §12.4 ablation (results 29): full history concatenated, GPT-4o, no retrieval. 9 questions overflowed the context window and failed outright.",
+      "command_provenance": "confirmed — author-supplied"
     }
   ]
 }
