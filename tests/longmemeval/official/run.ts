@@ -462,6 +462,9 @@ function writeMarkdownReport(outPath: string, args: CliArgs, results: QuestionRe
   lines.push(`**Dataset:** \`${args.dataset}\``);
   lines.push(`**Answer model:** \`${args.answerModel}\`  **Judge model:** \`${args.judge}\``);
   lines.push(`**Questions scored:** ${s.total}  **Correct:** ${s.correct}  **Errors:** ${s.errors}`);
+  const rawArgv = process.argv.slice(2);
+  const safeArgv = rawArgv.map((tok, i) => (rawArgv[i - 1] === '--answer-api-key' ? '<redacted>' : tok));
+  lines.push(`**Command:** \`pnpm tsx tests/longmemeval/official/run.ts ${safeArgv.join(' ')}\``);
   lines.push('');
   lines.push(`## Overall accuracy: **${(s.accuracy * 100).toFixed(2)}%**`);
   lines.push('');
