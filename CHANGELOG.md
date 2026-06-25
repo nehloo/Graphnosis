@@ -1,8 +1,8 @@
 # Changelog
 
-## v0.7.1 (2026-06-24)
+## v0.7.2 (2026-06-25)
 
-Retrieval-ablation baselines and a per-graph synonym cache.
+Retrieval-ablation baselines, a per-graph synonym cache, and the LongMemEval re-baseline to 78.00%.
 
 ### Added
 
@@ -20,6 +20,15 @@ Retrieval-ablation baselines and a per-graph synonym cache.
   runs its term-containment scan once per query instead of once per word. Recall
   output is byte-identical; warm recall drops ~0.13 s at 15k nodes and ~0.5 s at
   45k.
+
+### Docs
+
+- **LongMemEval re-baselined to 78.00%** (390/500, Run 30, on the v0.7.x line),
+  updating the README badge, the benchmark history, and the cite-for-publication
+  per-category reconciliation. The headline configuration is Graphnosis paired
+  with cloud GPT-4o, cloud embeddings, and gpt-4o-mini ingest summaries /
+  query-time preference extraction; the substrate — graph, lexical index, and
+  contradiction triage — remains zero-API in every configuration.
 
 ## v0.7.0 (2026-06-23)
 
