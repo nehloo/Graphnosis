@@ -4,7 +4,7 @@ Sanitized per-question scoring records for every LongMemEval number reported in
 the Graphnosis whitepaper (*The Un-Brain*, §12) and in [`../benchmarks.md`](../benchmarks.md).
 Each `.jsonl` is one configuration's scoring output on the public **LongMemEval_S**
 dataset ([xiaowu0162/LongMemEval](https://github.com/xiaowu0162/LongMemEval), 500
-questions), produced with `@nehloo/graphnosis` v0.7.2. The scorer in every
+questions), produced at commit `a27c400` (`@nehloo/graphnosis` v0.7.1); the TF-IDF retrieval path is unchanged through the published v0.7.2 (`48785ba`). The scorer in every
 configuration is the official LongMemEval judge prompts run on **gpt-4o**.
 
 **Sanitized.** The dataset's `question` and `gold` text are removed (LongMemEval
@@ -39,5 +39,5 @@ The 78.00% headline reconciles per-category to **363/470** non-abstention +
 across four categories, not a standalone class (see `../benchmarks.md`, Run 30).
 
 Numbers were produced on the v0.6.1–v0.7.2 SDK line, whose TF-IDF retrieval path
-is unchanged throughout; the headline configuration corresponds to the published
-v0.7.2.
+is unchanged throughout; the headline figure was produced at commit `a27c400`
+(v0.7.1), of which the published v0.7.2 (`48785ba`) is the direct descendant.

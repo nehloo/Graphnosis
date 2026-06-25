@@ -1,5 +1,5 @@
 {
-  "sdk": "@nehloo/graphnosis v0.7.2",
+  "sdk": "@nehloo/graphnosis — runs produced at commit a27c400 (v0.7.1); TF-IDF retrieval path unchanged through the published v0.7.2 (48785ba), its direct descendant",
   "judge": "gpt-4o (official LongMemEval prompts, run verbatim)",
   "dataset": "LongMemEval_S (xiaowu0162/LongMemEval, 500 q)",
   "note": "Sanitized: dataset question/gold text removed; question_id keys to the public dataset. Our predictions + judge verdicts retained.",

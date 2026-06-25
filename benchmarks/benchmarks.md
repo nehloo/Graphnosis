@@ -390,7 +390,7 @@ Preference remains unchanged at 43.33% (13/30). Deep analysis of the 17 remainin
 
 ### Run 30 — v0.7.1 re-run: **78.00%** (500q) — current canonical
 
-*Config:* gpt-4o / hybrid / router + session summaries + preference extraction — the **same premium pipeline as Run 23**, re-run on the v0.7.1 SDK line (`results 30/`, 2026-06-24), so the whole evaluation sits on one version. The +1.6pt over Run 23 (382 → 390/500) comes from retrieval/index improvements across the v0.6.1–v0.7.1 line at an unchanged TF-IDF policy — no benchmark-specific tuning.
+*Config:* gpt-4o / hybrid / router + session summaries + preference extraction — the **same premium pipeline as Run 23**, re-run on the v0.7.1 SDK line (`results 30/`, 2026-06-24), so the whole evaluation sits on one retrieval path, published as v0.7.2 (`48785ba`). The +1.6pt over Run 23 (382 → 390/500) comes from retrieval/index improvements across the v0.6.1–v0.7.1 line at an unchanged TF-IDF policy — no benchmark-specific tuning.
 
 **Overall: 78.00% (390/500)** — **this is the number to cite.**
 
