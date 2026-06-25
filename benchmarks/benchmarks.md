@@ -1,17 +1,17 @@
 # Graphnosis — Benchmark History
 
-This document tells the full story of how Graphnosis went from a conceptual question about AI and graphs to a system whose deterministic, TypeScript-only memory stack — paired with GPT-4o as the answer model and cloud embeddings for hybrid retrieval — scores **76.40%** on the official LongMemEval benchmark, above Zep (71.20%), under end-to-end QA with an official GPT-4 judge.
+This document tells the full story of how Graphnosis went from a conceptual question about AI and graphs to a system whose deterministic, TypeScript-only memory stack — paired with GPT-4o as the answer model and cloud embeddings for hybrid retrieval — scores **78.00%** on the official LongMemEval benchmark, above Zep (71.20%), under end-to-end QA with an official GPT-4 judge.
 
-> **What 76.40% is, and isn't (read this first).** Graphnosis is a *memory layer*, not an end-to-end QA system — its score is always "Graphnosis retrieval + whichever LLM answers." The headline **76.40%** is Graphnosis paired with **cloud GPT-4o (answer) + cloud embeddings (text-embedding-3-small, for hybrid retrieval)**; the GPT-4o judge is the scorer in every configuration. The same memory stack, ablated one component at a time (measured 2026-06-23):
+> **What 78.00% is, and isn't (read this first).** Graphnosis is a *memory layer*, not an end-to-end QA system — its score is always "Graphnosis retrieval + whichever LLM answers." The headline **78.00%** is Graphnosis paired with **cloud GPT-4o (answer) + cloud embeddings (text-embedding-3-small, for hybrid retrieval)**; the GPT-4o judge is the scorer in every configuration. The headline run also uses gpt-4o-mini at ingest (session-summary nodes) and at query time (preference extraction) — so the headline config is **not** zero-API at construction; the zero-API property below is the substrate's, not the headline recipe's. The same memory stack, ablated one component at a time (hybrid re-run 2026-06-24 on v0.7.1; ablation arms measured 2026-06-23):
 > | Config | Score |
 > |---|---|
-> | hybrid (TF-IDF + cloud embeddings) + GPT-4o + enrichment | **76.40%** |
+> | hybrid (TF-IDF + cloud embeddings) + GPT-4o + enrichment | **78.00%** |
 > | TF-IDF only (zero embedding API) + GPT-4o, no enrichment | **62.20%** |
 > | fully on-device: TF-IDF + Llama 3.2 3B (Ollama), **zero cloud calls** | **41.60%** |
 >
-> Per-lever: cloud embeddings **+11.8pt**, enrichment **+2.4pt**, GPT-4o vs. 3B local answer model **+20.6pt**. The graph/retrieval/dedup stack is TypeScript-only and zero-API in all three; what varies is the embedding and answer-LLM choice, which are pluggable. "Pure TypeScript" describes Graphnosis's own code — the answer LLM is external (cloud or local), as it is for every memory system on this benchmark.
+> Per-lever: cloud embeddings **+13.4pt**, enrichment **+2.4pt**, GPT-4o vs. 3B local answer model **+20.6pt**. The graph/retrieval/dedup stack is TypeScript-only and zero-API in all three; what varies is the embedding and answer-LLM choice, which are pluggable. "Pure TypeScript" describes Graphnosis's own code — the answer LLM is external (cloud or local), as it is for every memory system on this benchmark.
 
-### What it took for Graphnosis to score **76.40%** on LongMemEval end-to-end QA with an official GPT-4 judge:
+### What it took for Graphnosis to score **78.00%** on LongMemEval end-to-end QA with an official GPT-4 judge:
 - Pure TypeScript, no vector DB, no fine-tuning
 - text-embedding-3-small (cheapest embedding model)
 - gpt-4o answer model + gpt-4o judge
@@ -366,7 +366,7 @@ Results vs Run 22:
 
 **Overall: 76.40% (382/500)**
 
-> **Canonical per-category numbers (reconciliation, 2026-06-23).** The before/after table above reflects the judging pass used during the Run 22→23 routing analysis. The **authoritative per-category breakdown — recomputed directly from `results 23/results.jsonl`** — differs by ±1–2 questions in four categories because the GPT-4o judge re-scores with small variance between passes even at temperature 0. Both reconcile to the same 382/500 = 76.40%. Cite these (non-abstention split) for any external/publication use:
+> **Canonical per-category numbers (reconciliation, 2026-06-23).** The before/after table above reflects the judging pass used during the Run 22→23 routing analysis. The **authoritative per-category breakdown — recomputed directly from `results 23/results.jsonl`** — differs by ±1–2 questions in four categories because the GPT-4o judge re-scores with small variance between passes even at temperature 0. Both reconcile to the same 382/500 = 76.40%. (Run 23 — **superseded for citation by Run 30 (78.00%) below**; retained here as history.) Run 23's authoritative non-abstention split:
 >
 > | Category | Non-abstention | Abstention `_abs` | Combined |
 > |---|---|---|---|
@@ -385,6 +385,28 @@ All of the +8 question gain came from multi-session. The strong-aggregation rout
 Diagnosis of remaining multi-session failures: two distinct modes — **under-counting** (model retrieves fewer sessions than gold, dominant) and **over-counting** (model includes loose matches). Under-counting is a recall problem; the session summary seeding doesn't surface every relevant session. Over-counting is a prompt adherence problem.
 
 Preference remains unchanged at 43.33% (13/30). Deep analysis of the 17 remaining failures reveals: the model treats preference questions as factual recall, giving abstention responses ("context doesn't contain information") even when 30–80 preference statements are present. The fix — rewriting the prompt block to instruct synthesis rather than recall, and extending PREFERENCE_INTENT to catch "should I / what do you think / would you suggest" — is in place for Run 24.
+
+---
+
+### Run 30 — v0.7.1 re-run: **78.00%** (500q) — current canonical
+
+*Config:* gpt-4o / hybrid / router + session summaries + preference extraction — the **same premium pipeline as Run 23**, re-run on the v0.7.1 SDK line (`results 30/`, 2026-06-24), so the whole evaluation sits on one version. The +1.6pt over Run 23 (382 → 390/500) comes from retrieval/index improvements across the v0.6.1–v0.7.1 line at an unchanged TF-IDF policy — no benchmark-specific tuning.
+
+**Overall: 78.00% (390/500)** — **this is the number to cite.**
+
+> **Canonical per-category numbers (cite these for any external/publication use), recomputed from `results 30/results.jsonl`:**
+>
+> | Category | Non-abstention | Abstention `_abs` | Combined |
+> |---|---|---|---|
+> | single-session-user | 60/64 (93.75%) | 6/6 | 66/70 |
+> | single-session-assistant | 50/56 (89.29%) | 0/0 | 50/56 |
+> | knowledge-update | 64/72 (88.89%) | 5/6 | 69/78 |
+> | temporal-reasoning | 95/127 (74.80%) | 6/6 | 101/133 |
+> | multi-session | 77/121 (63.64%) | 10/12 | 87/133 |
+> | single-session-preference | 17/30 (56.67%) | 0/0 | 17/30 |
+> | **Total** | **363/470** | **27/30** | **390/500 (78.00%)** |
+>
+> Abstention items are `_abs`-suffixed questions distributed across four categories (KU 6, MS 12, SSU 6, TR 6 = 30), not a standalone class. The **Combined** column is what the whitepaper's per-category table reports.
 
 ---
 
@@ -413,6 +435,7 @@ Preference remains unchanged at 43.33% (13/30). Deep analysis of the 17 remainin
 | 21 | 500 | 74.00% | + preference extraction (cache bug — served Run 20 outputs) |
 | **22** | **500** | **74.80%** | gpt-4o / hybrid / router + session summaries + preference extraction (tightened) |
 | **23** | **500** | **76.40%** | + multi-session routing fix (strong aggregation sentinel) + claims exposure in serializer |
+| **30** | **500** | **78.00%** | same premium config, re-run on v0.7.1 — **current canonical** |
 
 ---
 
@@ -427,7 +450,7 @@ All scores below are **end-to-end QA** with an official GPT-4 judge, using the L
 | OMEGA | 95.40% |
 | Mastra | 94.87% |
 | Supermemory | 85.86% |
-| **Graphnosis** | **76.40%** |
+| **Graphnosis** | **78.00%** |
 | Zep | 71.20% |
 
 **On MemPalace:** MemPalace reports 96.6% (ChromaDB baseline) and 100% (Hybrid v4 + Haiku rerank) — but these are **retrieval recall R@5** scores (is the correct session in the top 5 retrieved?), not end-to-end QA. MemPalace's own BENCHMARKS.md is explicit about this distinction: *"MemPal's strength is retrieval recall, not end-to-end QA accuracy — a different metric than some competitors publish."* Their honest end-to-end generalizable figure on held-out questions is 98.4% R@5 — still retrieval, not QA.

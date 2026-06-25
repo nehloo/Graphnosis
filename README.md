@@ -11,7 +11,7 @@
 
 [![Enterprise](https://img.shields.io/badge/Enterprise-Privacy%20%26%20Security-2ea043?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/enterprise/enterprise.md)
 [![.gai Format](https://img.shields.io/badge/.gai-Format%20Spec-5b3fd1?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/gai-format/gai-format.md)
-[![Benchmark](https://img.shields.io/badge/LongMemEval-76.40%25-e25822?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/benchmarks/benchmarks.md)<br>
+[![Benchmark](https://img.shields.io/badge/LongMemEval-78.00%25-e25822?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/benchmarks/benchmarks.md)<br>
 [![Demo](https://img.shields.io/badge/demo-graphnosis.vercel.app-blue?style=flat&logo=vercel)](https://graphnosis.vercel.app)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![References](https://img.shields.io/badge/References-Attribution-6a737d?style=flat)](https://github.com/nehloo/Graphnosis/blob/main/REFERENCES.md)
@@ -284,16 +284,16 @@ Benchmarked on the Wikipedia dataset (12,199 nodes, 67,578 edges):
 
 ### LongMemEval — Official Benchmark
 
-**76.40%** end-to-end QA accuracy on the [official LongMemEval benchmark](https://github.com/xiaowu0162/LongMemEval) (500 questions, gpt-4o answer + gpt-4o judge, hybrid retrieval).
+**78.00%** end-to-end QA accuracy on the [official LongMemEval benchmark](https://github.com/xiaowu0162/LongMemEval) (500 questions, 390/500, gpt-4o answer + gpt-4o judge, hybrid retrieval; Run 30, v0.7.1, 2026-06-24).
 
 | Category | Score |
 |---|---|
-| single-session-user | 95.31% (61/64) |
-| knowledge-update | 87.50% (63/72) |
-| single-session-assistant | 87.50% (49/56) |
-| temporal-reasoning | 71.65% (91/127) |
+| single-session-user | 93.75% (60/64) |
+| knowledge-update | 88.89% (64/72) |
+| single-session-assistant | 89.29% (50/56) |
+| temporal-reasoning | 74.80% (95/127) |
 | multi-session | 63.64% (77/121) |
-| single-session-preference | 43.33% (13/30) |
+| single-session-preference | 56.67% (17/30) |
 
 **What got us here:**
 - Hybrid retrieval: TF-IDF graph traversal + semantic embeddings (text-embedding-3-small)
@@ -316,7 +316,7 @@ Benchmarked on the Wikipedia dataset (12,199 nodes, 67,578 edges):
 | OMEGA | 95.40% |
 | Mastra | 94.87% |
 | Supermemory | 85.86% |
-| **Graphnosis** | **76.40%** |
+| **Graphnosis** | **78.00%** |
 | Zep | 71.20% |
 
 > MemPalace's 96.6%/100% figures measure **retrieval recall R@5** (is the correct conversation session in the top 5 results?) — a different metric than end-to-end QA with a GPT-4 judge. Both are valid; they measure different things. This runner uses the verbatim official judge prompts from [xiaowu0162/LongMemEval](https://github.com/xiaowu0162/LongMemEval).
