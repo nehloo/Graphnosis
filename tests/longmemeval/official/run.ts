@@ -20,6 +20,7 @@ import { judgeAnswer, type JudgeModel } from './judge';
 import { answerQuestion, type RetrievalMode } from '@/core/query/answer';
 import { attachEmbeddings, buildGraph } from '@/core/graph/graph-builder';
 import { openaiEmbedAdapter } from '@/sdk/adapters/openai';
+import { localEmbedAdapter } from '@/sdk/adapters/local';
 import { enrichSessionGraph } from '@/core/enrichment/session-summarizer';
 
 interface CliArgs {
@@ -312,7 +313,13 @@ async function runOne(
     // Only the graph embedding modes need a dense index; the baseline ablation
     // modes (naive-topk, full-context) and tfidf do not.
     if (retrieval === 'embeddings' || retrieval === 'hybrid') {
-      graph = await attachEmbeddings(graph, openaiEmbedAdapter({ model: embeddingModel }));
+      // GRAPHNOSIS_EMBED_PROVIDER=local selects the on-device fastembed adapter
+      // (BGE-small-en-v1.5 via ONNX) instead of the cloud OpenAI adapter — the
+      // fully-on-device dense arm. Default stays cloud (openai).
+      const embedAdapter = process.env.GRAPHNOSIS_EMBED_PROVIDER === 'local'
+        ? localEmbedAdapter()
+        : openaiEmbedAdapter({ model: embeddingModel });
+      graph = await attachEmbeddings(graph, embedAdapter);
     }
     const t1 = performance.now();
 
@@ -464,7 +471,16 @@ function writeMarkdownReport(outPath: string, args: CliArgs, results: QuestionRe
   lines.push(`**Questions scored:** ${s.total}  **Correct:** ${s.correct}  **Errors:** ${s.errors}`);
   const rawArgv = process.argv.slice(2);
   const safeArgv = rawArgv.map((tok, i) => (rawArgv[i - 1] === '--answer-api-key' ? '<redacted>' : tok));
-  lines.push(`**Command:** \`pnpm tsx tests/longmemeval/official/run.ts ${safeArgv.join(' ')}\``);
+  // Record run-affecting env vars in the command so the report is self-documenting and
+  // copy-paste reproducible. GNOSIS_SCORE_RULE selects the traversal scoring rule
+  // (additive vs the default max-score-wins); it is an env var, not argv, so without this
+  // it would be invisible here — two different runs sharing one command line.
+  const recordedEnv = ['GNOSIS_SCORE_RULE', 'GRAPHNOSIS_EMBED_PROVIDER']
+    .filter((k) => process.env[k])
+    .map((k) => `${k}=${process.env[k]}`)
+    .join(' ');
+  const envPrefix = recordedEnv ? `${recordedEnv} ` : '';
+  lines.push(`**Command:** \`${envPrefix}pnpm tsx tests/longmemeval/official/run.ts ${safeArgv.join(' ')}\``);
   lines.push('');
   lines.push(`## Overall accuracy: **${(s.accuracy * 100).toFixed(2)}%**`);
   lines.push('');
@@ -522,7 +538,7 @@ async function main() {
     `[longmemeval] ${all.length} questions selected, ${done.size} already scored, ${todo.length} to run`
   );
   console.log(
-    `[longmemeval] retrieval=${args.retrieval}${args.retrieval !== 'tfidf' ? ` (${args.embeddingModel})` : ''} answer=${args.answerModel} judge=${args.judge} concurrency=${args.concurrency} maxNodes=${args.maxNodes}${args.enableRouter ? ' router' : ''}${args.enableSessionSummaries ? ' summaries' : ''}${args.enablePreferenceExtraction ? ' prefs' : ''}${args.trace ? ' trace' : ''}${args.dumpPrompts ? ' dumpPrompts' : ''}`
+    `[longmemeval] retrieval=${args.retrieval}${args.retrieval !== 'tfidf' ? ` (${process.env.GRAPHNOSIS_EMBED_PROVIDER === 'local' ? 'local:bge-small-en-v1.5' : args.embeddingModel})` : ''} answer=${args.answerModel} judge=${args.judge} concurrency=${args.concurrency} maxNodes=${args.maxNodes}${args.enableRouter ? ' router' : ''}${args.enableSessionSummaries ? ' summaries' : ''}${args.enablePreferenceExtraction ? ' prefs' : ''}${args.trace ? ' trace' : ''}${args.dumpPrompts ? ' dumpPrompts' : ''}`
   );
   if (args.dumpPrompts) console.log(`[longmemeval] writing prompts to ${promptsPath}`);
   if (args.trace) console.log(`[longmemeval] writing trace to ${tracePath}`);

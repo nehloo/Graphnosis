@@ -28,6 +28,14 @@ export function traverseGraph(
   const nodeScores = new Map<NodeId, number>();
   const visited = new Set<NodeId>();
 
+  // Ablation hook — default OFF; the shipped scoring rule is max-score-wins.
+  // With GNOSIS_SCORE_RULE=additive the three update sites accumulate path
+  // scores (existing + neighborScore) instead of taking the max, modelling
+  // spreading-activation / PPR-style mass. Used to measure the bounded-influence
+  // / hub-independence property (Theorem 3) end-to-end against the shipped arm;
+  // see tests/ablation-scoring/maxwins-vs-additive.ts. No effect unless set.
+  const additiveScoring = process.env.GNOSIS_SCORE_RULE === 'additive';
+
   // Build adjacency lists for fast traversal
   const outEdges = new Map<NodeId, DirectedEdge[]>();
   const inEdges = new Map<NodeId, DirectedEdge[]>();
@@ -79,7 +87,10 @@ export function traverseGraph(
       if (blocked && blocked.has(edge.type)) continue;
       const neighborScore = decayedScore * edge.weight;
       const existing = nodeScores.get(edge.to) || 0;
-      if (neighborScore > existing) {
+      if (additiveScoring) {
+        nodeScores.set(edge.to, existing + neighborScore);
+        queue.push({ nodeId: edge.to, hop: nextHop, score: neighborScore });
+      } else if (neighborScore > existing) {
         nodeScores.set(edge.to, neighborScore);
         queue.push({ nodeId: edge.to, hop: nextHop, score: neighborScore });
       }
@@ -90,7 +101,10 @@ export function traverseGraph(
       if (blocked && blocked.has(edge.type)) continue;
       const neighborScore = decayedScore * edge.weight * 0.5; // Lower weight for backward traversal
       const existing = nodeScores.get(edge.from) || 0;
-      if (neighborScore > existing) {
+      if (additiveScoring) {
+        nodeScores.set(edge.from, existing + neighborScore);
+        queue.push({ nodeId: edge.from, hop: nextHop, score: neighborScore });
+      } else if (neighborScore > existing) {
         nodeScores.set(edge.from, neighborScore);
         queue.push({ nodeId: edge.from, hop: nextHop, score: neighborScore });
       }
@@ -101,7 +115,10 @@ export function traverseGraph(
       const neighbor = edge.nodes[0] === nodeId ? edge.nodes[1] : edge.nodes[0];
       const neighborScore = decayedScore * edge.weight;
       const existing = nodeScores.get(neighbor) || 0;
-      if (neighborScore > existing) {
+      if (additiveScoring) {
+        nodeScores.set(neighbor, existing + neighborScore);
+        queue.push({ nodeId: neighbor, hop: nextHop, score: neighborScore });
+      } else if (neighborScore > existing) {
         nodeScores.set(neighbor, neighborScore);
         queue.push({ nodeId: neighbor, hop: nextHop, score: neighborScore });
       }
