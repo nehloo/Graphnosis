@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.7.3 (2026-06-25)
+
+On-device embedding adapter and the hub-independence (max-wins) retrieval ablation.
+
+### Added
+
+- **Local on-device embedding adapter.** `localEmbedAdapter` runs fastembed
+  (BGE-small-en-v1.5, 384-dim) via ONNX Runtime for dense retrieval with no cloud
+  calls — the model the desktop app bundles. Internal for now (used by the
+  benchmark harness); not yet a public `exports` entry.
+- **Hub-independence ablation.** `tests/ablation-scoring/maxwins-vs-additive.ts`
+  asserts the traversal's max-score-wins rule is hub-independent: a high-degree
+  node is not inflated by edge count, only by its single strongest path, whereas
+  additive accumulation promotes it ~N× its degree.
+- **Benchmark evidence.** The GPT-4o additive-scoring arm (56.20%) and the
+  on-device naïve-top-k baseline (33.20%); the retrieval gain decomposes into
+  structure (+11.4) and the scoring rule (+6.0), and the dual graph lifts a 3B
+  on-device model +8.4 over flat top-k. Manifest/checksums/README updated.
+
+### Changed
+
+- **Benchmark harness.** `hybrid`/`embeddings` retrieval can select the local
+  adapter via `GRAPHNOSIS_EMBED_PROVIDER=local`; run-affecting env vars are
+  recorded in the report command. A gated `GNOSIS_SCORE_RULE=additive` branch
+  (default off) swaps the traversal scoring rule for the ablation.
+
 ## v0.7.2 (2026-06-25)
 
 Retrieval-ablation baselines, a per-graph synonym cache, and the LongMemEval re-baseline to 78.00%.
