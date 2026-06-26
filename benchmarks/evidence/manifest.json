@@ -67,7 +67,7 @@
       "score": "281/500 (56.20%)",
       "sha256": "44f48d619ec1721c3903f37d3f0695a0ebeaaf290502b5c5062e04fb724a3059",
       "command": "GNOSIS_SCORE_RULE=additive pnpm tsx tests/longmemeval/official/run.ts --answer-model gpt-4o --retrieval tfidf --enable-router --label-run",
-      "description": "56.20% — Theorem 3 scoring-rule ablation: the 62.20% graph config with the traversal's max-score-wins rule replaced by additive (spreading-activation / PPR-style) accumulation via GNOSIS_SCORE_RULE=additive. Decomposes the §12.4 +17.4 graph advantage into structure (56.20 − 44.80 = +11.4) and the max-wins scoring rule (62.20 − 56.20 = +6.0, Theorem 3). 0 errors.",
+      "description": "56.20% — Theorem 3 scoring-rule ablation: the 62.20% graph config with the traversal's max-score-wins rule replaced by additive (spreading-activation / PPR-style) accumulation via GNOSIS_SCORE_RULE=additive. Decomposes the §12.4 +13.2 graph advantage into structure (56.20 − 49.00 = +7.2) and the max-wins scoring rule (62.20 − 56.20 = +6.0, Theorem 3). 0 errors.",
       "command_provenance": "the run's results.md records argv but NOT the GNOSIS_SCORE_RULE env var (a harness gap, now fixed for future runs); this arm is identified by its distinct 56.20% score vs the 62.20% max-wins arm that shares the same argv. Reproducible once the gated additive branch in src/core/query/traverser.ts is committed: set GNOSIS_SCORE_RULE=additive and run the command above."
     }
   ]
