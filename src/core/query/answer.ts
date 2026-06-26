@@ -2,7 +2,6 @@ import { generateText } from 'ai';
 import { openai, createOpenAI } from '@ai-sdk/openai';
 import type { KnowledgeGraph, ParsedDocument, SubgraphContext, TfidfIndex, NodeId } from '@/core/types';
 import { queryGraph, buildGraphPrompt } from './query-engine';
-import { findSeeds } from './seed-finder';
 import type { RouterDecision } from './router';
 import { embedQuery, type EmbeddingIndex } from '@/core/similarity/embeddings';
 import type { EmbeddingAdapter } from '@/core/similarity/embedding-adapter';
@@ -98,13 +97,20 @@ export async function answerQuestion(
   //   'full-context' - all chunks, no retrieval at all.
   // Both return before the embedding/graph path below.
   if (retrieval === 'naive-topk' || retrieval === 'full-context') {
-    const cap = opts.maxNodes ?? 50;
     const maxChars = retrieval === 'full-context' ? 120_000 : 40_000;
+    // naive-topk draws the IDENTICAL seed pool the graph arm traverses from
+    // (same query decomposition, synonym expansion, and seed budget) but
+    // applies no traversal, typed edges, or temporal scoring — so the only
+    // difference from the graph arm is the graph structure itself (§12.4).
     const ordered =
       retrieval === 'full-context'
         ? [...graph.nodes.values()].map((n) => n.content)
-        : findSeeds(question, tfidfIndex)
-            .slice(0, cap)
+        : queryGraph(graph, tfidfIndex, question, {
+            maxNodes: opts.maxNodes,
+            useRouter: opts.useRouter,
+            questionType: opts.questionType,
+            seedsOnly: true,
+          }).seeds
             .map((s) => graph.nodes.get(s.nodeId)?.content ?? '')
             .filter(Boolean);
     const picked: string[] = [];

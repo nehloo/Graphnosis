@@ -2,7 +2,7 @@ a5c05d65058c686be974c74ce86482af2ceebae41ad1625e27c0ea02363011df  cloud-paired-7
 7f67352c01c3a233a5cf0af7820c17631bc19fcd5b808acfd236cdea7548a00b  zero-embed-enrich-64.6.jsonl
 8c976a460d8db19babb18a9ec2633773fa133096b965328f5c0d81a711eb23ee  zero-embed-noenrich-62.2.jsonl
 539146c197680b7cf0342edf5a79ec37c27daf3cd09bf818511d9414c771378f  on-device-41.6.jsonl
-073036c1b03db02fbf5451ba651815df29a9ea350952228730ccc0152762a56f  ablation-naive-topk-44.8.jsonl
+b760bc0cc95b8a9e173e279965fcecfd0215dbc036b608efae12e6b2e815c2fb  ablation-naive-topk-49.0.jsonl
 3041ec520b28866a980ae6914b0ebd36aeca75db0ed076cdcf31a7faa942bc5b  ablation-full-context-22.6.jsonl
-f274f06401e906083a1eba20d1044dae14516e99ab1cc0d03be991e5f9c2d173  on-device-naive-topk-33.2.jsonl
+803407e702395b1fe44cb646c192993cad70a037a6cd0c3ef4f72401e2db9fc3  on-device-naive-topk-35.8.jsonl
 44f48d619ec1721c3903f37d3f0695a0ebeaaf290502b5c5062e04fb724a3059  ablation-additive-scoring-56.2.jsonl

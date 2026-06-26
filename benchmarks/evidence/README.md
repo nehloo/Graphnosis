@@ -4,7 +4,7 @@ Sanitized per-question scoring records for every LongMemEval number reported in
 the Graphnosis whitepaper (*The Un-Brain*, §12) and in [`../benchmarks.md`](../benchmarks.md).
 Each `.jsonl` is one configuration's scoring output on the public **LongMemEval_S**
 dataset ([xiaowu0162/LongMemEval](https://github.com/xiaowu0162/LongMemEval), 500
-questions), produced at commit `a27c400` (`@nehloo/graphnosis` v0.7.1) — except the on-device naïve-top-k baseline, produced on the v0.7.2 line; the TF-IDF and naïve-top-k retrieval paths are unchanged through the published v0.7.2 (`48785ba`). The scorer in every
+questions), produced at commit `a27c400` (`@nehloo/graphnosis` v0.7.1) — except the additive-scoring arm (v0.7.3 tag) and the two naïve-top-k arms, re-run under the post-v0.7.3 seed-sharing ablation hook (`seedsOnly`) that leaves the graph-arm retrieval path unchanged; the TF-IDF and naïve-top-k retrieval paths are unchanged through the published v0.7.2 (`48785ba`). The scorer in every
 configuration is the official LongMemEval judge prompts run on **gpt-4o**.
 
 **Sanitized.** The dataset's `question` and `gold` text are removed (LongMemEval
@@ -19,8 +19,8 @@ reported count against the public dataset.
 | `zero-embed-enrich-64.6.jsonl` | 323/500 (64.60%) | TF-IDF + GPT-4o + gpt-4o-mini enrichment |
 | `zero-embed-noenrich-62.2.jsonl` | 311/500 (62.20%) | TF-IDF graph + GPT-4o, no enrichment |
 | `on-device-41.6.jsonl` | 208/500 (41.60%) | fully on-device — TF-IDF + Llama 3.2 3B (Ollama), zero cloud |
-| `on-device-naive-topk-33.2.jsonl` | 166/500 (33.20%) | on-device flat baseline — naïve top-k + Llama 3.2 3B, no graph (pairs with 41.6% → **+8.4** for the dual-graph) |
-| `ablation-naive-topk-44.8.jsonl` | 224/500 (44.80%) | naïve top-k, GPT-4o, no graph |
+| `on-device-naive-topk-35.8.jsonl` | 179/500 (35.80%) | on-device flat baseline — naïve top-k + Llama 3.2 3B, router on, no graph (pairs with 41.6% → **+5.8** for the dual-graph) |
+| `ablation-naive-topk-49.0.jsonl` | 245/500 (49.00%) | naïve top-k, GPT-4o, router on, no graph (pairs with 62.2% → **+13.2** for the dual-graph) |
 | `ablation-full-context-22.6.jsonl` | 113/500 (22.60%) | full-context, GPT-4o, no retrieval |
 | `ablation-additive-scoring-56.2.jsonl` | 281/500 (56.20%) | Thm 3 ablation — graph + **additive** scoring (vs 62.2% max-wins → **+6.0** for the rule) |
 

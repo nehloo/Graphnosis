@@ -1,5 +1,5 @@
 {
-  "sdk": "@nehloo/graphnosis — the six headline/ablation runs produced at commit a27c400 (v0.7.1); the on-device naïve-top-k arm produced on the v0.7.2 line (Jun 2026). TF-IDF and naïve-top-k retrieval paths are unchanged through the published v0.7.2 (48785ba), a27c400's direct descendant",
+  "sdk": "@nehloo/graphnosis — the six headline/ablation runs produced at commit a27c400 (v0.7.1); the two naïve-top-k arms re-run under the post-v0.7.3 seed-sharing ablation hook (seedsOnly), which leaves the graph-arm retrieval path unchanged (Jun 2026). TF-IDF and naïve-top-k retrieval paths are unchanged through the published v0.7.2 (48785ba), a27c400's direct descendant",
   "judge": "gpt-4o (official LongMemEval prompts, run verbatim)",
   "dataset": "LongMemEval_S (xiaowu0162/LongMemEval, 500 q)",
   "note": "Sanitized: dataset question/gold text removed; question_id keys to the public dataset. Our predictions + judge verdicts retained.",
@@ -39,20 +39,20 @@
       "command_provenance": "confirmed — author-attested; 62.20% config with the answer model swapped to llama3.2:3b on Ollama"
     },
     {
-      "file": "on-device-naive-topk-33.2.jsonl",
-      "score": "166/500 (33.20%)",
-      "sha256": "f274f06401e906083a1eba20d1044dae14516e99ab1cc0d03be991e5f9c2d173",
-      "command": "pnpm tsx tests/longmemeval/official/run.ts --answer-model llama3.2:3b --retrieval naive-topk --ollama --label-run",
-      "description": "33.20% — on-device retrieval-ablation FLAT arm: Llama 3.2 3B via Ollama + naïve top-k, no graph traversal. The on-device mirror of the §12.4 naïve-top-k baseline (44.80% with gpt-4o). Paired with the 41.60% graph arm (TF-IDF + router, same model), the dual-graph substrate is worth +8.4 points for a 3B local model — the on-device analogue of the +17.4 gpt-4o graph-vs-flat delta. 0 errors (the paired 41.60% arm counted 8 Ollama errors as incorrect, so +8.4 is a conservative floor).",
-      "command_provenance": "exact — recorded verbatim in the run's results.md; produced on the v0.7.2 line. naïve-top-k is a flat retrieval path (no graph traversal), independent of the dual-graph scoring rule"
+      "file": "on-device-naive-topk-35.8.jsonl",
+      "score": "179/500 (35.80%)",
+      "sha256": "803407e702395b1fe44cb646c192993cad70a037a6cd0c3ef4f72401e2db9fc3",
+      "command": "pnpm tsx tests/longmemeval/official/run.ts --answer-model llama3.2:3b --retrieval naive-topk --enable-router --ollama --label-run",
+      "description": "35.80% — on-device retrieval-ablation FLAT arm: Llama 3.2 3B via Ollama + naïve top-k, router on, no graph traversal. Re-run under the seed-sharing ablation hook so it draws the IDENTICAL seed pool as the 41.60% graph arm (TF-IDF + router, same model); the only remaining difference is the graph structure. The dual-graph substrate is worth +5.8 points for a 3B local model — the on-device mirror of the +13.2 gpt-4o graph-vs-flat delta. The paired 41.60% arm counted 8 Ollama errors as incorrect, so +5.8 is a conservative floor.",
+      "command_provenance": "exact — recorded verbatim in the run's results.md (results 35). Produced under the post-v0.7.3 seed-sharing ablation hook (seedsOnly), which leaves the graph-arm retrieval path unchanged."
     },
     {
-      "file": "ablation-naive-topk-44.8.jsonl",
-      "score": "224/500 (44.80%)",
-      "sha256": "073036c1b03db02fbf5451ba651815df29a9ea350952228730ccc0152762a56f",
-      "command": "pnpm tsx tests/longmemeval/official/run.ts --answer-model gpt-4o --retrieval naive-topk --label-run",
-      "description": "44.80% — §12.4 ablation (results 28): naïve top-k retrieval, GPT-4o, no graph traversal. The graph structure is worth +17.4 points over this.",
-      "command_provenance": "confirmed — author-supplied"
+      "file": "ablation-naive-topk-49.0.jsonl",
+      "score": "245/500 (49.00%)",
+      "sha256": "b760bc0cc95b8a9e173e279965fcecfd0215dbc036b608efae12e6b2e815c2fb",
+      "command": "pnpm tsx tests/longmemeval/official/run.ts --answer-model gpt-4o --retrieval naive-topk --enable-router --label-run",
+      "description": "49.00% — §12.4 ablation (results 34): naïve top-k retrieval, GPT-4o, router on, no graph traversal. Re-run under the seed-sharing ablation hook so it draws the IDENTICAL seed pool as the 62.20% graph arm; the only remaining difference is the graph structure, worth +13.2 points (of which +6.0 is the hub-independent scoring rule, vs the 56.20% additive arm).",
+      "command_provenance": "exact — recorded verbatim in the run's results.md (results 34). Produced under the post-v0.7.3 seed-sharing ablation hook (seedsOnly), which leaves the graph-arm retrieval path unchanged."
     },
     {
       "file": "ablation-full-context-22.6.jsonl",

@@ -49,6 +49,11 @@ export interface QueryOptions {
   // regex-inline branching). This is the single flag threaded from the CLI
   // to A/B-test Phase 1 cleanly against Run 14.
   useRouter?: boolean;
+  // Ablation hook (§12.4): when true, return the merged seed pool the graph
+  // arm would traverse FROM — without traversal, typed edges, or temporal
+  // scoring — so the naive-topk baseline starts from the IDENTICAL seeds as
+  // the graph arm and the only remaining difference is the graph structure.
+  seedsOnly?: boolean;
 }
 
 export function queryGraph(
@@ -158,6 +163,18 @@ export function queryGraph(
   const mergedSeeds = diversify
     ? diversifySeedsBySource(sortedSeeds, graph, maxSeeds)
     : sortedSeeds.slice(0, maxSeeds);
+
+  // Ablation hook (§12.4): hand back the seed pool the graph arm traverses
+  // FROM, with no traversal / typed edges / temporal scoring. The naive-topk
+  // baseline uses this so its seeds are byte-for-byte the graph arm's seeds —
+  // the only remaining difference is the graph structure itself.
+  if (opts.seedsOnly) {
+    return {
+      subgraph: { nodes: [], directedEdges: [], undirectedEdges: [], serialized: '' },
+      seeds: mergedSeeds.map((s) => ({ nodeId: s.nodeId, score: s.score })),
+      router,
+    };
+  }
 
   if (mergedSeeds.length === 0) {
     return {
