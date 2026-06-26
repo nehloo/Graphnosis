@@ -1,5 +1,5 @@
 {
-  "sdk": "@nehloo/graphnosis — runs produced at commit a27c400 (v0.7.1); TF-IDF retrieval path unchanged through the published v0.7.2 (48785ba), its direct descendant",
+  "sdk": "@nehloo/graphnosis — the six headline/ablation runs produced at commit a27c400 (v0.7.1); the on-device naïve-top-k arm produced on the v0.7.2 line (Jun 2026). TF-IDF and naïve-top-k retrieval paths are unchanged through the published v0.7.2 (48785ba), a27c400's direct descendant",
   "judge": "gpt-4o (official LongMemEval prompts, run verbatim)",
   "dataset": "LongMemEval_S (xiaowu0162/LongMemEval, 500 q)",
   "note": "Sanitized: dataset question/gold text removed; question_id keys to the public dataset. Our predictions + judge verdicts retained.",
@@ -39,6 +39,14 @@
       "command_provenance": "confirmed — author-attested; 62.20% config with the answer model swapped to llama3.2:3b on Ollama"
     },
     {
+      "file": "on-device-naive-topk-33.2.jsonl",
+      "score": "166/500 (33.20%)",
+      "sha256": "f274f06401e906083a1eba20d1044dae14516e99ab1cc0d03be991e5f9c2d173",
+      "command": "pnpm tsx tests/longmemeval/official/run.ts --answer-model llama3.2:3b --retrieval naive-topk --ollama --label-run",
+      "description": "33.20% — on-device retrieval-ablation FLAT arm: Llama 3.2 3B via Ollama + naïve top-k, no graph traversal. The on-device mirror of the §12.4 naïve-top-k baseline (44.80% with gpt-4o). Paired with the 41.60% graph arm (TF-IDF + router, same model), the dual-graph substrate is worth +8.4 points for a 3B local model — the on-device analogue of the +17.4 gpt-4o graph-vs-flat delta. 0 errors (the paired 41.60% arm counted 8 Ollama errors as incorrect, so +8.4 is a conservative floor).",
+      "command_provenance": "exact — recorded verbatim in the run's results.md; produced on the v0.7.2 line. naïve-top-k is a flat retrieval path (no graph traversal), independent of the dual-graph scoring rule"
+    },
+    {
       "file": "ablation-naive-topk-44.8.jsonl",
       "score": "224/500 (44.80%)",
       "sha256": "073036c1b03db02fbf5451ba651815df29a9ea350952228730ccc0152762a56f",
@@ -53,6 +61,14 @@
       "command": "pnpm tsx tests/longmemeval/official/run.ts --answer-model gpt-4o --retrieval full-context --label-run",
       "description": "22.60% — §12.4 ablation (results 29): full history concatenated, GPT-4o, no retrieval. 9 questions overflowed the context window and failed outright.",
       "command_provenance": "confirmed — author-supplied"
+    },
+    {
+      "file": "ablation-additive-scoring-56.2.jsonl",
+      "score": "281/500 (56.20%)",
+      "sha256": "44f48d619ec1721c3903f37d3f0695a0ebeaaf290502b5c5062e04fb724a3059",
+      "command": "GNOSIS_SCORE_RULE=additive pnpm tsx tests/longmemeval/official/run.ts --answer-model gpt-4o --retrieval tfidf --enable-router --label-run",
+      "description": "56.20% — Theorem 3 scoring-rule ablation: the 62.20% graph config with the traversal's max-score-wins rule replaced by additive (spreading-activation / PPR-style) accumulation via GNOSIS_SCORE_RULE=additive. Decomposes the §12.4 +17.4 graph advantage into structure (56.20 − 44.80 = +11.4) and the max-wins scoring rule (62.20 − 56.20 = +6.0, Theorem 3). 0 errors.",
+      "command_provenance": "the run's results.md records argv but NOT the GNOSIS_SCORE_RULE env var (a harness gap, now fixed for future runs); this arm is identified by its distinct 56.20% score vs the 62.20% max-wins arm that shares the same argv. Reproducible once the gated additive branch in src/core/query/traverser.ts is committed: set GNOSIS_SCORE_RULE=additive and run the command above."
     }
   ]
 }
